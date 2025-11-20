@@ -194,7 +194,7 @@ async function processOCR() {
 
         // Draw image and word boxes on canvas
         drawImageWithWords();
-        showStatus(`Found ${words.length} words with 99%+ accuracy! Drag from first to last word.`, '');
+        showStatus(`Found ${words.length} words in this image`, '');
 
     } catch (error) {
         console.error('Vision API error:', error);
