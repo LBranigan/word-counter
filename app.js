@@ -165,6 +165,15 @@ async function processOCR() {
                         const vertices = word.boundingBox.vertices;
                         const text = word.symbols.map(s => s.text).join('');
 
+                        // Filter out punctuation-only "words"
+                        // Only include if text contains at least one letter or number
+                        const hasAlphanumeric = /[a-zA-Z0-9]/.test(text);
+
+                        if (!hasAlphanumeric) {
+                            console.log('Filtering out punctuation-only:', text);
+                            return; // Skip this word
+                        }
+
                         // Convert vertices to bbox format (x0, y0, x1, y1)
                         const xs = vertices.map(v => v.x || 0);
                         const ys = vertices.map(v => v.y || 0);
