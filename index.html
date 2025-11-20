@@ -14,9 +14,6 @@
     <div class="container">
         <header>
             <h1>Word Counter</h1>
-            <div class="word-count-header">
-                <span id="word-count-header">0</span> words selected
-            </div>
         </header>
 
         <main>
@@ -63,15 +60,19 @@
                 <div class="image-container">
                     <canvas id="selection-canvas"></canvas>
                 </div>
-                <div id="status" class="status"></div>
+                <div class="word-count-display">
+                    <h2 id="word-count">0</h2>
+                    <p>words selected</p>
+                </div>
                 <div class="controls">
                     <button id="retake-btn" class="btn btn-secondary">
-                        <span class="icon">🔄</span> Retake
+                        <span class="icon">🔄</span> Retake Photo
                     </button>
                     <button id="reset-selection-btn" class="btn btn-secondary">
-                        <span class="icon">✖️</span> Clear
+                        <span class="icon">✖️</span> Clear Selection
                     </button>
                 </div>
+                <div id="status" class="status"></div>
             </section>
         </main>
 
