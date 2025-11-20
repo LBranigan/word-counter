@@ -55,7 +55,11 @@
                     <button id="capture-btn" class="btn btn-primary">
                         <span class="icon">📷</span> Capture Photo
                     </button>
+                    <button id="upload-btn-camera" class="btn btn-secondary">
+                        <span class="icon">📁</span> Upload Photo
+                    </button>
                 </div>
+                <input type="file" id="file-input-camera" accept="image/*" style="display: none;">
             </section>
 
             <!-- Image Processing Section -->
@@ -67,10 +71,16 @@
                     <button id="retake-btn" class="btn btn-secondary">
                         <span class="icon">🔄</span> Retake Photo
                     </button>
+                    <button id="upload-btn-image" class="btn btn-secondary">
+                        <span class="icon">📁</span> Upload Photo
+                    </button>
+                </div>
+                <div class="controls">
                     <button id="reset-selection-btn" class="btn btn-secondary">
                         <span class="icon">✖️</span> Clear Selection
                     </button>
                 </div>
+                <input type="file" id="file-input-image" accept="image/*" style="display: none;">
                 <div id="status" class="status"></div>
                 <div class="export-section">
                     <button id="export-btn" class="btn btn-export">

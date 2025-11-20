@@ -24,6 +24,10 @@ const retakeBtn = document.getElementById('retake-btn');
 const resetSelectionBtn = document.getElementById('reset-selection-btn');
 const exportBtn = document.getElementById('export-btn');
 const exportOutput = document.getElementById('export-output');
+const uploadBtnCamera = document.getElementById('upload-btn-camera');
+const uploadBtnImage = document.getElementById('upload-btn-image');
+const fileInputCamera = document.getElementById('file-input-camera');
+const fileInputImage = document.getElementById('file-input-image');
 const wordCountDisplay = document.getElementById('word-count');
 const statusDisplay = document.getElementById('status');
 
@@ -42,6 +46,10 @@ function init() {
     retakeBtn.addEventListener('click', retakePhoto);
     resetSelectionBtn.addEventListener('click', resetSelection);
     exportBtn.addEventListener('click', exportSelectedWords);
+    uploadBtnCamera.addEventListener('click', () => fileInputCamera.click());
+    uploadBtnImage.addEventListener('click', () => fileInputImage.click());
+    fileInputCamera.addEventListener('change', handleFileUpload);
+    fileInputImage.addEventListener('change', handleFileUpload);
 }
 
 // Save API Key
@@ -79,6 +87,39 @@ async function initCamera() {
         alert('Camera access denied. Please allow camera permissions.');
         console.error('Camera error:', error);
     }
+}
+
+// Handle File Upload
+function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Check if file is an image
+    if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        state.capturedImage = event.target.result;
+
+        // Stop camera stream if active
+        if (state.stream) {
+            state.stream.getTracks().forEach(track => track.stop());
+        }
+
+        // Switch to image section
+        cameraSection.classList.remove('active');
+        imageSection.classList.add('active');
+
+        // Process OCR
+        processOCR();
+    };
+    reader.readAsDataURL(file);
+
+    // Reset file input
+    e.target.value = '';
 }
 
 // Capture Photo
