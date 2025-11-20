@@ -22,7 +22,7 @@ const saveApiKeyBtn = document.getElementById('save-api-key-btn');
 const captureBtn = document.getElementById('capture-btn');
 const retakeBtn = document.getElementById('retake-btn');
 const resetSelectionBtn = document.getElementById('reset-selection-btn');
-const wordCountDisplay = document.getElementById('word-count');
+const wordCountHeaderDisplay = document.getElementById('word-count-header');
 const statusDisplay = document.getElementById('status');
 
 // Initialize
@@ -465,7 +465,7 @@ function redrawCanvas() {
 }
 
 function updateWordCount() {
-    wordCountDisplay.textContent = state.selectedWords.size;
+    wordCountHeaderDisplay.textContent = state.selectedWords.size;
 }
 
 function resetSelection() {
