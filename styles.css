@@ -311,7 +311,18 @@ footer {
         height: calc(100vh - 3rem);
     }
 
-    .section {
+    #setup-section {
+        padding: 1rem;
+        overflow-y: auto;
+    }
+
+    #image-section {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    #camera-section {
         height: 100%;
         display: flex;
         flex-direction: column;
@@ -338,8 +349,17 @@ footer {
         min-height: auto;
     }
 
-    .camera-container,
-    .image-container {
+    #camera-section .camera-container {
+        border-radius: 0;
+        margin: 0;
+        width: 100%;
+        flex: 1;
+        box-shadow: none;
+        overflow: hidden;
+        max-height: none;
+    }
+
+    #image-section .image-container {
         border-radius: 0;
         margin: 0;
         width: 100%;
@@ -361,6 +381,10 @@ footer {
         height: 100%;
         max-height: none;
         object-fit: cover;
+    }
+
+    #camera-section .controls {
+        padding: 0.5rem;
     }
 
     footer {
