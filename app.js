@@ -14,7 +14,8 @@ const state = {
     audioChunks: [],
     recordingTimer: null,
     recordingStartTime: null,
-    recordingDuration: 0
+    recordingDuration: 0,
+    recordedAudioBlob: null
 };
 
 // DOM Elements
@@ -48,6 +49,10 @@ const cancelRecordingBtn = document.getElementById('cancel-recording-btn');
 const stopRecordingBtn = document.getElementById('stop-recording-btn');
 const recordingTimer = document.getElementById('recording-timer');
 const progressBar = document.getElementById('progress-bar');
+const audioPlaybackSection = document.getElementById('audio-playback-section');
+const audioPlayer = document.getElementById('audio-player');
+const downloadAudioBtn = document.getElementById('download-audio-btn');
+const analyzeAudioBtn = document.getElementById('analyze-audio-btn');
 
 // Initialize
 function init() {
@@ -74,6 +79,8 @@ function init() {
     startRecordingBtn.addEventListener('click', startRecording);
     cancelRecordingBtn.addEventListener('click', closeAudioModal);
     stopRecordingBtn.addEventListener('click', stopRecording);
+    downloadAudioBtn.addEventListener('click', downloadRecordedAudio);
+    analyzeAudioBtn.addEventListener('click', analyzeRecordedAudio);
 }
 
 // Save API Key
@@ -653,7 +660,10 @@ async function startRecording() {
         // Handle recording stop
         state.mediaRecorder.onstop = () => {
             const audioBlob = new Blob(state.audioChunks, { type: 'audio/webm' });
-            downloadAudio(audioBlob);
+            state.recordedAudioBlob = audioBlob;
+
+            // Show audio playback section
+            displayRecordedAudio(audioBlob);
 
             // Clean up
             if (state.audioStream) {
@@ -717,8 +727,22 @@ function updateRecordingTimer() {
     }, 100);
 }
 
-function downloadAudio(audioBlob) {
+function displayRecordedAudio(audioBlob) {
     const url = URL.createObjectURL(audioBlob);
+    audioPlayer.src = url;
+    audioPlaybackSection.classList.add('active');
+
+    // Scroll to audio section
+    audioPlaybackSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function downloadRecordedAudio() {
+    if (!state.recordedAudioBlob) {
+        alert('No audio recording available');
+        return;
+    }
+
+    const url = URL.createObjectURL(state.recordedAudioBlob);
     const a = document.createElement('a');
     a.style.display = 'none';
     a.href = url;
@@ -731,7 +755,101 @@ function downloadAudio(audioBlob) {
         URL.revokeObjectURL(url);
     }, 100);
 
-    alert('Recording complete! Your audio file has been downloaded.');
+    alert('Audio file downloaded successfully!');
+}
+
+async function analyzeRecordedAudio() {
+    if (!state.recordedAudioBlob) {
+        alert('No audio recording available');
+        return;
+    }
+
+    if (!state.apiKey) {
+        alert('API key is required for audio analysis');
+        return;
+    }
+
+    showStatus('Converting audio to speech using Google Speech-to-Text...', 'processing');
+
+    try {
+        // Convert WebM to base64
+        const reader = new FileReader();
+        reader.readAsDataURL(state.recordedAudioBlob);
+
+        reader.onloadend = async () => {
+            const base64Audio = reader.result.split(',')[1];
+
+            // Call Google Cloud Speech-to-Text API
+            const response = await fetch(
+                `https://speech.googleapis.com/v1/speech:recognize?key=${state.apiKey}`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        config: {
+                            encoding: 'WEBM_OPUS',
+                            sampleRateHertz: 48000,
+                            languageCode: 'en-US',
+                            enableAutomaticPunctuation: true,
+                        },
+                        audio: {
+                            content: base64Audio
+                        }
+                    })
+                }
+            );
+
+            const data = await response.json();
+
+            if (data.error) {
+                throw new Error(data.error.message);
+            }
+
+            if (!data.results || data.results.length === 0) {
+                showStatus('No speech detected in the audio. Please try recording again with clearer audio.', 'error');
+                return;
+            }
+
+            // Extract transcript
+            const transcript = data.results
+                .map(result => result.alternatives[0].transcript)
+                .join(' ');
+
+            // Count words
+            const words = transcript.trim().split(/\s+/);
+            const wordCount = words.length;
+
+            // Display results
+            exportOutput.innerHTML = `
+                <h3>Audio Analysis Results</h3>
+                <div class="audio-analysis-result">
+                    <div class="stat">
+                        <span class="stat-label">Words Detected:</span>
+                        <span class="stat-value">${wordCount}</span>
+                    </div>
+                    <div class="transcript-section">
+                        <strong>Transcript:</strong>
+                        <div class="word-list">${transcript}</div>
+                    </div>
+                </div>
+            `;
+            exportOutput.classList.add('active');
+
+            // Update word count display
+            wordCountDisplay.textContent = wordCount;
+
+            showStatus(`Analysis complete! Found ${wordCount} words in your recording.`, '');
+
+            // Scroll to results
+            exportOutput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        };
+
+    } catch (error) {
+        console.error('Speech-to-Text error:', error);
+        showStatus('Error analyzing audio: ' + error.message, 'error');
+    }
 }
 
 // Initialize on load
