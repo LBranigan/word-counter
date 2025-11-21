@@ -706,18 +706,40 @@ footer {
     border: 1px solid #c3e6cb;
 }
 
-.word-mispronounced {
-    background: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-    font-weight: 600;
-}
-
-.word-missing {
+.word-skipped {
     background: #e2e3e5;
     color: #383d41;
     border: 1px solid #d6d8db;
     text-decoration: line-through;
+    position: relative;
+}
+
+.word-misread {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+    font-weight: 600;
+    position: relative;
+}
+
+.word-substituted {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    font-weight: 600;
+    position: relative;
+}
+
+.error-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    padding: 0.1rem 0.3rem;
+    margin-left: 0.2rem;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border-radius: 3px;
+    font-weight: normal;
+    vertical-align: super;
 }
 
 .analyzed-text span:hover {
@@ -751,6 +773,54 @@ footer {
     color: #999;
     font-style: italic;
     margin: 0;
+}
+
+/* Error Breakdown Styles */
+.error-breakdown {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-top: 1.5rem;
+}
+
+.error-breakdown h4 {
+    color: #667eea;
+    margin-bottom: 1rem;
+    font-size: 1rem;
+}
+
+.error-category {
+    background: white;
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+    border-left: 4px solid #667eea;
+}
+
+.error-category:last-child {
+    margin-bottom: 0;
+}
+
+.error-category strong {
+    display: block;
+    color: #333;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.error-details {
+    color: #666;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.error-critical {
+    border-left-color: #dc3545;
+    background: #fff5f5;
+}
+
+.error-critical strong {
+    color: #dc3545;
 }
 
 @media (min-width: 768px) {

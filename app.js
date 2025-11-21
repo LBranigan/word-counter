@@ -896,20 +896,22 @@ async function analyzeRecordedAudio() {
                     return;
                 }
 
-            // Extract word-level information
+            // Extract word-level information with timing
             const wordInfo = [];
             data.results.forEach(result => {
                 if (result.alternatives && result.alternatives[0].words) {
                     result.alternatives[0].words.forEach(wordData => {
                         wordInfo.push({
                             word: wordData.word,
-                            confidence: wordData.confidence || 1.0
+                            confidence: wordData.confidence || 1.0,
+                            startTime: wordData.startTime,
+                            endTime: wordData.endTime
                         });
                     });
                 }
             });
 
-            console.log('Word-level info:', wordInfo);
+            console.log('Word-level info with timing:', wordInfo);
 
             // Get expected text from highlighted words
             const selectedIndices = Array.from(state.selectedWords).sort((a, b) => a - b);
@@ -921,7 +923,10 @@ async function analyzeRecordedAudio() {
             // Display results with pronunciation analysis
             displayPronunciationResults(expectedWords, wordInfo, analysis);
 
-            showStatus(`Pronunciation analysis complete! ${analysis.mispronounced.length} potential error(s) detected.`, '');
+            const totalErrors = analysis.errors.skippedWords.length +
+                              analysis.errors.misreadWords.length +
+                              analysis.errors.substitutedWords.length;
+            showStatus(`Analysis complete! ${totalErrors} pronunciation error(s) detected.`, '');
 
                 // Scroll to results
                 exportOutput.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -991,108 +996,239 @@ function wordsAreSimilar(expected, spoken) {
     return similarity >= 0.75;
 }
 
+// Detect if word is a filler word indicating hesitation
+function isFillerWord(word) {
+    const fillers = ['um', 'uh', 'er', 'ah', 'hmm', 'like', 'you know'];
+    return fillers.includes(normalizeWord(word));
+}
+
+// Detect if there's a long pause (hesitation)
+function detectHesitation(wordInfo, index) {
+    if (index === 0) return false;
+
+    const currentWord = wordInfo[index];
+    const previousWord = wordInfo[index - 1];
+
+    // Check if there's timing info and calculate pause
+    if (currentWord.startTime && previousWord.endTime) {
+        const pauseDuration = parseFloat(currentWord.startTime) - parseFloat(previousWord.endTime);
+        // Pause longer than 1 second indicates hesitation
+        return pauseDuration > 1.0;
+    }
+
+    return false;
+}
+
 // Analyze pronunciation by comparing expected vs spoken words
 function analyzePronunciation(expectedWords, spokenWordInfo) {
     const analysis = {
         aligned: [],
-        mispronounced: [],
-        missing: [],
-        extra: [],
+        errors: {
+            skippedWords: [],
+            misreadWords: [],
+            substitutedWords: [],
+            hesitations: [],
+            repeatedWords: [],
+            skippedLines: [],
+            repeatedPhrases: []
+        },
         correctCount: 0
     };
 
     let spokenIndex = 0;
     const LOW_CONFIDENCE_THRESHOLD = 0.85;
 
+    // First pass: Detect hesitations and repeated words in spoken text
+    for (let i = 0; i < spokenWordInfo.length; i++) {
+        const word = spokenWordInfo[i];
+
+        // Check for filler words or long pauses
+        if (isFillerWord(word.word)) {
+            analysis.errors.hesitations.push({
+                spokenIndex: i,
+                type: 'filler',
+                word: word.word
+            });
+        } else if (detectHesitation(spokenWordInfo, i)) {
+            analysis.errors.hesitations.push({
+                spokenIndex: i,
+                type: 'pause',
+                word: word.word
+            });
+        }
+
+        // Check for repeated words
+        if (i > 0 && normalizeWord(spokenWordInfo[i].word) === normalizeWord(spokenWordInfo[i - 1].word)) {
+            analysis.errors.repeatedWords.push({
+                spokenIndex: i,
+                word: word.word
+            });
+        }
+    }
+
+    // Second pass: Align expected with spoken, detecting specific errors
     for (let i = 0; i < expectedWords.length; i++) {
         const expected = expectedWords[i];
 
+        // Check if we've run out of spoken words
         if (spokenIndex >= spokenWordInfo.length) {
-            // No more spoken words - this word was skipped/missing
             analysis.aligned.push({
                 expected: expected,
                 spoken: null,
-                status: 'missing',
-                confidence: 0,
+                status: 'skipped',
+                errorType: 'skipped_word',
                 index: i
             });
-            analysis.missing.push(i);
+            analysis.errors.skippedWords.push(i);
+            continue;
+        }
+
+        // Skip over filler words and repeated words in spoken
+        while (spokenIndex < spokenWordInfo.length &&
+               (isFillerWord(spokenWordInfo[spokenIndex].word) ||
+                (spokenIndex > 0 && normalizeWord(spokenWordInfo[spokenIndex].word) ===
+                 normalizeWord(spokenWordInfo[spokenIndex - 1].word)))) {
+            spokenIndex++;
+        }
+
+        if (spokenIndex >= spokenWordInfo.length) {
+            analysis.aligned.push({
+                expected: expected,
+                spoken: null,
+                status: 'skipped',
+                errorType: 'skipped_word',
+                index: i
+            });
+            analysis.errors.skippedWords.push(i);
             continue;
         }
 
         const spoken = spokenWordInfo[spokenIndex];
+        const expNorm = normalizeWord(expected);
+        const spkNorm = normalizeWord(spoken.word);
 
-        if (wordsAreSimilar(expected, spoken.word)) {
-            // Words match or are similar
-            if (spoken.confidence < LOW_CONFIDENCE_THRESHOLD) {
-                // Low confidence = potential mispronunciation
-                analysis.aligned.push({
-                    expected: expected,
-                    spoken: spoken.word,
-                    status: 'mispronounced',
-                    confidence: spoken.confidence,
-                    index: i,
-                    reason: 'low_confidence'
-                });
-                analysis.mispronounced.push(i);
-            } else {
-                // Correct pronunciation
-                analysis.aligned.push({
-                    expected: expected,
-                    spoken: spoken.word,
-                    status: 'correct',
-                    confidence: spoken.confidence,
-                    index: i
-                });
-                analysis.correctCount++;
-            }
+        // Exact match
+        if (expNorm === spkNorm) {
+            analysis.aligned.push({
+                expected: expected,
+                spoken: spoken.word,
+                status: 'correct',
+                confidence: spoken.confidence,
+                index: i
+            });
+            analysis.correctCount++;
             spokenIndex++;
-        } else {
-            // Words don't match - check if next spoken word matches (skip detected)
-            let foundMatch = false;
+        }
+        // Similar but not exact - misread
+        else if (wordsAreSimilar(expected, spoken.word)) {
+            analysis.aligned.push({
+                expected: expected,
+                spoken: spoken.word,
+                status: 'misread',
+                errorType: 'misread_word',
+                confidence: spoken.confidence,
+                index: i
+            });
+            analysis.errors.misreadWords.push({
+                index: i,
+                expected: expected,
+                spoken: spoken.word
+            });
+            spokenIndex++;
+        }
+        // Look ahead to see if word was skipped
+        else {
+            let foundLater = false;
 
-            // Look ahead up to 2 words
-            for (let j = 1; j <= Math.min(2, spokenWordInfo.length - spokenIndex - 1); j++) {
-                if (wordsAreSimilar(expected, spokenWordInfo[spokenIndex + j].word)) {
-                    // Found match ahead - mark previous as extra/substitution
+            // Look ahead up to 5 words in spoken
+            for (let j = 1; j <= Math.min(5, spokenWordInfo.length - spokenIndex); j++) {
+                if (normalizeWord(spokenWordInfo[spokenIndex + j].word) === expNorm) {
+                    // Expected word found later - current spoken word is substituted
                     analysis.aligned.push({
                         expected: expected,
                         spoken: spoken.word,
-                        status: 'mispronounced',
+                        status: 'substituted',
+                        errorType: 'substituted_word',
                         confidence: spoken.confidence,
-                        index: i,
-                        reason: 'word_mismatch'
+                        index: i
                     });
-                    analysis.mispronounced.push(i);
+                    analysis.errors.substitutedWords.push({
+                        index: i,
+                        expected: expected,
+                        spoken: spoken.word
+                    });
                     spokenIndex++;
-                    foundMatch = true;
+                    foundLater = true;
                     break;
                 }
             }
 
-            if (!foundMatch) {
-                // Complete mismatch - word was mispronounced or substituted
+            if (!foundLater) {
+                // Expected word not found - it was skipped
                 analysis.aligned.push({
                     expected: expected,
-                    spoken: spoken.word,
-                    status: 'mispronounced',
-                    confidence: spoken.confidence,
-                    index: i,
-                    reason: 'word_mismatch'
+                    spoken: null,
+                    status: 'skipped',
+                    errorType: 'skipped_word',
+                    index: i
                 });
-                analysis.mispronounced.push(i);
-                spokenIndex++;
+                analysis.errors.skippedWords.push(i);
+                // Don't increment spokenIndex - reuse this spoken word for next expected
             }
         }
     }
 
-    // Any remaining spoken words are "extra"
-    while (spokenIndex < spokenWordInfo.length) {
-        analysis.extra.push(spokenWordInfo[spokenIndex].word);
-        spokenIndex++;
+    // Third pass: Detect skipped lines (3+ consecutive skipped words)
+    let consecutiveSkips = 0;
+    let skipStart = -1;
+
+    for (let i = 0; i < analysis.aligned.length; i++) {
+        if (analysis.aligned[i].status === 'skipped') {
+            if (consecutiveSkips === 0) skipStart = i;
+            consecutiveSkips++;
+        } else {
+            if (consecutiveSkips >= 3) {
+                analysis.errors.skippedLines.push({
+                    startIndex: skipStart,
+                    endIndex: i - 1,
+                    count: consecutiveSkips
+                });
+            }
+            consecutiveSkips = 0;
+        }
     }
 
-    console.log('Pronunciation analysis:', analysis);
+    // Check last sequence
+    if (consecutiveSkips >= 3) {
+        analysis.errors.skippedLines.push({
+            startIndex: skipStart,
+            endIndex: analysis.aligned.length - 1,
+            count: consecutiveSkips
+        });
+    }
+
+    // Fourth pass: Detect repeated phrases (2+ consecutive words repeated)
+    for (let i = 0; i < spokenWordInfo.length - 2; i++) {
+        const word1 = normalizeWord(spokenWordInfo[i].word);
+        const word2 = normalizeWord(spokenWordInfo[i + 1].word);
+
+        // Look for same 2-word phrase later
+        for (let j = i + 2; j < spokenWordInfo.length - 1; j++) {
+            const laterWord1 = normalizeWord(spokenWordInfo[j].word);
+            const laterWord2 = normalizeWord(spokenWordInfo[j + 1].word);
+
+            if (word1 === laterWord1 && word2 === laterWord2) {
+                analysis.errors.repeatedPhrases.push({
+                    phrase: `${spokenWordInfo[i].word} ${spokenWordInfo[i + 1].word}`,
+                    firstIndex: i,
+                    secondIndex: j
+                });
+                break;
+            }
+        }
+    }
+
+    console.log('Detailed pronunciation analysis:', analysis);
     return analysis;
 }
 
@@ -1104,32 +1240,115 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis) {
     analysis.aligned.forEach(item => {
         const word = item.expected;
         let className = 'word-correct';
-        let tooltip = `Confidence: ${(item.confidence * 100).toFixed(0)}%`;
+        let errorLabel = '';
+        let tooltip = 'Correct pronunciation';
 
-        if (item.status === 'mispronounced') {
-            className = 'word-mispronounced';
-            if (item.reason === 'low_confidence') {
-                tooltip = `Possible mispronunciation (${(item.confidence * 100).toFixed(0)}% confidence)`;
-            } else {
-                tooltip = `Expected: "${word}", Heard: "${item.spoken}"`;
-            }
-        } else if (item.status === 'missing') {
-            className = 'word-missing';
+        if (item.status === 'correct') {
+            className = 'word-correct';
+            tooltip = `Confidence: ${(item.confidence * 100).toFixed(0)}%`;
+        } else if (item.status === 'skipped') {
+            className = 'word-skipped';
+            errorLabel = '<span class="error-badge">skipped</span>';
             tooltip = 'Word was not spoken';
+        } else if (item.status === 'misread') {
+            className = 'word-misread';
+            errorLabel = '<span class="error-badge">misread</span>';
+            tooltip = `Expected: "${word}", Heard: "${item.spoken}"`;
+        } else if (item.status === 'substituted') {
+            className = 'word-substituted';
+            errorLabel = '<span class="error-badge">substituted</span>';
+            tooltip = `Expected: "${word}", Said: "${item.spoken}" instead`;
         }
 
-        wordsHtml += `<span class="${className}" title="${tooltip}">${word}</span> `;
+        wordsHtml += `<span class="${className}" title="${tooltip}">${word}${errorLabel}</span> `;
     });
 
     // Build statistics
     const totalWords = expectedWords.length;
     const correctCount = analysis.correctCount;
-    const mispronounced = analysis.mispronounced.length;
-    const missing = analysis.missing.length;
+    const totalErrors = analysis.errors.skippedWords.length +
+                        analysis.errors.misreadWords.length +
+                        analysis.errors.substitutedWords.length;
     const accuracy = ((correctCount / totalWords) * 100).toFixed(1);
 
-    // Get spoken text for comparison
-    const spokenText = spokenWordInfo.map(w => w.word).join(' ');
+    // Build error breakdown
+    let errorBreakdownHtml = '';
+
+    if (analysis.errors.skippedWords.length > 0) {
+        errorBreakdownHtml += `
+            <div class="error-category">
+                <strong>⏭️ Skipped Words (${analysis.errors.skippedWords.length}):</strong>
+                <div class="error-details">Words not read aloud</div>
+            </div>
+        `;
+    }
+
+    if (analysis.errors.misreadWords.length > 0) {
+        const misreadList = analysis.errors.misreadWords.map(e =>
+            `"${e.expected}" → "${e.spoken}"`
+        ).join(', ');
+        errorBreakdownHtml += `
+            <div class="error-category">
+                <strong>📖 Misread Words (${analysis.errors.misreadWords.length}):</strong>
+                <div class="error-details">${misreadList}</div>
+            </div>
+        `;
+    }
+
+    if (analysis.errors.substitutedWords.length > 0) {
+        const subList = analysis.errors.substitutedWords.map(e =>
+            `"${e.expected}" → "${e.spoken}"`
+        ).join(', ');
+        errorBreakdownHtml += `
+            <div class="error-category">
+                <strong>🔄 Substituted Words (${analysis.errors.substitutedWords.length}):</strong>
+                <div class="error-details">${subList}</div>
+            </div>
+        `;
+    }
+
+    if (analysis.errors.hesitations.length > 0) {
+        const hesitationList = analysis.errors.hesitations.map(h =>
+            h.type === 'filler' ? `"${h.word}"` : `pause before "${h.word}"`
+        ).join(', ');
+        errorBreakdownHtml += `
+            <div class="error-category">
+                <strong>⏸️ Hesitations (${analysis.errors.hesitations.length}):</strong>
+                <div class="error-details">${hesitationList}</div>
+            </div>
+        `;
+    }
+
+    if (analysis.errors.repeatedWords.length > 0) {
+        const repeatList = analysis.errors.repeatedWords.map(r => `"${r.word}"`).join(', ');
+        errorBreakdownHtml += `
+            <div class="error-category">
+                <strong>🔁 Repeated Words (${analysis.errors.repeatedWords.length}):</strong>
+                <div class="error-details">${repeatList}</div>
+            </div>
+        `;
+    }
+
+    if (analysis.errors.skippedLines.length > 0) {
+        errorBreakdownHtml += `
+            <div class="error-category error-critical">
+                <strong>📄 Skipped Lines (${analysis.errors.skippedLines.length}):</strong>
+                <div class="error-details">${analysis.errors.skippedLines.map(l =>
+                    `${l.count} consecutive words skipped`
+                ).join(', ')}</div>
+            </div>
+        `;
+    }
+
+    if (analysis.errors.repeatedPhrases.length > 0) {
+        const phraseList = analysis.errors.repeatedPhrases.map(p => `"${p.phrase}"`).join(', ');
+        errorBreakdownHtml += `
+            <div class="error-category">
+                <strong>🔂 Repeated Phrases (${analysis.errors.repeatedPhrases.length}):</strong>
+                <div class="error-details">${phraseList}</div>
+            </div>
+        `;
+    }
 
     exportOutput.innerHTML = `
         <h3>🎯 Pronunciation Analysis</h3>
@@ -1140,12 +1359,8 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis) {
                     <div class="stat-label">Correct</div>
                 </div>
                 <div class="stat-box stat-error">
-                    <div class="stat-number">${mispronounced}</div>
-                    <div class="stat-label">Errors</div>
-                </div>
-                <div class="stat-box stat-missing">
-                    <div class="stat-number">${missing}</div>
-                    <div class="stat-label">Skipped</div>
+                    <div class="stat-number">${totalErrors}</div>
+                    <div class="stat-label">Total Errors</div>
                 </div>
                 <div class="stat-box stat-accuracy">
                     <div class="stat-number">${accuracy}%</div>
@@ -1154,22 +1369,23 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis) {
             </div>
 
             <div class="pronunciation-text">
-                <h4>📝 Text with Pronunciation Feedback:</h4>
+                <h4>📝 Text with Error Highlighting:</h4>
                 <div class="analyzed-text">${wordsHtml}</div>
                 <div class="legend">
-                    <span class="legend-item"><span class="word-correct">Green</span> = Correct pronunciation</span>
-                    <span class="legend-item"><span class="word-mispronounced">Red</span> = Mispronounced or unclear</span>
-                    <span class="legend-item"><span class="word-missing">Gray</span> = Skipped word</span>
+                    <span class="legend-item"><span class="word-correct">Green</span> = Correct</span>
+                    <span class="legend-item"><span class="word-skipped">Gray</span> = Skipped</span>
+                    <span class="legend-item"><span class="word-misread">Orange</span> = Misread</span>
+                    <span class="legend-item"><span class="word-substituted">Red</span> = Substituted</span>
                 </div>
-                <p class="hint-text">💡 Hover over highlighted words to see details</p>
+                <p class="hint-text">💡 Hover over words to see details</p>
             </div>
 
-            <div class="comparison-section">
-                <div class="comparison-box">
-                    <strong>🎤 What was spoken:</strong>
-                    <div class="word-list">${spokenText}</div>
+            ${errorBreakdownHtml ? `
+                <div class="error-breakdown">
+                    <h4>📊 Error Breakdown:</h4>
+                    ${errorBreakdownHtml}
                 </div>
-            </div>
+            ` : ''}
         </div>
     `;
     exportOutput.classList.add('active');
