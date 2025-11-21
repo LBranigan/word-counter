@@ -52,6 +52,7 @@ const statusDisplay = document.getElementById('status');
 
 // Audio Recording Elements
 const recordAudioBtn = document.getElementById('record-audio-btn');
+const recordAudioBtnImage = document.getElementById('record-audio-btn-image');
 const audioModal = document.getElementById('audio-modal');
 const recordingModal = document.getElementById('recording-modal');
 const audioDurationInput = document.getElementById('audio-duration');
@@ -87,6 +88,7 @@ function init() {
 
     // Audio recording event listeners
     recordAudioBtn.addEventListener('click', openAudioModal);
+    recordAudioBtnImage.addEventListener('click', openAudioModal);
     startRecordingBtn.addEventListener('click', startRecording);
     cancelRecordingBtn.addEventListener('click', closeAudioModal);
     stopRecordingBtn.addEventListener('click', stopRecording);
