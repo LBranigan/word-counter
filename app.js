@@ -1412,6 +1412,7 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
     }
 
     // Fourth pass: Detect repeated phrases (2+ consecutive words repeated)
+    // Only flag as error if the repetition is NOT in the expected text
     for (let i = 0; i < spokenWordInfo.length - 2; i++) {
         const firstWord = spokenWordInfo[i];
         const secondWord = spokenWordInfo[i + 1];
@@ -1425,7 +1426,7 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
         // Skip if normalization resulted in empty strings
         if (!word1 || !word2) continue;
 
-        // Look for same 2-word phrase later
+        // Look for same 2-word phrase later in spoken text
         for (let j = i + 2; j < spokenWordInfo.length - 1; j++) {
             const laterFirstWord = spokenWordInfo[j];
             const laterSecondWord = spokenWordInfo[j + 1];
@@ -1437,11 +1438,37 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
             const laterWord2 = normalizeWord(laterSecondWord.word);
 
             if (word1 === laterWord1 && word2 === laterWord2) {
-                analysis.errors.repeatedPhrases.push({
-                    phrase: `${firstWord.word} ${secondWord.word}`,
-                    firstIndex: i,
-                    secondIndex: j
-                });
+                // Check if this repetition exists in the expected text
+                let expectedHasRepetition = false;
+
+                // Look for the same phrase appearing twice in expected text
+                for (let k = 0; k < expectedWords.length - 1; k++) {
+                    const expWord1 = normalizeWord(expectedWords[k]);
+                    const expWord2 = normalizeWord(expectedWords[k + 1]);
+
+                    if (expWord1 === word1 && expWord2 === word2) {
+                        // Found first occurrence, now look for second
+                        for (let m = k + 2; m < expectedWords.length - 1; m++) {
+                            const expLaterWord1 = normalizeWord(expectedWords[m]);
+                            const expLaterWord2 = normalizeWord(expectedWords[m + 1]);
+
+                            if (expLaterWord1 === word1 && expLaterWord2 === word2) {
+                                expectedHasRepetition = true;
+                                break;
+                            }
+                        }
+                        break;
+                    }
+                }
+
+                // Only flag as error if the expected text does NOT have this repetition
+                if (!expectedHasRepetition) {
+                    analysis.errors.repeatedPhrases.push({
+                        phrase: `${firstWord.word} ${secondWord.word}`,
+                        firstIndex: i,
+                        secondIndex: j
+                    });
+                }
                 break;
             }
         }
