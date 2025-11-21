@@ -1190,8 +1190,43 @@ function detectHesitation(wordInfo, index) {
     return false;
 }
 
+// Expand currency symbols in text (e.g., "$1" becomes ["1", "dollar"])
+function expandCurrencySymbols(words) {
+    const expanded = [];
+
+    for (const word of words) {
+        // Match currency patterns like $1, $10, $100, etc.
+        const dollarMatch = word.match(/^\$(\d+)$/);
+        const dollarCentsMatch = word.match(/^\$(\d+)\.(\d+)$/);
+
+        if (dollarCentsMatch) {
+            // $1.50 -> ["1", "dollar", "50", "cents"] or ["1", "dollar", "and", "50", "cents"]
+            const dollars = dollarCentsMatch[1];
+            const cents = dollarCentsMatch[2];
+            expanded.push(dollars);
+            expanded.push('dollar');
+            if (cents !== '00') {
+                expanded.push(cents);
+                expanded.push('cents');
+            }
+        } else if (dollarMatch) {
+            // $1 -> ["1", "dollar"]
+            const amount = dollarMatch[1];
+            expanded.push(amount);
+            expanded.push('dollar');
+        } else {
+            expanded.push(word);
+        }
+    }
+
+    return expanded;
+}
+
 // Analyze pronunciation by comparing expected vs spoken words
 function analyzePronunciation(expectedWords, spokenWordInfo) {
+    // Preprocess: Expand currency symbols
+    expectedWords = expandCurrencySymbols(expectedWords);
+
     const analysis = {
         aligned: [],
         errors: {
