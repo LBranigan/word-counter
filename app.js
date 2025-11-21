@@ -1094,17 +1094,23 @@ function levenshteinDistance(str1, str2) {
 
 // Normalize word for comparison (remove punctuation, lowercase)
 function normalizeWord(word) {
+    if (!word || typeof word !== 'string') return '';
     return word.toLowerCase().replace(/[^\w]/g, '');
 }
 
 // Check if two words are similar enough (allowing for minor pronunciation differences)
 function wordsAreSimilar(expected, spoken) {
+    if (!expected || !spoken) return false;
+
     const exp = normalizeWord(expected);
     const spk = normalizeWord(spoken);
 
+    if (!exp || !spk) return false;
     if (exp === spk) return true;
 
     const maxLen = Math.max(exp.length, spk.length);
+    if (maxLen === 0) return false;
+
     const distance = levenshteinDistance(exp, spk);
     const similarity = 1 - (distance / maxLen);
 
@@ -1114,6 +1120,7 @@ function wordsAreSimilar(expected, spoken) {
 
 // Detect if word is a filler word indicating hesitation
 function isFillerWord(word) {
+    if (!word || typeof word !== 'string') return false;
     const fillers = ['um', 'uh', 'er', 'ah', 'hmm', 'like', 'you know'];
     return fillers.includes(normalizeWord(word));
 }
@@ -1124,6 +1131,9 @@ function detectHesitation(wordInfo, index) {
 
     const currentWord = wordInfo[index];
     const previousWord = wordInfo[index - 1];
+
+    // Validate that both words exist
+    if (!currentWord || !previousWord) return false;
 
     // Check if there's timing info and calculate pause
     if (currentWord.startTime && previousWord.endTime) {
@@ -1158,6 +1168,9 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
     for (let i = 0; i < spokenWordInfo.length; i++) {
         const word = spokenWordInfo[i];
 
+        // Skip if word object is invalid
+        if (!word || !word.word) continue;
+
         // Check for filler words or long pauses
         if (isFillerWord(word.word)) {
             analysis.errors.hesitations.push({
@@ -1174,7 +1187,8 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
         }
 
         // Check for repeated words
-        if (i > 0 && normalizeWord(spokenWordInfo[i].word) === normalizeWord(spokenWordInfo[i - 1].word)) {
+        const prevWord = spokenWordInfo[i - 1];
+        if (i > 0 && prevWord && prevWord.word && normalizeWord(spokenWordInfo[i].word) === normalizeWord(prevWord.word)) {
             analysis.errors.repeatedWords.push({
                 spokenIndex: i,
                 word: word.word
@@ -1200,11 +1214,31 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
         }
 
         // Skip over filler words and repeated words in spoken
-        while (spokenIndex < spokenWordInfo.length &&
-               (isFillerWord(spokenWordInfo[spokenIndex].word) ||
-                (spokenIndex > 0 && normalizeWord(spokenWordInfo[spokenIndex].word) ===
-                 normalizeWord(spokenWordInfo[spokenIndex - 1].word)))) {
-            spokenIndex++;
+        while (spokenIndex < spokenWordInfo.length) {
+            const currentSpoken = spokenWordInfo[spokenIndex];
+            const prevSpoken = spokenWordInfo[spokenIndex - 1];
+
+            // Break if current word is invalid
+            if (!currentSpoken || !currentSpoken.word) {
+                spokenIndex++;
+                continue;
+            }
+
+            // Check if it's a filler word
+            if (isFillerWord(currentSpoken.word)) {
+                spokenIndex++;
+                continue;
+            }
+
+            // Check if it's a repeated word
+            if (spokenIndex > 0 && prevSpoken && prevSpoken.word &&
+                normalizeWord(currentSpoken.word) === normalizeWord(prevSpoken.word)) {
+                spokenIndex++;
+                continue;
+            }
+
+            // Found a valid word, break
+            break;
         }
 
         if (spokenIndex >= spokenWordInfo.length) {
@@ -1220,6 +1254,20 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
         }
 
         const spoken = spokenWordInfo[spokenIndex];
+
+        // Validate spoken word exists
+        if (!spoken || !spoken.word) {
+            analysis.aligned.push({
+                expected: expected,
+                spoken: null,
+                status: 'skipped',
+                errorType: 'skipped_word',
+                index: i
+            });
+            analysis.errors.skippedWords.push(i);
+            continue;
+        }
+
         const expNorm = normalizeWord(expected);
         const spkNorm = normalizeWord(spoken.word);
 
@@ -1258,7 +1306,8 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
 
             // Look ahead up to 5 words in spoken
             for (let j = 1; j <= Math.min(5, spokenWordInfo.length - spokenIndex); j++) {
-                if (normalizeWord(spokenWordInfo[spokenIndex + j].word) === expNorm) {
+                const lookAheadWord = spokenWordInfo[spokenIndex + j];
+                if (lookAheadWord && lookAheadWord.word && normalizeWord(lookAheadWord.word) === expNorm) {
                     // Expected word found later - current spoken word is substituted
                     analysis.aligned.push({
                         expected: expected,
@@ -1325,17 +1374,32 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
 
     // Fourth pass: Detect repeated phrases (2+ consecutive words repeated)
     for (let i = 0; i < spokenWordInfo.length - 2; i++) {
-        const word1 = normalizeWord(spokenWordInfo[i].word);
-        const word2 = normalizeWord(spokenWordInfo[i + 1].word);
+        const firstWord = spokenWordInfo[i];
+        const secondWord = spokenWordInfo[i + 1];
+
+        // Skip if either word is invalid
+        if (!firstWord || !firstWord.word || !secondWord || !secondWord.word) continue;
+
+        const word1 = normalizeWord(firstWord.word);
+        const word2 = normalizeWord(secondWord.word);
+
+        // Skip if normalization resulted in empty strings
+        if (!word1 || !word2) continue;
 
         // Look for same 2-word phrase later
         for (let j = i + 2; j < spokenWordInfo.length - 1; j++) {
-            const laterWord1 = normalizeWord(spokenWordInfo[j].word);
-            const laterWord2 = normalizeWord(spokenWordInfo[j + 1].word);
+            const laterFirstWord = spokenWordInfo[j];
+            const laterSecondWord = spokenWordInfo[j + 1];
+
+            // Skip if either word is invalid
+            if (!laterFirstWord || !laterFirstWord.word || !laterSecondWord || !laterSecondWord.word) continue;
+
+            const laterWord1 = normalizeWord(laterFirstWord.word);
+            const laterWord2 = normalizeWord(laterSecondWord.word);
 
             if (word1 === laterWord1 && word2 === laterWord2) {
                 analysis.errors.repeatedPhrases.push({
-                    phrase: `${spokenWordInfo[i].word} ${spokenWordInfo[i + 1].word}`,
+                    phrase: `${firstWord.word} ${secondWord.word}`,
                     firstIndex: i,
                     secondIndex: j
                 });
