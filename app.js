@@ -1303,7 +1303,9 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
         // Look ahead to determine if it's a skip or substitution
         else {
             let expectedFoundLater = false;
+            let expectedFoundDistance = Infinity;
             let spokenFoundLater = false;
+            let spokenFoundDistance = Infinity;
 
             // Look ahead up to 10 words in spoken to see if expected word appears (exact match or similar)
             for (let j = 1; j <= Math.min(10, spokenWordInfo.length - spokenIndex); j++) {
@@ -1311,6 +1313,7 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
                 if (lookAheadWord && lookAheadWord.word) {
                     if (normalizeWord(lookAheadWord.word) === expNorm || wordsAreSimilar(expected, lookAheadWord.word)) {
                         expectedFoundLater = true;
+                        expectedFoundDistance = j;
                         break;
                     }
                 }
@@ -1322,17 +1325,31 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
                 if (lookAheadExpected) {
                     if (normalizeWord(lookAheadExpected) === spkNorm || wordsAreSimilar(lookAheadExpected, spoken.word)) {
                         spokenFoundLater = true;
+                        spokenFoundDistance = j;
                         break;
                     }
                 }
             }
 
-            // Decision logic:
-            // 1. If expected word found later in spoken: current expected was skipped
-            // 2. If spoken word found later in expected: current spoken is extra/substituted
-            // 3. If neither found later: spoken word is a misread of expected word
+            // Decision logic based on distances:
+            // If spoken word found at distance 1-2 in expected, current expected was likely skipped
+            // If expected word found closer than spoken word, current expected was skipped
+            // Otherwise, use other heuristics
 
-            if (expectedFoundLater && !spokenFoundLater) {
+            if (spokenFoundLater && spokenFoundDistance <= 2 && !expectedFoundLater) {
+                // Spoken word appears very soon in expected (next 1-2 words) and expected word doesn't appear in spoken
+                // This means current expected word(s) were skipped
+                analysis.aligned.push({
+                    expected: expected,
+                    spoken: null,
+                    status: 'skipped',
+                    errorType: 'skipped_word',
+                    index: i
+                });
+                analysis.errors.skippedWords.push(i);
+                // Don't increment spokenIndex - reuse this spoken word for next expected
+            }
+            else if (expectedFoundLater && !spokenFoundLater) {
                 // Expected word appears later in spoken - it was skipped
                 analysis.aligned.push({
                     expected: expected,
@@ -1344,8 +1361,50 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
                 analysis.errors.skippedWords.push(i);
                 // Don't increment spokenIndex - reuse this spoken word for next expected
             }
-            else if (spokenFoundLater && !expectedFoundLater) {
-                // Spoken word appears later in expected - current expected was substituted/replaced
+            else if (expectedFoundLater && spokenFoundLater) {
+                // Both found later - choose based on which is closer
+                if (expectedFoundDistance < spokenFoundDistance) {
+                    // Expected word appears closer in spoken - current was skipped
+                    analysis.aligned.push({
+                        expected: expected,
+                        spoken: null,
+                        status: 'skipped',
+                        errorType: 'skipped_word',
+                        index: i
+                    });
+                    analysis.errors.skippedWords.push(i);
+                    // Don't increment spokenIndex
+                } else if (spokenFoundDistance < expectedFoundDistance) {
+                    // Spoken word appears closer in expected - current expected was skipped
+                    analysis.aligned.push({
+                        expected: expected,
+                        spoken: null,
+                        status: 'skipped',
+                        errorType: 'skipped_word',
+                        index: i
+                    });
+                    analysis.errors.skippedWords.push(i);
+                    // Don't increment spokenIndex
+                } else {
+                    // Same distance or both far - treat as misread
+                    analysis.aligned.push({
+                        expected: expected,
+                        spoken: spoken.word,
+                        status: 'misread',
+                        errorType: 'misread_word',
+                        confidence: spoken.confidence,
+                        index: i
+                    });
+                    analysis.errors.misreadWords.push({
+                        index: i,
+                        expected: expected,
+                        spoken: spoken.word
+                    });
+                    spokenIndex++;
+                }
+            }
+            else if (spokenFoundLater && !expectedFoundLater && spokenFoundDistance > 2) {
+                // Spoken word found much later in expected - might be substitution
                 analysis.aligned.push({
                     expected: expected,
                     spoken: spoken.word,
@@ -1362,8 +1421,7 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
                 spokenIndex++;
             }
             else {
-                // Neither found later OR both found later - treat as misread
-                // This handles cases like "world" -> "gerald" where it's clearly a mispronunciation
+                // Neither found later - treat as misread
                 analysis.aligned.push({
                     expected: expected,
                     spoken: spoken.word,
