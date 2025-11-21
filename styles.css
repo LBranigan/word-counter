@@ -263,6 +263,39 @@ footer {
     font-size: 0.9rem;
 }
 
+/* Instructions Box */
+.instructions-box {
+    background: rgba(102, 126, 234, 0.1);
+    border: 2px solid rgba(102, 126, 234, 0.3);
+    border-radius: 12px;
+    padding: 1.25rem;
+    max-width: 600px;
+    margin: 1.5rem auto 0;
+}
+
+.instructions-box h4 {
+    color: #667eea;
+    margin: 0 0 0.75rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.instructions-list {
+    margin: 0;
+    padding-left: 1.5rem;
+    color: #333;
+}
+
+.instructions-list li {
+    margin-bottom: 0.5rem;
+    line-height: 1.5;
+    font-size: 0.95rem;
+}
+
+.instructions-list li:last-child {
+    margin-bottom: 0;
+}
+
 .setup-container {
     background: rgba(255, 255, 255, 0.95);
     border-radius: 12px;
