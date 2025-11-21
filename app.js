@@ -1537,7 +1537,11 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis) {
                 <button id="download-output-btn" class="btn btn-export">
                     <span class="icon">📄</span> Download Output (PDF)
                 </button>
+                <button id="generate-video-btn" class="btn btn-export">
+                    <span class="icon">🎬</span> Generate Video
+                </button>
             </div>
+            <div id="video-generation-status" class="video-status"></div>
 
             <div class="stats-grid">
                 <div class="stat-box stat-correct">
@@ -1583,6 +1587,12 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis) {
     const downloadOutputBtn = document.getElementById('download-output-btn');
     if (downloadOutputBtn) {
         downloadOutputBtn.addEventListener('click', downloadAnalysisAsPDF);
+    }
+
+    // Add event listener for video generation button
+    const generateVideoBtn = document.getElementById('generate-video-btn');
+    if (generateVideoBtn) {
+        generateVideoBtn.addEventListener('click', generateTranscriptVideo);
     }
 }
 
@@ -1804,6 +1814,230 @@ function downloadAnalysisAsPDF() {
     // Save PDF
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
     doc.save(`pronunciation-analysis-${timestamp}.pdf`);
+}
+
+// Generate transcript video with synchronized word highlighting
+async function generateTranscriptVideo() {
+    if (!state.latestAnalysis || !state.latestSpokenWords || !state.recordedAudioBlob) {
+        alert('No analysis data or audio available');
+        return;
+    }
+
+    const statusDiv = document.getElementById('video-generation-status');
+    const generateBtn = document.getElementById('generate-video-btn');
+
+    try {
+        generateBtn.disabled = true;
+        statusDiv.innerHTML = '<div class="video-progress">🎬 Generating video... Please wait</div>';
+        statusDiv.style.display = 'block';
+
+        const analysis = state.latestAnalysis;
+        const spokenWords = state.latestSpokenWords;
+        const audioBlob = state.recordedAudioBlob;
+
+        // Create canvas for video rendering
+        const canvas = document.createElement('canvas');
+        canvas.width = 1280;
+        canvas.height = 720;
+        const ctx = canvas.getContext('2d');
+
+        // Video rendering settings
+        const padding = 60;
+        const lineHeight = 50;
+        const fontSize = 36;
+        const maxWidth = canvas.width - (padding * 2);
+
+        // Prepare word layout (wrap text)
+        const wordLayouts = [];
+        let xPos = padding;
+        let yPos = padding + fontSize;
+
+        analysis.aligned.forEach((item, index) => {
+            const word = item.expected;
+            ctx.font = `${fontSize}px Arial`;
+            const wordWidth = ctx.measureText(word + ' ').width;
+
+            // Wrap to next line if needed
+            if (xPos + wordWidth > canvas.width - padding) {
+                xPos = padding;
+                yPos += lineHeight;
+            }
+
+            wordLayouts.push({
+                word: word,
+                x: xPos,
+                y: yPos,
+                width: wordWidth,
+                status: item.status,
+                spoken: item.spoken,
+                spokenWord: spokenWords[index] || null
+            });
+
+            xPos += wordWidth;
+        });
+
+        // Create audio context to get duration
+        const audioContext = new AudioContext();
+        const audioBuffer = await audioBlob.arrayBuffer();
+        const decodedAudio = await audioContext.decodeAudioData(audioBuffer);
+        const audioDuration = decodedAudio.duration;
+        audioContext.close();
+
+        // Render function
+        function renderFrame(currentTime) {
+            // Clear canvas with white background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw title
+            ctx.fillStyle = '#333333';
+            ctx.font = 'bold 28px Arial';
+            ctx.fillText('Pronunciation Analysis', padding, 35);
+
+            // Draw each word with appropriate highlighting
+            ctx.font = `${fontSize}px Arial`;
+
+            wordLayouts.forEach(layout => {
+                const spokenWord = layout.spokenWord;
+                let color = '#cccccc'; // Default: not yet spoken
+                let isCurrentWord = false;
+
+                // Check if this word is being spoken right now
+                if (spokenWord && spokenWord.startTime && spokenWord.endTime) {
+                    const startTime = parseFloat(spokenWord.startTime.replace('s', ''));
+                    const endTime = parseFloat(spokenWord.endTime.replace('s', ''));
+
+                    if (currentTime >= startTime && currentTime <= endTime) {
+                        isCurrentWord = true;
+                        // Highlight current word based on status
+                        if (layout.status === 'correct') {
+                            color = '#22c55e'; // Bright green
+                        } else if (layout.status === 'misread') {
+                            color = '#f97316'; // Orange
+                        } else if (layout.status === 'skipped') {
+                            color = '#ef4444'; // Red
+                        } else if (layout.status === 'substituted') {
+                            color = '#dc2626'; // Dark red
+                        }
+                    } else if (currentTime > endTime) {
+                        // Already spoken - use dimmer colors
+                        if (layout.status === 'correct') {
+                            color = '#86efac'; // Light green
+                        } else if (layout.status === 'misread') {
+                            color = '#fdba74'; // Light orange
+                        } else if (layout.status === 'skipped') {
+                            color = '#fca5a5'; // Light red
+                        } else if (layout.status === 'substituted') {
+                            color = '#fca5a5'; // Light red
+                        }
+                    }
+                } else {
+                    // No timing data - use status colors dimly
+                    if (layout.status === 'correct') {
+                        color = '#86efac';
+                    } else if (layout.status === 'misread') {
+                        color = '#fdba74';
+                    } else if (layout.status === 'skipped') {
+                        color = '#fca5a5';
+                    }
+                }
+
+                // Draw word
+                ctx.fillStyle = color;
+                ctx.fillText(layout.word, layout.x, layout.y);
+
+                // Draw underline for current word
+                if (isCurrentWord) {
+                    ctx.fillRect(layout.x, layout.y + 8, layout.width - 10, 3);
+                }
+            });
+
+            // Draw legend at bottom
+            const legendY = canvas.height - 40;
+            ctx.font = '20px Arial';
+
+            ctx.fillStyle = '#22c55e';
+            ctx.fillText('■ Correct', padding, legendY);
+
+            ctx.fillStyle = '#f97316';
+            ctx.fillText('■ Misread', padding + 150, legendY);
+
+            ctx.fillStyle = '#ef4444';
+            ctx.fillText('■ Skipped', padding + 300, legendY);
+
+            ctx.fillStyle = '#cccccc';
+            ctx.fillText('■ Not Yet Spoken', padding + 450, legendY);
+        }
+
+        // Create video using MediaRecorder
+        const stream = canvas.captureStream(30); // 30 fps
+
+        // Add audio track from recorded audio
+        const audioElement = new Audio();
+        audioElement.src = URL.createObjectURL(audioBlob);
+        const audioStream = audioElement.captureStream();
+        audioStream.getAudioTracks().forEach(track => stream.addTrack(track));
+
+        const mediaRecorder = new MediaRecorder(stream, {
+            mimeType: 'video/webm;codecs=vp9',
+            videoBitsPerSecond: 2500000
+        });
+
+        const chunks = [];
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) {
+                chunks.push(e.data);
+            }
+        };
+
+        mediaRecorder.onstop = () => {
+            const videoBlob = new Blob(chunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(videoBlob);
+
+            // Create download link
+            const a = document.createElement('a');
+            a.href = url;
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            a.download = `pronunciation-video-${timestamp}.webm`;
+
+            statusDiv.innerHTML = `
+                <div class="video-complete">
+                    ✅ Video generated successfully!
+                    <a href="${url}" download="${a.download}" class="btn btn-primary" style="margin-left: 10px;">
+                        <span class="icon">💾</span> Download Video
+                    </a>
+                </div>
+            `;
+
+            generateBtn.disabled = false;
+        };
+
+        // Start recording
+        mediaRecorder.start();
+        audioElement.play();
+
+        // Render frames
+        const fps = 30;
+        const frameInterval = 1000 / fps;
+        let currentTime = 0;
+
+        const renderInterval = setInterval(() => {
+            currentTime += frameInterval / 1000;
+
+            if (currentTime >= audioDuration) {
+                clearInterval(renderInterval);
+                mediaRecorder.stop();
+                audioElement.pause();
+            } else {
+                renderFrame(currentTime);
+            }
+        }, frameInterval);
+
+    } catch (error) {
+        console.error('Error generating video:', error);
+        statusDiv.innerHTML = `<div class="error">❌ Error generating video: ${error.message}</div>`;
+        generateBtn.disabled = false;
+    }
 }
 
 // Initialize on load
