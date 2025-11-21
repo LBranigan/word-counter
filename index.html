@@ -98,12 +98,16 @@
 
             <!-- Image Processing Section -->
             <section id="image-section" class="section">
-                <div class="image-container">
-                    <canvas id="selection-canvas"></canvas>
+                <div class="image-wrapper">
+                    <div class="image-container">
+                        <canvas id="selection-canvas"></canvas>
+                    </div>
                     <div class="zoom-controls">
+                        <div class="zoom-label">ZOOM</div>
                         <button id="zoom-in-btn" class="zoom-btn" title="Zoom In">+</button>
                         <button id="zoom-out-btn" class="zoom-btn" title="Zoom Out">−</button>
                         <button id="zoom-reset-btn" class="zoom-btn" title="Reset View">⟲</button>
+                        <div class="pan-hint">Right-click<br>to pan</div>
                     </div>
                 </div>
                 <div class="controls">
