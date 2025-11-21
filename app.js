@@ -1300,36 +1300,36 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
             });
             spokenIndex++;
         }
-        // Look ahead to see if word was skipped
+        // Look ahead to determine if it's a skip or substitution
         else {
-            let foundLater = false;
+            let expectedFoundLater = false;
+            let spokenFoundLater = false;
 
-            // Look ahead up to 5 words in spoken
+            // Look ahead up to 5 words in spoken to see if expected word appears
             for (let j = 1; j <= Math.min(5, spokenWordInfo.length - spokenIndex); j++) {
                 const lookAheadWord = spokenWordInfo[spokenIndex + j];
                 if (lookAheadWord && lookAheadWord.word && normalizeWord(lookAheadWord.word) === expNorm) {
-                    // Expected word found later - current spoken word is substituted
-                    analysis.aligned.push({
-                        expected: expected,
-                        spoken: spoken.word,
-                        status: 'substituted',
-                        errorType: 'substituted_word',
-                        confidence: spoken.confidence,
-                        index: i
-                    });
-                    analysis.errors.substitutedWords.push({
-                        index: i,
-                        expected: expected,
-                        spoken: spoken.word
-                    });
-                    spokenIndex++;
-                    foundLater = true;
+                    expectedFoundLater = true;
                     break;
                 }
             }
 
-            if (!foundLater) {
-                // Expected word not found - it was skipped
+            // Look ahead up to 5 words in expected to see if spoken word appears
+            for (let j = 1; j <= Math.min(5, expectedWords.length - i); j++) {
+                const lookAheadExpected = expectedWords[i + j];
+                if (lookAheadExpected && normalizeWord(lookAheadExpected) === spkNorm) {
+                    spokenFoundLater = true;
+                    break;
+                }
+            }
+
+            // Decision logic:
+            // 1. If expected word found later in spoken: current expected was skipped
+            // 2. If spoken word found later in expected: current spoken is extra/substituted
+            // 3. If neither found later: spoken word is a misread of expected word
+
+            if (expectedFoundLater && !spokenFoundLater) {
+                // Expected word appears later in spoken - it was skipped
                 analysis.aligned.push({
                     expected: expected,
                     spoken: null,
@@ -1339,6 +1339,41 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
                 });
                 analysis.errors.skippedWords.push(i);
                 // Don't increment spokenIndex - reuse this spoken word for next expected
+            }
+            else if (spokenFoundLater && !expectedFoundLater) {
+                // Spoken word appears later in expected - current expected was substituted/replaced
+                analysis.aligned.push({
+                    expected: expected,
+                    spoken: spoken.word,
+                    status: 'substituted',
+                    errorType: 'substituted_word',
+                    confidence: spoken.confidence,
+                    index: i
+                });
+                analysis.errors.substitutedWords.push({
+                    index: i,
+                    expected: expected,
+                    spoken: spoken.word
+                });
+                spokenIndex++;
+            }
+            else {
+                // Neither found later OR both found later - treat as misread
+                // This handles cases like "world" -> "gerald" where it's clearly a mispronunciation
+                analysis.aligned.push({
+                    expected: expected,
+                    spoken: spoken.word,
+                    status: 'misread',
+                    errorType: 'misread_word',
+                    confidence: spoken.confidence,
+                    index: i
+                });
+                analysis.errors.misreadWords.push({
+                    index: i,
+                    expected: expected,
+                    spoken: spoken.word
+                });
+                spokenIndex++;
             }
         }
     }
