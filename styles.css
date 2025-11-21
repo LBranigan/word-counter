@@ -546,12 +546,63 @@ footer {
     margin-bottom: 0.5rem;
 }
 
+.comparison-section {
+    margin-top: 1rem;
+}
+
+.text-comparison {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.comparison-box {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+
+.comparison-box strong {
+    color: #667eea;
+    display: block;
+    margin-bottom: 0.75rem;
+    font-size: 0.95rem;
+}
+
+.comparison-box .word-list {
+    margin-bottom: 0.5rem;
+}
+
+.word-count-small {
+    color: #999;
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+.stat-value.match {
+    color: #28a745;
+}
+
+.stat-value.mismatch {
+    color: #dc3545;
+}
+
 @media (min-width: 768px) {
     .audio-actions {
         flex-direction: row;
     }
 
     .audio-actions .btn {
+        flex: 1;
+    }
+
+    .text-comparison {
+        flex-direction: row;
+    }
+
+    .comparison-box {
         flex: 1;
     }
 }

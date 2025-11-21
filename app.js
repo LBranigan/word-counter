@@ -764,6 +764,18 @@ async function analyzeRecordedAudio() {
         return;
     }
 
+    // Check if image has been captured
+    if (!state.capturedImage || !state.ocrData) {
+        alert('Capture an image and highlight the text to analyze errors');
+        return;
+    }
+
+    // Check if text has been highlighted
+    if (state.selectedWords.size === 0) {
+        alert('Highlight the text to analyze errors');
+        return;
+    }
+
     if (!state.apiKey) {
         alert('API key is required for audio analysis');
         return;
@@ -817,30 +829,50 @@ async function analyzeRecordedAudio() {
                 .map(result => result.alternatives[0].transcript)
                 .join(' ');
 
-            // Count words
-            const words = transcript.trim().split(/\s+/);
-            const wordCount = words.length;
+            // Count words in transcript
+            const transcriptWords = transcript.trim().split(/\s+/);
+            const transcriptWordCount = transcriptWords.length;
 
-            // Display results
+            // Get highlighted text from image
+            const selectedIndices = Array.from(state.selectedWords).sort((a, b) => a - b);
+            const highlightedText = selectedIndices
+                .map(index => state.ocrData.words[index].text)
+                .join(' ');
+            const highlightedWordCount = state.selectedWords.size;
+
+            // Display results with comparison
             exportOutput.innerHTML = `
-                <h3>Audio Analysis Results</h3>
+                <h3>Audio Analysis - Error Detection</h3>
                 <div class="audio-analysis-result">
-                    <div class="stat">
-                        <span class="stat-label">Words Detected:</span>
-                        <span class="stat-value">${wordCount}</span>
-                    </div>
-                    <div class="transcript-section">
-                        <strong>Transcript:</strong>
-                        <div class="word-list">${transcript}</div>
+                    <div class="comparison-section">
+                        <div class="text-comparison">
+                            <div class="comparison-box">
+                                <strong>📝 Written Text (from image):</strong>
+                                <div class="word-list">${highlightedText}</div>
+                                <div class="word-count-small">${highlightedWordCount} words</div>
+                            </div>
+                            <div class="comparison-box">
+                                <strong>🎤 Spoken Text (from audio):</strong>
+                                <div class="word-list">${transcript}</div>
+                                <div class="word-count-small">${transcriptWordCount} words</div>
+                            </div>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Word Count Difference:</span>
+                            <span class="stat-value ${highlightedWordCount === transcriptWordCount ? 'match' : 'mismatch'}">
+                                ${Math.abs(highlightedWordCount - transcriptWordCount)}
+                                ${highlightedWordCount === transcriptWordCount ? '✓ Match' : '✗ Mismatch'}
+                            </span>
+                        </div>
                     </div>
                 </div>
             `;
             exportOutput.classList.add('active');
 
-            // Update word count display
-            wordCountDisplay.textContent = wordCount;
+            // Update word count display to show transcript count
+            wordCountDisplay.textContent = transcriptWordCount;
 
-            showStatus(`Analysis complete! Found ${wordCount} words in your recording.`, '');
+            showStatus(`Analysis complete! Compare the written and spoken text above.`, '');
 
             // Scroll to results
             exportOutput.scrollIntoView({ behavior: 'smooth', block: 'center' });
