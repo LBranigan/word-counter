@@ -95,7 +95,7 @@ function init() {
     downloadAudioBtn.addEventListener('click', downloadRecordedAudio);
     analyzeAudioBtn.addEventListener('click', analyzeRecordedAudio);
 
-    // Zoom controls event listeners (overlay controls)
+    // Zoom controls event listeners
     const zoomInBtn = document.getElementById('zoom-in-btn');
     const zoomOutBtn = document.getElementById('zoom-out-btn');
     const zoomResetBtn = document.getElementById('zoom-reset-btn');
@@ -103,15 +103,6 @@ function init() {
     if (zoomInBtn) zoomInBtn.addEventListener('click', zoomIn);
     if (zoomOutBtn) zoomOutBtn.addEventListener('click', zoomOut);
     if (zoomResetBtn) zoomResetBtn.addEventListener('click', resetZoom);
-
-    // Zoom controls event listeners (button controls)
-    const zoomInBtn2 = document.getElementById('zoom-in-btn-2');
-    const zoomOutBtn2 = document.getElementById('zoom-out-btn-2');
-    const zoomResetBtn2 = document.getElementById('zoom-reset-btn-2');
-
-    if (zoomInBtn2) zoomInBtn2.addEventListener('click', zoomIn);
-    if (zoomOutBtn2) zoomOutBtn2.addEventListener('click', zoomOut);
-    if (zoomResetBtn2) zoomResetBtn2.addEventListener('click', resetZoom);
 }
 
 // Save API Key
