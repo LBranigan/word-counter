@@ -1114,8 +1114,8 @@ function wordsAreSimilar(expected, spoken) {
     const distance = levenshteinDistance(exp, spk);
     const similarity = 1 - (distance / maxLen);
 
-    // Allow up to 25% difference for minor mispronunciations
-    return similarity >= 0.75;
+    // Allow up to 40% difference to catch obvious misreads (e.g., "intelloogin" vs "intelligent")
+    return similarity >= 0.60;
 }
 
 // Detect if word is a filler word indicating hesitation
