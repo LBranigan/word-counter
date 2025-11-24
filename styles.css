@@ -1591,23 +1591,23 @@ footer {
 
 /* Current Student Indicator in Header */
 .current-student-indicator {
-    background: rgba(255, 255, 255, 0.2);
-    border: 2px solid rgba(255, 255, 255, 0.4);
+    background: #f0f4ff;
+    border: 2px solid #667eea;
     border-radius: 8px;
     padding: 0.4rem 0.8rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
     font-size: 0.85rem;
-    color: white;
+    color: #333;
 }
 
 .current-student-indicator .student-initial {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: white;
-    color: #667eea;
+    background: #667eea;
+    color: white;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1617,6 +1617,7 @@ footer {
 
 .current-student-indicator .student-name-header {
     font-weight: 600;
+    color: #667eea;
 }
 
 /* Header Actions */
@@ -1627,9 +1628,9 @@ footer {
 }
 
 .btn-header {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-    border: 2px solid rgba(255, 255, 255, 0.4);
+    background: white;
+    color: #667eea;
+    border: 2px solid #667eea;
     padding: 0.5rem 1rem;
     border-radius: 8px;
     font-size: 0.85rem;
@@ -1642,9 +1643,11 @@ footer {
 }
 
 .btn-header:hover {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.6);
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
     transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .btn-header .icon {
