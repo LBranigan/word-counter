@@ -3870,7 +3870,7 @@ const currentStudentIndicator = document.getElementById('current-student-indicat
 let currentViewingStudentId = null;
 
 // Show Class Overview
-function showClassOverview() {
+async function showClassOverview() {
     // Hide all other sections
     setupSection.classList.remove('active');
     audioSection.classList.remove('active');
@@ -3888,15 +3888,15 @@ function showClassOverview() {
     }
 
     // Render students
-    renderStudentsGrid();
+    await renderStudentsGrid();
 
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // Render students grid
-function renderStudentsGrid() {
-    const students = getAllStudents();
+async function renderStudentsGrid() {
+    const students = await getAllStudents();
     const studentArray = Object.values(students);
 
     if (studentArray.length === 0) {
@@ -4692,10 +4692,10 @@ function viewHistoricalAssessment(studentId, assessmentId) {
 }
 
 // Update student dropdown in results section
-function updateStudentDropdown() {
+async function updateStudentDropdown() {
     if (!studentSelect) return;
 
-    const students = getAllStudents();
+    const students = await getAllStudents();
     const studentArray = Object.values(students).sort((a, b) => a.name.localeCompare(b.name));
 
     studentSelect.innerHTML = '<option value="">-- Choose Student --</option>' +
@@ -4805,10 +4805,10 @@ function deleteCurrentStudent() {
 // ============ ASSESSMENT STUDENT SELECTION ============
 
 // Update assessment student dropdown
-function updateAssessmentStudentDropdown() {
+async function updateAssessmentStudentDropdown() {
     if (!assessmentStudentSelect) return;
 
-    const students = getAllStudents();
+    const students = await getAllStudents();
     const studentArray = Object.values(students).sort((a, b) => a.name.localeCompare(b.name));
 
     assessmentStudentSelect.innerHTML = '<option value="">-- Choose Student --</option>' +
