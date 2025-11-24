@@ -1442,13 +1442,22 @@ async function analyzeRecordedAudio() {
             // Analyze pronunciation by comparing expected vs spoken words
             const analysis = analyzePronunciation(expectedWords, wordInfo);
 
+            // Calculate prosody metrics (WPM, prosody score)
+            const prosodyMetrics = calculateProsodyMetrics(
+                expectedWords,
+                wordInfo,
+                analysis,
+                state.recordingDuration
+            );
+
             // Store analysis results for PDF export
             state.latestAnalysis = analysis;
             state.latestExpectedWords = expectedWords;
             state.latestSpokenWords = wordInfo;
+            state.latestProsodyMetrics = prosodyMetrics;
 
             // Display results with pronunciation analysis
-            displayPronunciationResults(expectedWords, wordInfo, analysis);
+            displayPronunciationResults(expectedWords, wordInfo, analysis, prosodyMetrics);
 
             const totalErrors = analysis.errors.skippedWords.length +
                               analysis.errors.misreadWords.length +
@@ -1929,8 +1938,102 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
     return analysis;
 }
 
+// Calculate prosody metrics (reading rate, fluency score)
+function calculateProsodyMetrics(expectedWords, spokenWordInfo, analysis, recordingDurationSeconds) {
+    const metrics = {
+        totalWords: expectedWords.length,
+        wordsRead: analysis.correctCount + analysis.errors.misreadWords.length,
+        accuracy: 0,
+        wpm: 0,
+        prosodyScore: 0,
+        prosodyGrade: '',
+        readingTime: 0
+    };
+
+    // Calculate actual reading time from timing data
+    if (spokenWordInfo && spokenWordInfo.length > 0) {
+        const firstWord = spokenWordInfo[0];
+        const lastWord = spokenWordInfo[spokenWordInfo.length - 1];
+
+        if (firstWord.startTime && lastWord.endTime) {
+            const startSeconds = parseFloat(firstWord.startTime.replace('s', ''));
+            const endSeconds = parseFloat(lastWord.endTime.replace('s', ''));
+            metrics.readingTime = endSeconds - startSeconds;
+        } else {
+            // Fallback to recording duration if timing not available
+            metrics.readingTime = recordingDurationSeconds || 0;
+        }
+    } else {
+        metrics.readingTime = recordingDurationSeconds || 0;
+    }
+
+    // Calculate Words Per Minute (WPM)
+    if (metrics.readingTime > 0) {
+        const minutes = metrics.readingTime / 60;
+        metrics.wpm = Math.round(metrics.wordsRead / minutes);
+    }
+
+    // Calculate accuracy percentage
+    if (metrics.totalWords > 0) {
+        metrics.accuracy = (analysis.correctCount / metrics.totalWords) * 100;
+    }
+
+    // Calculate Prosody Score (1-4 scale, common in education)
+    // Based on: accuracy, reading rate, and fluency (errors)
+    let prosodyScore = 0;
+
+    // Component 1: Accuracy (40% weight)
+    let accuracyPoints = 0;
+    if (metrics.accuracy >= 98) accuracyPoints = 4;
+    else if (metrics.accuracy >= 95) accuracyPoints = 3.5;
+    else if (metrics.accuracy >= 90) accuracyPoints = 3;
+    else if (metrics.accuracy >= 85) accuracyPoints = 2.5;
+    else if (metrics.accuracy >= 75) accuracyPoints = 2;
+    else if (metrics.accuracy >= 60) accuracyPoints = 1.5;
+    else accuracyPoints = 1;
+
+    // Component 2: Reading Rate (30% weight)
+    // Typical rates: grades 3-4: 80-120 WPM, grades 5-6: 100-140 WPM, grades 7+: 120-180 WPM
+    let ratePoints = 0;
+    if (metrics.wpm >= 100 && metrics.wpm <= 180) ratePoints = 4; // Optimal range
+    else if (metrics.wpm >= 80 && metrics.wpm <= 200) ratePoints = 3.5; // Good range
+    else if (metrics.wpm >= 60 && metrics.wpm <= 220) ratePoints = 3; // Acceptable
+    else if (metrics.wpm >= 40 && metrics.wpm <= 250) ratePoints = 2; // Slow or too fast
+    else ratePoints = 1; // Very slow or racing
+
+    // Component 3: Fluency - fewer errors = better prosody (30% weight)
+    const totalErrors = analysis.errors.skippedWords.length +
+                       analysis.errors.misreadWords.length +
+                       analysis.errors.substitutedWords.length +
+                       analysis.errors.hesitations.length +
+                       analysis.errors.repeatedWords.length;
+
+    const errorRate = metrics.totalWords > 0 ? (totalErrors / metrics.totalWords) : 0;
+
+    let fluencyPoints = 0;
+    if (errorRate <= 0.02) fluencyPoints = 4; // 2% or fewer errors
+    else if (errorRate <= 0.05) fluencyPoints = 3.5; // 5% or fewer
+    else if (errorRate <= 0.10) fluencyPoints = 3; // 10% or fewer
+    else if (errorRate <= 0.20) fluencyPoints = 2.5; // 20% or fewer
+    else if (errorRate <= 0.30) fluencyPoints = 2; // 30% or fewer
+    else fluencyPoints = 1;
+
+    // Calculate weighted prosody score
+    prosodyScore = (accuracyPoints * 0.4) + (ratePoints * 0.3) + (fluencyPoints * 0.3);
+    metrics.prosodyScore = Math.round(prosodyScore * 10) / 10; // Round to 1 decimal
+
+    // Assign prosody grade
+    if (metrics.prosodyScore >= 3.8) metrics.prosodyGrade = 'Excellent';
+    else if (metrics.prosodyScore >= 3.0) metrics.prosodyGrade = 'Proficient';
+    else if (metrics.prosodyScore >= 2.0) metrics.prosodyGrade = 'Developing';
+    else metrics.prosodyGrade = 'Needs Support';
+
+    console.log('Prosody Metrics:', metrics);
+    return metrics;
+}
+
 // Display pronunciation analysis results
-function displayPronunciationResults(expectedWords, spokenWordInfo, analysis) {
+function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, prosodyMetrics) {
     // Build HTML for word-by-word display
     let wordsHtml = '';
 
@@ -2073,6 +2176,16 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis) {
                     <div class="stat-number">${accuracy}%</div>
                     <div class="stat-label">Accuracy</div>
                 </div>
+                ${prosodyMetrics ? `
+                <div class="stat-box stat-wpm">
+                    <div class="stat-number">${prosodyMetrics.wpm}</div>
+                    <div class="stat-label">WPM</div>
+                </div>
+                <div class="stat-box stat-prosody">
+                    <div class="stat-number">${prosodyMetrics.prosodyScore}</div>
+                    <div class="stat-label">Prosody (${prosodyMetrics.prosodyGrade})</div>
+                </div>
+                ` : ''}
             </div>
 
             <div class="pronunciation-text">
@@ -2191,7 +2304,16 @@ function downloadAnalysisAsPDF() {
     doc.text(`Errors: ${totalErrors}`, margin, yPos);
     yPos += 6;
     doc.text(`Accuracy: ${accuracy}%`, margin, yPos);
-    yPos += 12;
+    yPos += 6;
+
+    // Add prosody metrics if available
+    if (state.latestProsodyMetrics) {
+        doc.text(`Reading Rate: ${state.latestProsodyMetrics.wpm} WPM`, margin, yPos);
+        yPos += 6;
+        doc.text(`Prosody Score: ${state.latestProsodyMetrics.prosodyScore}/4.0 (${state.latestProsodyMetrics.prosodyGrade})`, margin, yPos);
+        yPos += 6;
+    }
+    yPos += 6;
 
     // Error Breakdown
     if (totalErrors > 0) {
@@ -2687,9 +2809,667 @@ async function generateTranscriptVideoCore(statusDiv, generateBtn) {
     }
 }
 
+// ============ DATABASE / STUDENT MANAGEMENT ============
+
+// Database structure:
+// students = {
+//   studentId: {
+//     id: string,
+//     name: string,
+//     grade: string,
+//     dateAdded: timestamp,
+//     assessments: [
+//       {
+//         id: string,
+//         date: timestamp,
+//         correctCount: number,
+//         totalWords: number,
+//         accuracy: number,
+//         wpm: number,
+//         prosodyScore: number,
+//         errors: {...},
+//         duration: number
+//       }
+//     ]
+//   }
+// }
+
+// Get all students from localStorage
+function getAllStudents() {
+    const studentsData = localStorage.getItem('wordAnalyzerStudents');
+    if (!studentsData) {
+        // Initialize with sample students
+        const sampleStudents = createSampleStudents();
+        saveAllStudents(sampleStudents);
+        return sampleStudents;
+    }
+    return JSON.parse(studentsData);
+}
+
+// Save all students to localStorage
+function saveAllStudents(students) {
+    localStorage.setItem('wordAnalyzerStudents', JSON.stringify(students));
+}
+
+// Create sample students (Susan, Jose, Timmy)
+function createSampleStudents() {
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+
+    return {
+        'student-001': {
+            id: 'student-001',
+            name: 'Susan',
+            grade: '3rd Grade',
+            dateAdded: now - (30 * dayMs),
+            assessments: [
+                createSampleAssessment(now - (7 * dayMs), 95, 100, 95, 120, 4.2),
+                createSampleAssessment(now - (5 * dayMs), 92, 98, 93.9, 115, 4.0),
+                createSampleAssessment(now - (2 * dayMs), 97, 100, 97, 125, 4.4)
+            ]
+        },
+        'student-002': {
+            id: 'student-002',
+            name: 'Jose',
+            grade: '3rd Grade',
+            dateAdded: now - (30 * dayMs),
+            assessments: [
+                createSampleAssessment(now - (8 * dayMs), 78, 95, 82.1, 95, 3.2),
+                createSampleAssessment(now - (6 * dayMs), 82, 95, 86.3, 100, 3.4),
+                createSampleAssessment(now - (3 * dayMs), 85, 98, 86.7, 105, 3.6),
+                createSampleAssessment(now - (1 * dayMs), 88, 100, 88, 108, 3.7)
+            ]
+        },
+        'student-003': {
+            id: 'student-003',
+            name: 'Timmy',
+            grade: '2nd Grade',
+            dateAdded: now - (25 * dayMs),
+            assessments: [
+                createSampleAssessment(now - (4 * dayMs), 65, 85, 76.5, 80, 2.8),
+                createSampleAssessment(now - (1 * dayMs), 70, 90, 77.8, 85, 3.0)
+            ]
+        }
+    };
+}
+
+// Create a sample assessment
+function createSampleAssessment(date, correct, total, accuracy, wpm, prosody) {
+    const errors = total - correct;
+    return {
+        id: 'assessment-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+        date: date,
+        correctCount: correct,
+        totalWords: total,
+        accuracy: accuracy,
+        wpm: wpm,
+        prosodyScore: prosody,
+        errors: {
+            skippedWords: Array(Math.floor(errors * 0.4)).fill(0),
+            misreadWords: Array(Math.floor(errors * 0.3)).fill({}),
+            substitutedWords: Array(Math.floor(errors * 0.3)).fill({})
+        },
+        duration: 60
+    };
+}
+
+// Add new student
+function addStudent(name, grade = '') {
+    const students = getAllStudents();
+    const studentId = 'student-' + Date.now();
+
+    students[studentId] = {
+        id: studentId,
+        name: name,
+        grade: grade,
+        dateAdded: Date.now(),
+        assessments: []
+    };
+
+    saveAllStudents(students);
+    return studentId;
+}
+
+// Get student by ID
+function getStudent(studentId) {
+    const students = getAllStudents();
+    return students[studentId] || null;
+}
+
+// Update student
+function updateStudent(studentId, updates) {
+    const students = getAllStudents();
+    if (students[studentId]) {
+        students[studentId] = { ...students[studentId], ...updates };
+        saveAllStudents(students);
+        return true;
+    }
+    return false;
+}
+
+// Delete student
+function deleteStudent(studentId) {
+    const students = getAllStudents();
+    if (students[studentId]) {
+        delete students[studentId];
+        saveAllStudents(students);
+        return true;
+    }
+    return false;
+}
+
+// Add assessment to student
+function addAssessmentToStudent(studentId, assessmentData) {
+    const students = getAllStudents();
+    const student = students[studentId];
+
+    if (!student) {
+        return false;
+    }
+
+    const assessment = {
+        id: 'assessment-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+        date: Date.now(),
+        ...assessmentData
+    };
+
+    student.assessments.push(assessment);
+    saveAllStudents(students);
+    return true;
+}
+
+// Delete assessment from student
+function deleteAssessment(studentId, assessmentId) {
+    const students = getAllStudents();
+    const student = students[studentId];
+
+    if (!student) {
+        return false;
+    }
+
+    student.assessments = student.assessments.filter(a => a.id !== assessmentId);
+    saveAllStudents(students);
+    return true;
+}
+
+// Get student statistics
+function getStudentStats(student) {
+    if (!student || !student.assessments || student.assessments.length === 0) {
+        return {
+            totalAssessments: 0,
+            avgAccuracy: 0,
+            avgWpm: 0,
+            avgProsody: 0,
+            latestAccuracy: 0,
+            trend: 'neutral'
+        };
+    }
+
+    const assessments = student.assessments;
+    const total = assessments.length;
+
+    const avgAccuracy = assessments.reduce((sum, a) => sum + (a.accuracy || 0), 0) / total;
+    const avgWpm = assessments.reduce((sum, a) => sum + (a.wpm || 0), 0) / total;
+    const avgProsody = assessments.reduce((sum, a) => sum + (a.prosodyScore || 0), 0) / total;
+
+    // Calculate trend (comparing last assessment to average)
+    const latestAccuracy = assessments[assessments.length - 1].accuracy;
+    const trend = latestAccuracy > avgAccuracy + 2 ? 'improving' :
+                  latestAccuracy < avgAccuracy - 2 ? 'declining' : 'stable';
+
+    return {
+        totalAssessments: total,
+        avgAccuracy: avgAccuracy.toFixed(1),
+        avgWpm: Math.round(avgWpm),
+        avgProsody: avgProsody.toFixed(1),
+        latestAccuracy: latestAccuracy.toFixed(1),
+        trend: trend
+    };
+}
+
+// ============ UI FUNCTIONS ============
+
+// Get DOM elements for database features
+const classOverviewSection = document.getElementById('class-overview-section');
+const studentProfileSection = document.getElementById('student-profile-section');
+const classOverviewBtn = document.getElementById('class-overview-btn');
+const backFromClassBtn = document.getElementById('back-from-class-btn');
+const addStudentBtn = document.getElementById('add-student-btn');
+const studentsGrid = document.getElementById('students-grid');
+const studentSelect = document.getElementById('student-select');
+const saveAssessmentBtn = document.getElementById('save-assessment-btn');
+const saveStatus = document.getElementById('save-status');
+const backToClassBtn = document.getElementById('back-to-class-btn');
+const deleteStudentBtn = document.getElementById('delete-student-btn');
+const studentProfileName = document.getElementById('student-profile-name');
+const studentProfileSubtitle = document.getElementById('student-profile-subtitle');
+const studentStatsSummary = document.getElementById('student-stats-summary');
+const assessmentHistory = document.getElementById('assessment-history');
+const addStudentModal = document.getElementById('add-student-modal');
+const studentNameInput = document.getElementById('student-name-input');
+const studentGradeInput = document.getElementById('student-grade-input');
+const confirmAddStudentBtn = document.getElementById('confirm-add-student-btn');
+const cancelAddStudentBtn = document.getElementById('cancel-add-student-btn');
+
+// Current student being viewed
+let currentViewingStudentId = null;
+
+// Show Class Overview
+function showClassOverview() {
+    // Hide all other sections
+    setupSection.classList.remove('active');
+    audioSection.classList.remove('active');
+    cameraSection.classList.remove('active');
+    imageSection.classList.remove('active');
+    resultsSection.classList.remove('active');
+    studentProfileSection.classList.remove('active');
+
+    // Show class overview
+    classOverviewSection.classList.add('active');
+
+    // Hide breadcrumb
+    if (breadcrumbNav) {
+        breadcrumbNav.classList.remove('visible');
+    }
+
+    // Render students
+    renderStudentsGrid();
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Render students grid
+function renderStudentsGrid() {
+    const students = getAllStudents();
+    const studentArray = Object.values(students);
+
+    if (studentArray.length === 0) {
+        studentsGrid.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">👨‍🎓</div>
+                <h3>No Students Yet</h3>
+                <p>Click "Add Student" to create your first student profile.</p>
+            </div>
+        `;
+        return;
+    }
+
+    studentsGrid.innerHTML = studentArray.map(student => {
+        const stats = getStudentStats(student);
+        const initial = student.name.charAt(0).toUpperCase();
+
+        let accuracyClass = 'good';
+        if (stats.latestAccuracy >= 95) accuracyClass = 'good';
+        else if (stats.latestAccuracy >= 85) accuracyClass = 'warning';
+        else accuracyClass = 'poor';
+
+        return `
+            <div class="student-card" data-student-id="${student.id}">
+                <div class="student-card-header">
+                    <div class="student-avatar">${initial}</div>
+                    <div class="student-info">
+                        <h3>${student.name}</h3>
+                        <p class="student-grade">${student.grade || 'No grade set'}</p>
+                    </div>
+                </div>
+                <div class="student-stats">
+                    <div class="stat-item">
+                        <div class="stat-item-label">Assessments</div>
+                        <div class="stat-item-value">${stats.totalAssessments}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-label">Avg Accuracy</div>
+                        <div class="stat-item-value ${accuracyClass}">${stats.avgAccuracy}%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-label">Avg WPM</div>
+                        <div class="stat-item-value">${stats.avgWpm}</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-item-label">Prosody</div>
+                        <div class="stat-item-value">${stats.avgProsody}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Add click handlers to student cards
+    document.querySelectorAll('.student-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const studentId = card.getAttribute('data-student-id');
+            showStudentProfile(studentId);
+        });
+    });
+}
+
+// Show student profile
+function showStudentProfile(studentId) {
+    const student = getStudent(studentId);
+    if (!student) {
+        alert('Student not found');
+        return;
+    }
+
+    currentViewingStudentId = studentId;
+
+    // Hide all sections
+    setupSection.classList.remove('active');
+    audioSection.classList.remove('active');
+    cameraSection.classList.remove('active');
+    imageSection.classList.remove('active');
+    resultsSection.classList.remove('active');
+    classOverviewSection.classList.remove('active');
+
+    // Show student profile
+    studentProfileSection.classList.add('active');
+
+    // Update header
+    studentProfileName.textContent = student.name;
+    studentProfileSubtitle.textContent = `${student.grade || 'Grade not set'} • ${student.assessments.length} assessment${student.assessments.length !== 1 ? 's' : ''}`;
+
+    // Render summary stats
+    renderStudentSummary(student);
+
+    // Render assessment history
+    renderAssessmentHistory(student);
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Render student summary
+function renderStudentSummary(student) {
+    const stats = getStudentStats(student);
+    const initial = student.name.charAt(0).toUpperCase();
+
+    studentStatsSummary.innerHTML = `
+        <div class="summary-header">
+            <div class="summary-avatar">${initial}</div>
+            <div class="summary-info">
+                <h3>${student.name}</h3>
+                <div class="summary-meta">
+                    ${student.grade || 'Grade not set'} •
+                    Added ${new Date(student.dateAdded).toLocaleDateString()}
+                </div>
+            </div>
+        </div>
+        <div class="summary-stats-grid">
+            <div class="summary-stat-box">
+                <div class="summary-stat-label">Total Assessments</div>
+                <div class="summary-stat-value">${stats.totalAssessments}</div>
+            </div>
+            <div class="summary-stat-box">
+                <div class="summary-stat-label">Avg Accuracy</div>
+                <div class="summary-stat-value">${stats.avgAccuracy}%</div>
+            </div>
+            <div class="summary-stat-box">
+                <div class="summary-stat-label">Avg WPM</div>
+                <div class="summary-stat-value">${stats.avgWpm}</div>
+            </div>
+            <div class="summary-stat-box">
+                <div class="summary-stat-label">Avg Prosody</div>
+                <div class="summary-stat-value">${stats.avgProsody}</div>
+            </div>
+            <div class="summary-stat-box">
+                <div class="summary-stat-label">Latest Accuracy</div>
+                <div class="summary-stat-value">${stats.latestAccuracy}%</div>
+            </div>
+        </div>
+    `;
+}
+
+// Render assessment history
+function renderAssessmentHistory(student) {
+    if (student.assessments.length === 0) {
+        assessmentHistory.innerHTML = `
+            <div class="no-assessments">
+                <p>📊 No assessments yet</p>
+                <p>Complete an assessment and save it to this student's profile.</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Sort assessments by date (newest first)
+    const sortedAssessments = [...student.assessments].sort((a, b) => b.date - a.date);
+
+    assessmentHistory.innerHTML = '<h3>📈 Assessment History</h3>' + sortedAssessments.map(assessment => {
+        const date = new Date(assessment.date);
+        const dateStr = date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        const accuracy = assessment.accuracy || 0;
+        let scoreClass = 'excellent';
+        if (accuracy >= 95) scoreClass = 'excellent';
+        else if (accuracy >= 85) scoreClass = 'good';
+        else if (accuracy >= 75) scoreClass = 'fair';
+        else scoreClass = 'poor';
+
+        const totalErrors = (assessment.errors.skippedWords?.length || 0) +
+                           (assessment.errors.misreadWords?.length || 0) +
+                           (assessment.errors.substitutedWords?.length || 0);
+
+        return `
+            <div class="assessment-item">
+                <div class="assessment-header">
+                    <div class="assessment-date">📅 ${dateStr}</div>
+                    <div class="assessment-score ${scoreClass}">${accuracy.toFixed(1)}%</div>
+                </div>
+                <div class="assessment-details">
+                    <div class="assessment-detail">
+                        <div class="assessment-detail-label">Correct</div>
+                        <div class="assessment-detail-value">${assessment.correctCount}</div>
+                    </div>
+                    <div class="assessment-detail">
+                        <div class="assessment-detail-label">Total Words</div>
+                        <div class="assessment-detail-value">${assessment.totalWords}</div>
+                    </div>
+                    <div class="assessment-detail">
+                        <div class="assessment-detail-label">Errors</div>
+                        <div class="assessment-detail-value">${totalErrors}</div>
+                    </div>
+                    <div class="assessment-detail">
+                        <div class="assessment-detail-label">WPM</div>
+                        <div class="assessment-detail-value">${assessment.wpm || 'N/A'}</div>
+                    </div>
+                    <div class="assessment-detail">
+                        <div class="assessment-detail-label">Prosody</div>
+                        <div class="assessment-detail-value">${assessment.prosodyScore ? assessment.prosodyScore.toFixed(1) : 'N/A'}</div>
+                    </div>
+                </div>
+                <div class="assessment-actions">
+                    <button class="btn btn-danger btn-small delete-assessment-btn" data-assessment-id="${assessment.id}">
+                        <span class="icon">🗑️</span> Delete
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Add delete handlers
+    document.querySelectorAll('.delete-assessment-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const assessmentId = btn.getAttribute('data-assessment-id');
+            if (confirm('Are you sure you want to delete this assessment?')) {
+                deleteAssessment(currentViewingStudentId, assessmentId);
+                showStudentProfile(currentViewingStudentId); // Refresh
+            }
+        });
+    });
+}
+
+// Update student dropdown in results section
+function updateStudentDropdown() {
+    if (!studentSelect) return;
+
+    const students = getAllStudents();
+    const studentArray = Object.values(students).sort((a, b) => a.name.localeCompare(b.name));
+
+    studentSelect.innerHTML = '<option value="">-- Choose Student --</option>' +
+        studentArray.map(s => `<option value="${s.id}">${s.name} (${s.grade || 'No grade'})</option>`).join('');
+}
+
+// Save current assessment to student
+function saveCurrentAssessmentToStudent() {
+    const selectedStudentId = studentSelect.value;
+
+    if (!selectedStudentId) {
+        saveStatus.textContent = 'Please select a student';
+        saveStatus.className = 'save-status error';
+        return;
+    }
+
+    if (!state.latestAnalysis) {
+        saveStatus.textContent = 'No assessment data available';
+        saveStatus.className = 'save-status error';
+        return;
+    }
+
+    // Prepare assessment data
+    const assessmentData = {
+        correctCount: state.latestAnalysis.correctCount,
+        totalWords: state.latestExpectedWords ? state.latestExpectedWords.length : 0,
+        accuracy: state.latestAnalysis.correctCount / (state.latestExpectedWords?.length || 1) * 100,
+        wpm: state.latestProsodyMetrics?.wpm || 0,
+        prosodyScore: state.latestProsodyMetrics?.prosodyScore || 0,
+        errors: state.latestAnalysis.errors,
+        duration: state.recordingDuration || 60
+    };
+
+    const success = addAssessmentToStudent(selectedStudentId, assessmentData);
+
+    if (success) {
+        const student = getStudent(selectedStudentId);
+        saveStatus.textContent = `✓ Assessment saved to ${student.name}'s profile!`;
+        saveStatus.className = 'save-status success';
+
+        // Clear selection after 3 seconds
+        setTimeout(() => {
+            saveStatus.className = 'save-status';
+            studentSelect.value = '';
+            saveAssessmentBtn.disabled = true;
+        }, 3000);
+    } else {
+        saveStatus.textContent = 'Failed to save assessment';
+        saveStatus.className = 'save-status error';
+    }
+}
+
+// Open add student modal
+function openAddStudentModal() {
+    addStudentModal.classList.add('active');
+    studentNameInput.value = '';
+    studentGradeInput.value = '';
+    studentNameInput.focus();
+}
+
+// Close add student modal
+function closeAddStudentModal() {
+    addStudentModal.classList.remove('active');
+}
+
+// Confirm add student
+function confirmAddStudent() {
+    const name = studentNameInput.value.trim();
+    const grade = studentGradeInput.value.trim();
+
+    if (!name) {
+        alert('Please enter a student name');
+        return;
+    }
+
+    addStudent(name, grade);
+    closeAddStudentModal();
+    renderStudentsGrid();
+    updateStudentDropdown();
+}
+
+// Delete current student
+function deleteCurrentStudent() {
+    if (!currentViewingStudentId) return;
+
+    const student = getStudent(currentViewingStudentId);
+    if (!student) return;
+
+    if (confirm(`Are you sure you want to delete ${student.name} and all their assessments? This cannot be undone.`)) {
+        deleteStudent(currentViewingStudentId);
+        showClassOverview();
+    }
+}
+
+// ============ EVENT LISTENERS FOR DATABASE FEATURES ============
+
+// Initialize database features
+function initDatabaseFeatures() {
+    // Class Overview button
+    if (classOverviewBtn) {
+        classOverviewBtn.addEventListener('click', showClassOverview);
+    }
+
+    // Back from class overview
+    if (backFromClassBtn) {
+        backFromClassBtn.addEventListener('click', () => {
+            if (state.completedSteps.has('setup')) {
+                goToStep('audio');
+            } else {
+                setupSection.classList.add('active');
+                classOverviewSection.classList.remove('active');
+            }
+        });
+    }
+
+    // Add student button
+    if (addStudentBtn) {
+        addStudentBtn.addEventListener('click', openAddStudentModal);
+    }
+
+    // Confirm add student
+    if (confirmAddStudentBtn) {
+        confirmAddStudentBtn.addEventListener('click', confirmAddStudent);
+    }
+
+    // Cancel add student
+    if (cancelAddStudentBtn) {
+        cancelAddStudentBtn.addEventListener('click', closeAddStudentModal);
+    }
+
+    // Student select change
+    if (studentSelect) {
+        studentSelect.addEventListener('change', () => {
+            saveAssessmentBtn.disabled = !studentSelect.value;
+        });
+    }
+
+    // Save assessment button
+    if (saveAssessmentBtn) {
+        saveAssessmentBtn.addEventListener('click', saveCurrentAssessmentToStudent);
+    }
+
+    // Back to class from profile
+    if (backToClassBtn) {
+        backToClassBtn.addEventListener('click', showClassOverview);
+    }
+
+    // Delete student button
+    if (deleteStudentBtn) {
+        deleteStudentBtn.addEventListener('click', deleteCurrentStudent);
+    }
+
+    // Update student dropdown on results section
+    updateStudentDropdown();
+}
+
+// ============ END DATABASE FUNCTIONS ============
+
 // Initialize on load
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', () => {
+        init();
+        initDatabaseFeatures();
+    });
 } else {
     init();
+    initDatabaseFeatures();
 }
