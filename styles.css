@@ -5,6 +5,138 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+/* ===== LOGIN SCREEN STYLES ===== */
+.login-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.login-container {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 450px;
+    width: 90%;
+    padding: 3rem 2rem;
+    text-align: center;
+}
+
+.login-header h1 {
+    color: #667eea;
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.login-subtitle {
+    color: #666;
+    font-size: 1rem;
+    margin-bottom: 2rem;
+}
+
+.login-content {
+    margin-top: 2rem;
+}
+
+.login-description {
+    color: #666;
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+}
+
+.btn-google-signin {
+    background: white;
+    color: #444;
+    border: 2px solid #ddd;
+    border-radius: 12px;
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    justify-content: center;
+}
+
+.btn-google-signin:hover {
+    background: #f8f9fa;
+    border-color: #667eea;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.btn-google-signin:active {
+    transform: translateY(0);
+}
+
+.google-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.login-privacy {
+    margin-top: 1.5rem;
+    font-size: 0.85rem;
+    color: #999;
+    font-style: italic;
+}
+
+/* User Profile Display in Header */
+.user-profile-display {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #f0f4ff;
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    border: 2px solid #667eea;
+}
+
+.user-photo {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid white;
+}
+
+.user-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.btn-sign-out {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    color: #667eea;
+    transition: all 0.2s ease;
+    font-size: 1.2rem;
+}
+
+.btn-sign-out:hover {
+    transform: scale(1.1);
+    color: #dc3545;
+}
+
+/* Hide login screen when authenticated */
+.login-screen.hidden {
+    display: none;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
