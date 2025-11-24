@@ -1,1 +1,8 @@
 .claude/
+
+# Firebase configuration (contains sensitive API keys)
+firebase-config.js
+
+# Environment variables
+.env
+.env.local
