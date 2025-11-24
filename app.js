@@ -149,9 +149,10 @@ async function init() {
     }
 
     // Display usage stats if API key exists
-    if (state.apiKey) {
-        displayUsageStats();
-    }
+    // DISABLED: API usage widget removed per user request
+    // if (state.apiKey) {
+    //     displayUsageStats();
+    // }
 
     // Event listeners
     if (saveApiKeyBtn) saveApiKeyBtn.addEventListener('click', saveApiKey);
@@ -244,6 +245,8 @@ async function saveApiKey() {
 }
 
 // Display usage statistics
+// DISABLED: API usage widget removed per user request
+/*
 async function displayUsageStats() {
     try {
         const stats = await getUsageStats();
@@ -301,6 +304,7 @@ async function displayUsageStats() {
         console.error('Error displaying usage stats:', error);
     }
 }
+*/
 
 // Show Camera Section
 function showCameraSection() {
@@ -4764,7 +4768,7 @@ function closeAddStudentModal() {
 }
 
 // Confirm add student
-function confirmAddStudent() {
+async function confirmAddStudent() {
     const name = studentNameInput.value.trim();
     const grade = studentGradeInput.value.trim();
 
@@ -4773,11 +4777,16 @@ function confirmAddStudent() {
         return;
     }
 
-    addStudent(name, grade);
-    closeAddStudentModal();
-    renderStudentsGrid();
-    updateStudentDropdown();
-    updateAssessmentStudentDropdown();
+    try {
+        await addStudent(name, grade);
+        closeAddStudentModal();
+        await renderStudentsGrid();
+        updateStudentDropdown();
+        updateAssessmentStudentDropdown();
+    } catch (error) {
+        console.error('Error adding student:', error);
+        alert('Failed to add student. Please try again.');
+    }
 }
 
 // Delete current student
