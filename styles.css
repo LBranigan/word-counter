@@ -47,17 +47,22 @@ header h1 {
 }
 
 .word-count-header {
-    color: #667eea;
-    font-size: 0.9rem;
-    font-weight: 600;
-    text-align: right;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.75rem 1.25rem;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    min-width: 100px;
 }
 
 .word-count-header span {
-    font-size: 2rem;
-    font-weight: bold;
+    font-size: 2.5rem;
+    font-weight: 900;
     display: block;
     line-height: 1;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* Breadcrumb Navigation */
@@ -2146,6 +2151,15 @@ footer {
     .btn-header {
         width: 100%;
         justify-content: center;
+    }
+
+    .word-count-header {
+        width: 100%;
+        min-width: auto;
+    }
+
+    .word-count-header span {
+        font-size: 2.25rem;
     }
 
     .students-grid {
