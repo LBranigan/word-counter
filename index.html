@@ -111,24 +111,27 @@
                 <div class="setup-container">
                     <h2>Setup Required</h2>
                     <p class="setup-description">
-                        This app uses Google Cloud Vision API for highly accurate word detection (99%+ accuracy).
+                        This app uses Google Cloud Vision API for highly accurate word detection (99%+ accuracy) and Speech-to-Text API for audio analysis.
                     </p>
                     <div class="setup-steps">
                         <h3>Quick Setup (2 minutes):</h3>
                         <ol>
-                            <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a></li>
-                            <li>Create a new API key</li>
+                            <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a> 🔗</li>
+                            <li>Create a new project (or select an existing one)</li>
+                            <li>Create a new API key under "Credentials"</li>
                             <li>Enable "Cloud Vision API" (for text recognition)</li>
                             <li>Enable "Cloud Speech-to-Text API" (for audio analysis)</li>
-                            <li>Paste your API key below</li>
+                            <li>Copy your API key and paste it below</li>
                         </ol>
-                        <p class="note">Free tier: 1,000 Vision requests + 60 minutes Speech/month</p>
+                        <p class="note">✅ Free tier: 1,000 Vision requests + 60 minutes Speech/month</p>
+                        <p class="note">🔒 Your API key will be validated and securely synced to your Google account</p>
+                        <p class="note">📖 Need detailed help? See the <a href="https://github.com/LBranigan/word-analyzer/blob/main/FIREBASE_SETUP.md" target="_blank">Setup Guide</a></p>
                     </div>
                     <div class="api-key-input">
-                        <input type="password" id="api-key" placeholder="Enter your Google Cloud Vision API key" />
-                        <button id="save-api-key-btn" class="btn btn-primary">Save & Start</button>
+                        <input type="password" id="api-key" placeholder="Paste your Google Cloud API key here" />
+                        <button id="save-api-key-btn" class="btn btn-primary">Validate & Save</button>
                     </div>
-                    <p class="privacy-note">Your API key is stored locally in your browser only.</p>
+                    <p class="privacy-note">🔐 Your API key is encrypted and synced to your Firebase account. You only need to set this up once.</p>
                 </div>
             </section>
 
@@ -482,6 +485,7 @@
     <script type="module" src="firebase-config.js"></script>
     <script type="module" src="firebase-auth.js"></script>
     <script type="module" src="firebase-db.js"></script>
+    <script type="module" src="firebase-api-key-manager.js"></script>
     <script type="module" src="firebase-wrappers.js"></script>
     <script src="app.js" type="module"></script>
 </body>

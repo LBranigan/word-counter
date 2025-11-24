@@ -12,6 +12,15 @@ import {
     initializeSampleStudents
 } from './firebase-db.js';
 
+// Firebase API Key Manager
+import {
+    saveApiKeyToFirebase,
+    loadApiKeyFromFirebase,
+    validateApiKey,
+    trackApiUsage,
+    getUsageStats
+} from './firebase-api-key-manager.js';
+
 // App State
 const state = {
     apiKey: null,
@@ -123,12 +132,25 @@ const reqSelection = document.getElementById('req-selection');
 const resultsContainer = document.getElementById('results-container');
 
 // Initialize
-function init() {
-    // Check if API key is already saved
-    const savedKey = localStorage.getItem('googleCloudVisionApiKey');
-    if (savedKey) {
-        state.apiKey = savedKey;
+async function init() {
+    // Check if API key is already saved in Firebase (or fallback to localStorage for migration)
+    const firebaseKey = await loadApiKeyFromFirebase();
+    const localKey = localStorage.getItem('googleCloudVisionApiKey');
+
+    if (firebaseKey) {
+        state.apiKey = firebaseKey;
         showCameraSection();
+    } else if (localKey) {
+        // Migrate from localStorage to Firebase
+        state.apiKey = localKey;
+        await saveApiKeyToFirebase(localKey);
+        localStorage.removeItem('googleCloudVisionApiKey'); // Clean up old storage
+        showCameraSection();
+    }
+
+    // Display usage stats if API key exists
+    if (state.apiKey) {
+        displayUsageStats();
     }
 
     // Event listeners
@@ -180,17 +202,104 @@ function init() {
     updateBreadcrumb();
 }
 
-// Save API Key
-function saveApiKey() {
+// Save API Key with validation
+async function saveApiKey() {
     const key = apiKeyInput.value.trim();
     if (!key) {
         alert('Please enter your API key');
         return;
     }
 
-    state.apiKey = key;
-    localStorage.setItem('googleCloudVisionApiKey', key);
-    showCameraSection();
+    // Disable button and show loading state
+    saveApiKeyBtn.disabled = true;
+    saveApiKeyBtn.textContent = 'Validating...';
+
+    // Validate the API key
+    const validation = await validateApiKey(key);
+
+    if (!validation.valid) {
+        // Show error
+        alert(`Invalid API key: ${validation.error}\n\nPlease check your key and try again.`);
+        saveApiKeyBtn.disabled = false;
+        saveApiKeyBtn.textContent = 'Save & Start';
+        return;
+    }
+
+    // Save to Firebase
+    const saved = await saveApiKeyToFirebase(key);
+
+    if (saved) {
+        state.apiKey = key;
+        saveApiKeyBtn.textContent = '✓ Valid & Saved!';
+
+        // Show success briefly then proceed
+        setTimeout(() => {
+            showCameraSection();
+        }, 1000);
+    } else {
+        alert('Failed to save API key. Please try again.');
+        saveApiKeyBtn.disabled = false;
+        saveApiKeyBtn.textContent = 'Save & Start';
+    }
+}
+
+// Display usage statistics
+async function displayUsageStats() {
+    try {
+        const stats = await getUsageStats();
+        if (!stats) return;
+
+        console.log('API Usage Stats:', stats);
+
+        // Create or update usage display in header
+        let usageDisplay = document.getElementById('api-usage-display');
+        if (!usageDisplay) {
+            usageDisplay = document.createElement('div');
+            usageDisplay.id = 'api-usage-display';
+            usageDisplay.className = 'api-usage-display';
+
+            const headerActions = document.querySelector('.header-actions');
+            if (headerActions) {
+                // Insert before word count
+                const wordCountHeader = document.querySelector('.word-count-header');
+                if (wordCountHeader) {
+                    headerActions.insertBefore(usageDisplay, wordCountHeader);
+                } else {
+                    headerActions.appendChild(usageDisplay);
+                }
+            }
+        }
+
+        const visionPercent = parseFloat(stats.vision.percentUsed);
+        const speechPercent = parseFloat(stats.speech.percentUsed);
+
+        let visionClass = 'usage-good';
+        if (visionPercent > 80) visionClass = 'usage-warning';
+        if (visionPercent > 95) visionClass = 'usage-danger';
+
+        let speechClass = 'usage-good';
+        if (speechPercent > 80) speechClass = 'usage-warning';
+        if (speechPercent > 95) speechClass = 'usage-danger';
+
+        usageDisplay.innerHTML = `
+            <div class="usage-title">API Usage (This Month)</div>
+            <div class="usage-stats">
+                <div class="usage-item ${visionClass}">
+                    <span class="usage-icon">👁️</span>
+                    <span class="usage-value">${stats.vision.thisMonth}/${stats.vision.freeTierLimit}</span>
+                </div>
+                <div class="usage-item ${speechClass}">
+                    <span class="usage-icon">🎤</span>
+                    <span class="usage-value">${stats.speech.thisMonth}/${stats.speech.freeTierLimit}</span>
+                </div>
+            </div>
+        `;
+
+        usageDisplay.title = `Vision API: ${stats.vision.thisMonth} of ${stats.vision.freeTierLimit} free calls used (${stats.vision.percentUsed}%)\nSpeech API: ${stats.speech.thisMonth} of ${stats.speech.freeTierLimit} free minutes used (${stats.speech.percentUsed}%)`;
+
+    } catch (error) {
+        console.error('Error displaying usage stats:', error);
+    }
 }
 
 // Show Camera Section
@@ -673,6 +782,9 @@ async function processOCR() {
         }
 
         const result = data.responses[0];
+
+        // Track successful Vision API usage
+        trackApiUsage('vision', { timestamp: Date.now() });
 
         if (!result.fullTextAnnotation) {
             showStatus('No text detected. Please try again with clearer image.', 'error');
@@ -1507,6 +1619,12 @@ async function analyzeRecordedAudio() {
                     showStatus('No speech detected in the audio. Please try recording again with clearer audio.', 'error');
                     return;
                 }
+
+                // Track successful Speech API usage
+                trackApiUsage('speech', {
+                    duration: state.recordingDuration,
+                    timestamp: Date.now()
+                });
 
             // Extract word-level information with timing
             const wordInfo = [];

@@ -137,6 +137,71 @@
     display: none;
 }
 
+/* API Usage Display */
+.api-usage-display {
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+}
+
+.usage-title {
+    color: #666;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    text-align: center;
+    font-size: 0.7rem;
+}
+
+.usage-stats {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.usage-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    background: white;
+}
+
+.usage-icon {
+    font-size: 0.9rem;
+}
+
+.usage-value {
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+
+.usage-good {
+    border-left: 3px solid #28a745;
+}
+
+.usage-good .usage-value {
+    color: #28a745;
+}
+
+.usage-warning {
+    border-left: 3px solid #ffc107;
+}
+
+.usage-warning .usage-value {
+    color: #ffc107;
+}
+
+.usage-danger {
+    border-left: 3px solid #dc3545;
+}
+
+.usage-danger .usage-value {
+    color: #dc3545;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
