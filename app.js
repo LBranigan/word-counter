@@ -32,7 +32,9 @@ const state = {
     completedSteps: new Set(),
     stepsOrder: ['setup', 'audio', 'capture', 'highlight', 'results'],
     // Current student being assessed
-    currentAssessmentStudentId: null
+    currentAssessmentStudentId: null,
+    // Audio skip mode (word count only)
+    audioSkipped: false
 };
 
 // DOM Elements
@@ -77,6 +79,7 @@ const analyzeAudioBtn = document.getElementById('analyze-audio-btn');
 const breadcrumbNav = document.getElementById('breadcrumb-nav');
 const audioSection = document.getElementById('audio-section');
 const resultsSection = document.getElementById('results-section');
+const skipAudioBtn = document.getElementById('skip-audio-btn');
 const nextToCaptureBtn = document.getElementById('next-to-capture-btn');
 const backToAudioBtn = document.getElementById('back-to-audio-btn');
 const nextToHighlightBtn = document.getElementById('next-to-highlight-btn');
@@ -133,6 +136,7 @@ function init() {
     if (zoomResetBtn) zoomResetBtn.addEventListener('click', resetZoom);
 
     // Step navigation event listeners
+    if (skipAudioBtn) skipAudioBtn.addEventListener('click', skipAudioRecording);
     if (nextToCaptureBtn) nextToCaptureBtn.addEventListener('click', () => goToStep('capture'));
     if (backToAudioBtn) backToAudioBtn.addEventListener('click', () => goToStep('audio'));
     if (nextToHighlightBtn) nextToHighlightBtn.addEventListener('click', () => goToStep('highlight'));
@@ -449,7 +453,8 @@ function startNewAnalysis() {
         latestSpokenWords: null,
         currentStep: 'audio',
         completedSteps: new Set(['setup']),
-        currentAssessmentStudentId: null
+        currentAssessmentStudentId: null,
+        audioSkipped: false
     });
 
     // Clear displays
@@ -480,6 +485,21 @@ function startNewAnalysis() {
 
     // Go to audio step (first step after setup)
     goToStep('audio');
+}
+
+// Skip audio recording (word count only mode)
+function skipAudioRecording() {
+    // Set skip flag
+    state.audioSkipped = true;
+
+    // Mark audio as completed (even though skipped)
+    state.completedSteps.add('audio');
+
+    // Go directly to capture step
+    goToStep('capture');
+
+    // Update button states
+    updateButtonStates();
 }
 
 // ============ END STEP MANAGEMENT ============
@@ -1311,6 +1331,12 @@ function downloadRecordedAudio() {
 }
 
 async function analyzeRecordedAudio() {
+    // If audio was skipped, show word count only results
+    if (state.audioSkipped) {
+        displayWordCountOnlyResults();
+        return;
+    }
+
     if (!state.recordedAudioBlob) {
         alert('No audio recording available');
         return;
@@ -2051,6 +2077,57 @@ function calculateProsodyMetrics(expectedWords, spokenWordInfo, analysis, record
 
     console.log('Prosody Metrics:', metrics);
     return metrics;
+}
+
+// Display word count only results (when audio is skipped)
+function displayWordCountOnlyResults() {
+    // Check if text has been highlighted
+    if (state.selectedWords.size === 0) {
+        alert('Please highlight the text first');
+        return;
+    }
+
+    // Get selected words
+    const selectedWords = Array.from(state.selectedWords).map(index => {
+        const wordData = state.ocrData.pages[0].words[index];
+        return wordData.symbols.map(s => s.text).join('');
+    });
+
+    const totalWords = selectedWords.length;
+
+    // Build results HTML
+    const resultsHtml = `
+        <div class="word-count-results">
+            <h3>📝 Word Count Results</h3>
+            <div class="stats-grid" style="max-width: 400px; margin: 2rem auto;">
+                <div class="stat-box">
+                    <div class="stat-label">Total Words</div>
+                    <div class="stat-value">${totalWords}</div>
+                </div>
+            </div>
+
+            <div class="info-box" style="margin: 2rem auto; max-width: 600px;">
+                <p><strong>ℹ️ Word Count Only Mode</strong></p>
+                <p>You skipped audio recording. This mode counts words without pronunciation analysis.</p>
+                <p>To get accuracy, WPM, and error analysis, record audio first.</p>
+            </div>
+
+            <div class="selected-words-display">
+                <h4>Selected Words (${totalWords}):</h4>
+                <div class="words-list">
+                    ${selectedWords.map((word, i) => `<span class="word-item">${i + 1}. ${word}</span>`).join(' ')}
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Display results
+    resultsContainer.innerHTML = resultsHtml;
+
+    // Mark steps as complete
+    state.completedSteps.add('highlight');
+    state.completedSteps.add('results');
+    goToStep('results');
 }
 
 // Display pronunciation analysis results

@@ -145,22 +145,22 @@ header h1 {
     color: #667eea;
 }
 
-/* Available step (can be clicked) */
+/* Available step (can be clicked but not reached yet) */
 .breadcrumb-step.available {
-    background: #e7f3ff;
-    color: #0066cc;
+    background: #f5f5f5;
+    color: #666;
     cursor: pointer;
 }
 
 .breadcrumb-step.available .step-icon {
-    background: #0066cc;
+    background: #999;
     color: white;
 }
 
 .breadcrumb-step.available:hover {
-    background: #cce5ff;
+    background: #e8e8e8;
     transform: translateY(-2px);
-    box-shadow: 0 2px 8px rgba(0, 102, 204, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Locked step (prerequisites not met) */
@@ -475,6 +475,63 @@ main {
 .results-container {
     max-width: 900px;
     margin: 0 auto;
+}
+
+/* Word Count Only Results */
+.word-count-results {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.word-count-results h3 {
+    color: #667eea;
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.word-count-results h4 {
+    color: #333;
+    margin: 2rem 0 1rem 0;
+    text-align: center;
+}
+
+.word-count-results .info-box {
+    background: #e7f3ff;
+    border-left: 4px solid #0066cc;
+    padding: 1rem;
+    border-radius: 6px;
+}
+
+.word-count-results .info-box p {
+    margin: 0.5rem 0;
+    color: #333;
+}
+
+.word-count-results .selected-words-display {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-top: 2rem;
+}
+
+.word-count-results .words-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.word-count-results .word-item {
+    background: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    font-size: 0.9rem;
+    color: #333;
 }
 
 /* Button Disabled State with Tooltip */
@@ -1499,7 +1556,7 @@ footer {
     background: rgba(255, 255, 255, 0.95);
     border-radius: 12px;
     padding: 1.5rem;
-    max-width: 600px;
+    max-width: 700px;
     margin: 0 auto 1.5rem;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
