@@ -30,7 +30,9 @@ const state = {
     // Step management
     currentStep: 'setup',
     completedSteps: new Set(),
-    stepsOrder: ['setup', 'audio', 'capture', 'highlight', 'results']
+    stepsOrder: ['setup', 'audio', 'capture', 'highlight', 'results'],
+    // Current student being assessed
+    currentAssessmentStudentId: null
 };
 
 // DOM Elements
@@ -446,13 +448,32 @@ function startNewAnalysis() {
         latestExpectedWords: null,
         latestSpokenWords: null,
         currentStep: 'audio',
-        completedSteps: new Set(['setup'])
+        completedSteps: new Set(['setup']),
+        currentAssessmentStudentId: null
     });
 
     // Clear displays
     wordCountDisplay.textContent = '0';
     if (resultsContainer) resultsContainer.innerHTML = '';
     if (exportOutput) exportOutput.innerHTML = '';
+
+    // Clear student selection
+    if (assessmentStudentSelect) assessmentStudentSelect.value = '';
+    hideSelectedStudentDisplay();
+    hideCurrentStudentIndicator();
+
+    // Reset save section visibility
+    const saveAssessmentSection = document.querySelector('.save-assessment-section');
+    if (saveAssessmentSection) saveAssessmentSection.style.display = 'block';
+    if (studentSelect) {
+        studentSelect.disabled = false;
+        studentSelect.value = '';
+    }
+    if (saveAssessmentBtn) {
+        saveAssessmentBtn.disabled = true;
+        saveAssessmentBtn.innerHTML = '<span class="icon">💾</span> Save to Profile';
+    }
+    if (saveStatus) saveStatus.className = 'save-status';
 
     // Reset preview toggle setup flag
     previewToggleSetup = false;
@@ -2245,6 +2266,9 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
         generateVideoBtn.addEventListener('click', generateTranscriptVideo);
     }
 
+    // Auto-save assessment if student was selected
+    autoSaveAssessmentIfStudentSelected();
+
     // Mark highlight and results as complete and navigate to results section
     state.completedSteps.add('highlight');
     state.completedSteps.add('results');
@@ -3051,6 +3075,13 @@ const studentGradeInput = document.getElementById('student-grade-input');
 const confirmAddStudentBtn = document.getElementById('confirm-add-student-btn');
 const cancelAddStudentBtn = document.getElementById('cancel-add-student-btn');
 
+// Assessment student selection elements
+const assessmentStudentSelect = document.getElementById('assessment-student-select');
+const selectedStudentDisplay = document.getElementById('selected-student-display');
+const changeStudentBtn = document.getElementById('change-student-btn');
+const quickAddStudentBtn = document.getElementById('quick-add-student-btn');
+const currentStudentIndicator = document.getElementById('current-student-indicator');
+
 // Current student being viewed
 let currentViewingStudentId = null;
 
@@ -3384,6 +3415,7 @@ function confirmAddStudent() {
     closeAddStudentModal();
     renderStudentsGrid();
     updateStudentDropdown();
+    updateAssessmentStudentDropdown();
 }
 
 // Delete current student
@@ -3398,6 +3430,138 @@ function deleteCurrentStudent() {
         showClassOverview();
     }
 }
+
+// ============ ASSESSMENT STUDENT SELECTION ============
+
+// Update assessment student dropdown
+function updateAssessmentStudentDropdown() {
+    if (!assessmentStudentSelect) return;
+
+    const students = getAllStudents();
+    const studentArray = Object.values(students).sort((a, b) => a.name.localeCompare(b.name));
+
+    assessmentStudentSelect.innerHTML = '<option value="">-- Choose Student --</option>' +
+        studentArray.map(s => `<option value="${s.id}">${s.name} (${s.grade || 'No grade'})</option>`).join('');
+}
+
+// Handle assessment student selection
+function selectAssessmentStudent() {
+    const studentId = assessmentStudentSelect.value;
+
+    if (!studentId) {
+        state.currentAssessmentStudentId = null;
+        hideSelectedStudentDisplay();
+        hideCurrentStudentIndicator();
+        return;
+    }
+
+    const student = getStudent(studentId);
+    if (!student) return;
+
+    state.currentAssessmentStudentId = studentId;
+    showSelectedStudentDisplay(student);
+    showCurrentStudentIndicator(student);
+}
+
+// Show selected student badge
+function showSelectedStudentDisplay(student) {
+    if (!selectedStudentDisplay) return;
+
+    const initial = student.name.charAt(0).toUpperCase();
+
+    selectedStudentDisplay.style.display = 'block';
+    selectedStudentDisplay.querySelector('.selected-student-avatar').textContent = initial;
+    selectedStudentDisplay.querySelector('.selected-student-name').textContent = student.name;
+    selectedStudentDisplay.querySelector('.selected-student-grade').textContent = student.grade || 'No grade set';
+
+    // Hide the dropdown
+    assessmentStudentSelect.style.display = 'none';
+    if (quickAddStudentBtn) quickAddStudentBtn.style.display = 'none';
+}
+
+// Hide selected student badge
+function hideSelectedStudentDisplay() {
+    if (!selectedStudentDisplay) return;
+
+    selectedStudentDisplay.style.display = 'none';
+
+    // Show the dropdown again
+    assessmentStudentSelect.style.display = 'block';
+    if (quickAddStudentBtn) quickAddStudentBtn.style.display = 'inline-flex';
+}
+
+// Show current student indicator in header
+function showCurrentStudentIndicator(student) {
+    if (!currentStudentIndicator) return;
+
+    const initial = student.name.charAt(0).toUpperCase();
+
+    currentStudentIndicator.style.display = 'flex';
+    currentStudentIndicator.querySelector('.student-initial').textContent = initial;
+    currentStudentIndicator.querySelector('.student-name-header').textContent = student.name;
+}
+
+// Hide current student indicator in header
+function hideCurrentStudentIndicator() {
+    if (!currentStudentIndicator) return;
+    currentStudentIndicator.style.display = 'none';
+}
+
+// Change selected student (reset selection)
+function changeSelectedStudent() {
+    state.currentAssessmentStudentId = null;
+    assessmentStudentSelect.value = '';
+    hideSelectedStudentDisplay();
+    // Keep header indicator visible until they select a new one
+}
+
+// Auto-save assessment after analysis completes
+function autoSaveAssessmentIfStudentSelected() {
+    if (!state.currentAssessmentStudentId || !state.latestAnalysis) {
+        return;
+    }
+
+    // Prepare assessment data
+    const assessmentData = {
+        correctCount: state.latestAnalysis.correctCount,
+        totalWords: state.latestExpectedWords ? state.latestExpectedWords.length : 0,
+        accuracy: state.latestAnalysis.correctCount / (state.latestExpectedWords?.length || 1) * 100,
+        wpm: state.latestProsodyMetrics?.wpm || 0,
+        prosodyScore: state.latestProsodyMetrics?.prosodyScore || 0,
+        errors: state.latestAnalysis.errors,
+        duration: state.recordingDuration || 60
+    };
+
+    const success = addAssessmentToStudent(state.currentAssessmentStudentId, assessmentData);
+
+    if (success) {
+        const student = getStudent(state.currentAssessmentStudentId);
+
+        // Show success message in the save section
+        if (saveStatus) {
+            saveStatus.textContent = `✓ Automatically saved to ${student.name}'s profile!`;
+            saveStatus.className = 'save-status success';
+        }
+
+        // Also hide the save section since it's already saved
+        const saveAssessmentSection = document.querySelector('.save-assessment-section');
+        if (saveAssessmentSection) {
+            saveAssessmentSection.style.display = 'none';
+        }
+
+        // Pre-select the student in the dropdown
+        if (studentSelect) {
+            studentSelect.value = state.currentAssessmentStudentId;
+            studentSelect.disabled = true;
+        }
+        if (saveAssessmentBtn) {
+            saveAssessmentBtn.disabled = true;
+            saveAssessmentBtn.textContent = '✓ Already Saved';
+        }
+    }
+}
+
+// ============ END ASSESSMENT STUDENT SELECTION ============
 
 // ============ EVENT LISTENERS FOR DATABASE FEATURES ============
 
@@ -3457,8 +3621,24 @@ function initDatabaseFeatures() {
         deleteStudentBtn.addEventListener('click', deleteCurrentStudent);
     }
 
-    // Update student dropdown on results section
+    // Assessment student selection
+    if (assessmentStudentSelect) {
+        assessmentStudentSelect.addEventListener('change', selectAssessmentStudent);
+    }
+
+    // Change student button
+    if (changeStudentBtn) {
+        changeStudentBtn.addEventListener('click', changeSelectedStudent);
+    }
+
+    // Quick add student button
+    if (quickAddStudentBtn) {
+        quickAddStudentBtn.addEventListener('click', openAddStudentModal);
+    }
+
+    // Update student dropdowns
     updateStudentDropdown();
+    updateAssessmentStudentDropdown();
 }
 
 // ============ END DATABASE FUNCTIONS ============

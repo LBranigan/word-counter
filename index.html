@@ -18,6 +18,10 @@
                 <p class="subtitle">Morningside Academy</p>
             </div>
             <div class="header-actions">
+                <div id="current-student-indicator" class="current-student-indicator" style="display: none;">
+                    <div class="student-initial"></div>
+                    <div class="student-name-header"></div>
+                </div>
                 <button id="class-overview-btn" class="btn-header" title="View all students">
                     <span class="icon">👥</span> Class Overview
                 </button>
@@ -145,7 +149,31 @@
                 <div class="step-header">
                     <div class="step-badge">Step 1</div>
                     <h2>Record Audio</h2>
-                    <p class="step-subtitle">First, record yourself reading from a text</p>
+                    <p class="step-subtitle">First, select a student and record their reading</p>
+                </div>
+
+                <!-- Student Selection Box -->
+                <div class="student-selection-box">
+                    <h3>👤 Select Student for Assessment</h3>
+                    <div class="student-select-container">
+                        <select id="assessment-student-select" class="student-select-dropdown">
+                            <option value="">-- Choose Student --</option>
+                        </select>
+                        <button id="quick-add-student-btn" class="btn btn-secondary btn-small">
+                            <span class="icon">➕</span> Add New Student
+                        </button>
+                    </div>
+                    <div id="selected-student-display" class="selected-student-display" style="display: none;">
+                        <div class="selected-student-badge">
+                            <span class="selected-student-avatar"></span>
+                            <div class="selected-student-info">
+                                <div class="selected-student-name"></div>
+                                <div class="selected-student-grade"></div>
+                            </div>
+                            <button id="change-student-btn" class="btn-link">Change</button>
+                        </div>
+                    </div>
+                    <p class="selection-note">You can also skip and select later, or proceed without a student.</p>
                 </div>
 
                 <div class="audio-recording-container">
