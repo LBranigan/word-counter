@@ -105,6 +105,7 @@ const audioPlaybackSection = document.getElementById('audio-playback-section');
 const audioPlayer = document.getElementById('audio-player');
 const downloadAudioBtn = document.getElementById('download-audio-btn');
 const analyzeAudioBtn = document.getElementById('analyze-audio-btn');
+const autoDetectBtn = document.getElementById('auto-detect-btn');
 
 // New Step Navigation Elements
 const breadcrumbNav = document.getElementById('breadcrumb-nav');
@@ -174,6 +175,7 @@ async function init() {
     if (stopRecordingBtn) stopRecordingBtn.addEventListener('click', stopRecording);
     if (downloadAudioBtn) downloadAudioBtn.addEventListener('click', downloadRecordedAudio);
     if (analyzeAudioBtn) analyzeAudioBtn.addEventListener('click', analyzeRecordedAudio);
+    if (autoDetectBtn) autoDetectBtn.addEventListener('click', autoDetectSpokenWords);
 
     // Zoom controls event listeners
     const zoomInBtn = document.getElementById('zoom-in-btn');
@@ -484,6 +486,24 @@ function updateButtonStates() {
             analyzeAudioBtn.setAttribute('data-tooltip', `Please ${reasons.join(' and ')}`);
         } else {
             analyzeAudioBtn.removeAttribute('data-tooltip');
+        }
+    }
+
+    // Enable/disable auto-detect button (BETA)
+    // Requires: audio recorded + OCR data (image processed)
+    if (autoDetectBtn) {
+        const canAutoDetect = state.recordedAudioBlob !== null &&
+                             state.ocrData !== null &&
+                             state.ocrData.words &&
+                             state.ocrData.words.length > 0;
+        autoDetectBtn.disabled = !canAutoDetect;
+        if (!canAutoDetect) {
+            let reasons = [];
+            if (!state.recordedAudioBlob) reasons.push('record audio');
+            if (!state.ocrData || !state.ocrData.words || state.ocrData.words.length === 0) reasons.push('capture image');
+            autoDetectBtn.setAttribute('title', `Please ${reasons.join(' and ')} first`);
+        } else {
+            autoDetectBtn.setAttribute('title', 'Automatically detect which words were spoken (Beta feature)');
         }
     }
 }
@@ -1301,6 +1321,344 @@ function resetSelection() {
     updateWordCount();
     redrawCanvas();
 }
+
+// ============ AUTO-DETECT SPOKEN WORDS (BETA FEATURE) ============
+
+/**
+ * Auto-detect which words from the captured text were spoken in the audio.
+ * This is a BETA feature that:
+ * 1. Runs speech-to-text on the recorded audio
+ * 2. Matches spoken words against OCR-detected words
+ * 3. Finds the first and last matching words
+ * 4. Highlights all words in between
+ */
+async function autoDetectSpokenWords() {
+    // Validate requirements
+    if (!state.recordedAudioBlob) {
+        showStatus('Please record audio first.', 'error');
+        return;
+    }
+
+    if (!state.ocrData || !state.ocrData.words || state.ocrData.words.length === 0) {
+        showStatus('Please capture an image first.', 'error');
+        return;
+    }
+
+    if (!state.apiKey) {
+        showStatus('API key is required for auto-detection.', 'error');
+        return;
+    }
+
+    // Clear any existing selection
+    state.selectedWords.clear();
+    updateWordCount();
+
+    showStatus('🤖 Auto-detecting spoken words... (Step 1/3: Transcribing audio)', 'processing');
+
+    try {
+        // Step 1: Run speech-to-text to get spoken words
+        const spokenWords = await runSpeechToTextForAutoDetect();
+
+        if (!spokenWords || spokenWords.length === 0) {
+            showStatus('No speech detected in the audio. Please try recording again.', 'error');
+            return;
+        }
+
+        console.log('=== AUTO-DETECT: Spoken words from STT ===');
+        console.log('Spoken words:', spokenWords.map(w => w.word));
+
+        showStatus('🤖 Auto-detecting spoken words... (Step 2/3: Matching words)', 'processing');
+
+        // Step 2: Match spoken words against OCR words
+        const ocrWords = state.ocrData.words.map(w => w.text);
+        console.log('OCR words:', ocrWords);
+
+        const matchResult = findSpokenRangeInOCR(spokenWords, ocrWords);
+
+        if (matchResult.firstIndex === -1 || matchResult.lastIndex === -1) {
+            showStatus('Could not match spoken words to the text. Try speaking more clearly or capturing a clearer image.', 'error');
+            return;
+        }
+
+        showStatus('🤖 Auto-detecting spoken words... (Step 3/3: Highlighting)', 'processing');
+
+        // Step 3: Select all words from first to last match
+        console.log(`Auto-selecting words from index ${matchResult.firstIndex} to ${matchResult.lastIndex}`);
+        console.log(`First matched word: "${ocrWords[matchResult.firstIndex]}"`);
+        console.log(`Last matched word: "${ocrWords[matchResult.lastIndex]}"`);
+
+        for (let i = matchResult.firstIndex; i <= matchResult.lastIndex; i++) {
+            state.selectedWords.add(i);
+        }
+
+        updateWordCount();
+        redrawCanvas();
+
+        const totalSelected = matchResult.lastIndex - matchResult.firstIndex + 1;
+        const matchConfidence = matchResult.matchedCount / spokenWords.length * 100;
+
+        showStatus(
+            `✅ Auto-detected ${totalSelected} words! ` +
+            `(${matchResult.matchedCount}/${spokenWords.length} spoken words matched, ${matchConfidence.toFixed(0)}% confidence)`,
+            ''
+        );
+
+        // Store the spoken words for later analysis
+        state.latestSpokenWords = spokenWords;
+
+    } catch (error) {
+        console.error('Auto-detect error:', error);
+        showStatus('Error during auto-detection: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Run Speech-to-Text API specifically for auto-detection.
+ * Returns array of spoken word objects with word and confidence.
+ */
+async function runSpeechToTextForAutoDetect() {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(state.recordedAudioBlob);
+
+        reader.onerror = () => {
+            reject(new Error('Error reading audio file'));
+        };
+
+        reader.onloadend = async () => {
+            try {
+                const base64Audio = reader.result.split(',')[1];
+
+                // Determine encoding
+                let encoding = 'ENCODING_UNSPECIFIED';
+                if (state.audioMimeType && state.audioMimeType.includes('opus')) {
+                    encoding = 'WEBM_OPUS';
+                }
+
+                const requestBody = {
+                    config: {
+                        encoding: encoding,
+                        languageCode: 'en-US',
+                        enableAutomaticPunctuation: true,
+                        enableWordConfidence: true,
+                        enableWordTimeOffsets: true,
+                    },
+                    audio: {
+                        content: base64Audio
+                    }
+                };
+
+                const response = await fetch(
+                    `https://speech.googleapis.com/v1/speech:recognize?key=${state.apiKey}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody)
+                    }
+                );
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error(data.error.message || 'Speech API error');
+                }
+
+                if (!data.results || data.results.length === 0) {
+                    resolve([]);
+                    return;
+                }
+
+                // Track API usage
+                trackApiUsage('speech', {
+                    duration: state.recordingDuration,
+                    timestamp: Date.now()
+                });
+
+                // Extract words
+                const wordInfo = [];
+                data.results.forEach(result => {
+                    if (result.alternatives && result.alternatives[0].words) {
+                        result.alternatives[0].words.forEach(wordData => {
+                            if (wordData && wordData.word) {
+                                wordInfo.push({
+                                    word: wordData.word,
+                                    confidence: wordData.confidence || 1.0,
+                                    startTime: wordData.startTime,
+                                    endTime: wordData.endTime
+                                });
+                            }
+                        });
+                    }
+                });
+
+                resolve(wordInfo);
+
+            } catch (error) {
+                reject(error);
+            }
+        };
+    });
+}
+
+/**
+ * Find the range of OCR words that match the spoken words.
+ * Uses fuzzy matching to handle slight pronunciation differences.
+ *
+ * @param {Array} spokenWords - Array of {word, confidence} from speech-to-text
+ * @param {Array} ocrWords - Array of word strings from OCR
+ * @returns {Object} {firstIndex, lastIndex, matchedCount}
+ */
+function findSpokenRangeInOCR(spokenWords, ocrWords) {
+    // Normalize spoken words (remove filler words, clean up)
+    const cleanSpoken = spokenWords
+        .filter(w => w && w.word && !isFillerWord(w.word))
+        .map(w => normalizeWord(w.word))
+        .filter(w => w.length > 0);
+
+    // Normalize OCR words
+    const cleanOCR = ocrWords.map(w => normalizeWord(w));
+
+    console.log('=== MATCHING ALGORITHM ===');
+    console.log('Clean spoken words:', cleanSpoken);
+    console.log('Clean OCR words:', cleanOCR);
+
+    if (cleanSpoken.length === 0 || cleanOCR.length === 0) {
+        return { firstIndex: -1, lastIndex: -1, matchedCount: 0 };
+    }
+
+    // Strategy: Find best contiguous match using sliding window + DP
+    // For each possible starting position in OCR, try to match spoken words
+
+    let bestMatch = {
+        firstIndex: -1,
+        lastIndex: -1,
+        matchedCount: 0,
+        score: 0
+    };
+
+    // Try different starting positions in OCR text
+    for (let ocrStart = 0; ocrStart < cleanOCR.length; ocrStart++) {
+        let spokenIdx = 0;
+        let matchedCount = 0;
+        let lastMatchedOCRIdx = -1;
+        let firstMatchedOCRIdx = -1;
+
+        // Try to match spoken words starting from this OCR position
+        for (let ocrIdx = ocrStart; ocrIdx < cleanOCR.length && spokenIdx < cleanSpoken.length; ocrIdx++) {
+            const ocrWord = cleanOCR[ocrIdx];
+            const spokenWord = cleanSpoken[spokenIdx];
+
+            // Check for exact or fuzzy match
+            if (ocrWord === spokenWord || wordsAreSimilarForAutoDetect(ocrWord, spokenWord)) {
+                if (firstMatchedOCRIdx === -1) {
+                    firstMatchedOCRIdx = ocrIdx;
+                }
+                lastMatchedOCRIdx = ocrIdx;
+                matchedCount++;
+                spokenIdx++;
+            }
+        }
+
+        // Calculate score for this starting position
+        const coverage = matchedCount / cleanSpoken.length;
+        const density = matchedCount > 0 ? matchedCount / (lastMatchedOCRIdx - firstMatchedOCRIdx + 1) : 0;
+        const score = coverage * 0.7 + density * 0.3;
+
+        if (score > bestMatch.score && matchedCount >= Math.min(3, cleanSpoken.length * 0.3)) {
+            bestMatch = {
+                firstIndex: firstMatchedOCRIdx,
+                lastIndex: lastMatchedOCRIdx,
+                matchedCount: matchedCount,
+                score: score
+            };
+        }
+    }
+
+    console.log('Best match result:', bestMatch);
+
+    // If we found a good match, return it
+    if (bestMatch.firstIndex !== -1) {
+        return bestMatch;
+    }
+
+    // Fallback: Use a more lenient approach - find first and last matching words independently
+    let firstMatch = -1;
+    let lastMatch = -1;
+    let totalMatches = 0;
+
+    // Find first spoken word in OCR
+    for (let s = 0; s < cleanSpoken.length && firstMatch === -1; s++) {
+        for (let o = 0; o < cleanOCR.length; o++) {
+            if (cleanOCR[o] === cleanSpoken[s] || wordsAreSimilarForAutoDetect(cleanOCR[o], cleanSpoken[s])) {
+                firstMatch = o;
+                break;
+            }
+        }
+    }
+
+    // Find last spoken word in OCR (search from end)
+    for (let s = cleanSpoken.length - 1; s >= 0 && lastMatch === -1; s--) {
+        for (let o = cleanOCR.length - 1; o >= 0; o--) {
+            if (cleanOCR[o] === cleanSpoken[s] || wordsAreSimilarForAutoDetect(cleanOCR[o], cleanSpoken[s])) {
+                if (o >= firstMatch) {
+                    lastMatch = o;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Count matches in the range
+    if (firstMatch !== -1 && lastMatch !== -1) {
+        const spokenSet = new Set(cleanSpoken);
+        for (let i = firstMatch; i <= lastMatch; i++) {
+            if (spokenSet.has(cleanOCR[i])) {
+                totalMatches++;
+            }
+        }
+    }
+
+    console.log('Fallback match result:', { firstMatch, lastMatch, totalMatches });
+
+    return {
+        firstIndex: firstMatch,
+        lastIndex: lastMatch,
+        matchedCount: totalMatches
+    };
+}
+
+/**
+ * Check if two words are similar enough for auto-detection matching.
+ * More lenient than the pronunciation analysis matching.
+ */
+function wordsAreSimilarForAutoDetect(word1, word2) {
+    if (!word1 || !word2) return false;
+    if (word1 === word2) return true;
+
+    // Very short words need exact match
+    if (word1.length <= 2 || word2.length <= 2) {
+        return word1 === word2;
+    }
+
+    // Check if one is a prefix of the other (for partial words)
+    if (word1.startsWith(word2) || word2.startsWith(word1)) {
+        const shorter = Math.min(word1.length, word2.length);
+        const longer = Math.max(word1.length, word2.length);
+        if (shorter >= 3 && shorter / longer >= 0.7) {
+            return true;
+        }
+    }
+
+    // Use Levenshtein distance for fuzzy matching
+    const maxLen = Math.max(word1.length, word2.length);
+    const distance = levenshteinDistance(word1, word2);
+    const similarity = 1 - (distance / maxLen);
+
+    // Require higher similarity for auto-detect (80%)
+    return similarity >= 0.8;
+}
+
+// ============ END AUTO-DETECT SPOKEN WORDS ============
 
 function retakePhoto() {
     // Reset state
@@ -3107,10 +3465,16 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
         <div class="audio-analysis-result">
             <div class="download-output-section">
                 <button id="download-output-btn" class="btn btn-export">
-                    <span class="icon">📄</span> Download Output (PDF)
+                    <span class="icon">📄</span> PDF (jsPDF)
+                </button>
+                <button id="download-html2pdf-btn" class="btn btn-export">
+                    <span class="icon">📄</span> PDF (html2pdf)
                 </button>
                 <button id="generate-video-btn" class="btn btn-export">
                     <span class="icon">🎬</span> Generate Video
+                </button>
+                <button id="view-patterns-btn" class="btn btn-export">
+                    <span class="icon">📊</span> View Detailed Patterns
                 </button>
             </div>
             <div id="video-generation-status" class="video-status"></div>
@@ -3183,6 +3547,14 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
                 await generateTranscriptVideoInContainer(resultsContainer);
             });
         }
+        const viewPatternsBtnResults = resultsContainer.querySelector('#view-patterns-btn');
+        if (viewPatternsBtnResults) {
+            viewPatternsBtnResults.addEventListener('click', viewDetailedPatterns);
+        }
+        const downloadHtml2pdfBtnResults = resultsContainer.querySelector('#download-html2pdf-btn');
+        if (downloadHtml2pdfBtnResults) {
+            downloadHtml2pdfBtnResults.addEventListener('click', downloadAnalysisAsHtml2Pdf);
+        }
     }
 
     // Add event listener for download button in export section
@@ -3195,6 +3567,18 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
     const generateVideoBtn = document.getElementById('generate-video-btn');
     if (generateVideoBtn) {
         generateVideoBtn.addEventListener('click', generateTranscriptVideo);
+    }
+
+    // Add event listener for view patterns button in export section
+    const viewPatternsBtn = document.getElementById('view-patterns-btn');
+    if (viewPatternsBtn) {
+        viewPatternsBtn.addEventListener('click', viewDetailedPatterns);
+    }
+
+    // Add event listener for html2pdf button in export section
+    const downloadHtml2pdfBtn = document.getElementById('download-html2pdf-btn');
+    if (downloadHtml2pdfBtn) {
+        downloadHtml2pdfBtn.addEventListener('click', downloadAnalysisAsHtml2Pdf);
     }
 
     // Auto-save assessment if student was selected
@@ -3455,8 +3839,8 @@ function downloadAnalysisAsPDF() {
         }
     }
 
-    // Error Pattern Analysis Section - ALWAYS show this section
-    if (yPos > 200) {
+    // Simplified Error Summary Section (detailed patterns available via web report)
+    if (yPos > 220) {
         doc.addPage();
         yPos = 20;
     }
@@ -3464,305 +3848,614 @@ function downloadAnalysisAsPDF() {
     yPos += 5;
     doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
-    doc.setTextColor(103, 126, 234); // Purple
-    doc.text('[ANALYSIS] Error Pattern Analysis', margin, yPos);
-    doc.setTextColor(0);
-    yPos += 10;
+    doc.text('Error Summary', margin, yPos);
+    yPos += 8;
 
     if (state.latestErrorPatterns) {
         const patterns = state.latestErrorPatterns;
 
-        // Primary Issues Section
+        // Show primary issues only (brief summary)
         if (patterns.summary.primaryIssues && patterns.summary.primaryIssues.length > 0) {
-            doc.setFontSize(12);
+            doc.setFontSize(11);
             doc.setFont(undefined, 'bold');
-            doc.setTextColor(220, 53, 69); // Red for issues
-            doc.text('[!] Primary Issues Identified:', margin, yPos);
-            doc.setTextColor(0);
-            yPos += 7;
+            doc.text('Key Issues:', margin, yPos);
+            yPos += 6;
 
             doc.setFontSize(10);
             doc.setFont(undefined, 'normal');
-            patterns.summary.primaryIssues.forEach((issue, idx) => {
-                if (yPos > 260) {
-                    doc.addPage();
-                    yPos = 20;
-                }
+            patterns.summary.primaryIssues.slice(0, 3).forEach((issue, idx) => {
                 const lines = doc.splitTextToSize(`${idx + 1}. ${issue}`, maxWidth - 5);
                 doc.text(lines, margin + 3, yPos);
-                yPos += 5 * lines.length + 1;
+                yPos += 5 * lines.length;
             });
+            if (patterns.summary.primaryIssues.length > 3) {
+                doc.setTextColor(100);
+                doc.text(`... and ${patterns.summary.primaryIssues.length - 3} more issues`, margin + 3, yPos);
+                doc.setTextColor(0);
+                yPos += 5;
+            }
             yPos += 5;
         }
 
-        // Phonics Patterns Section
-        const hasPhonicsIssues = patterns.phonicsPatterns.initialSoundErrors.length > 0 ||
-                                 patterns.phonicsPatterns.finalSoundErrors.length > 0 ||
-                                 patterns.phonicsPatterns.vowelPatterns.length > 0 ||
-                                 patterns.phonicsPatterns.consonantBlends.length > 0 ||
-                                 patterns.phonicsPatterns.rControlledVowels.length > 0 ||
-                                 patterns.phonicsPatterns.silentLetters.length > 0 ||
-                                 patterns.phonicsPatterns.digraphs.length > 0;
-
-        if (hasPhonicsIssues) {
-            if (yPos > 250) {
-                doc.addPage();
-                yPos = 20;
-            }
-
-            doc.setFontSize(11);
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(59, 130, 246); // Blue
-            doc.text('[PHONICS] Pattern Errors:', margin, yPos);
-            doc.setTextColor(0);
-            yPos += 6;
-
-            doc.setFontSize(9);
-            doc.setFont(undefined, 'normal');
-
-            if (patterns.phonicsPatterns.initialSoundErrors.length > 0) {
-                doc.setFont(undefined, 'bold');
-                doc.text(`• Initial Sound Errors (${patterns.phonicsPatterns.initialSoundErrors.length}):`, margin + 2, yPos);
-                yPos += 4;
-                doc.setFont(undefined, 'normal');
-                patterns.phonicsPatterns.initialSoundErrors.slice(0, 3).forEach(err => {
-                    if (yPos > 270) { doc.addPage(); yPos = 20; }
-                    const text = `  "${err.expected}" → "${err.actual}" (${err.pattern})`;
-                    const lines = doc.splitTextToSize(text, maxWidth - 10);
-                    doc.text(lines, margin + 5, yPos);
-                    yPos += 4 * lines.length;
-                });
-                if (patterns.phonicsPatterns.initialSoundErrors.length > 3) {
-                    doc.setTextColor(100);
-                    doc.text(`  ... and ${patterns.phonicsPatterns.initialSoundErrors.length - 3} more`, margin + 5, yPos);
-                    doc.setTextColor(0);
-                    yPos += 4;
-                }
-                yPos += 2;
-            }
-
-            if (patterns.phonicsPatterns.finalSoundErrors.length > 0) {
-                if (yPos > 260) { doc.addPage(); yPos = 20; }
-                doc.setFont(undefined, 'bold');
-                doc.text(`• Final Sound Errors (${patterns.phonicsPatterns.finalSoundErrors.length}):`, margin + 2, yPos);
-                yPos += 4;
-                doc.setFont(undefined, 'normal');
-                patterns.phonicsPatterns.finalSoundErrors.slice(0, 3).forEach(err => {
-                    if (yPos > 270) { doc.addPage(); yPos = 20; }
-                    const text = `  "${err.expected}" → "${err.actual}" (${err.pattern})`;
-                    const lines = doc.splitTextToSize(text, maxWidth - 10);
-                    doc.text(lines, margin + 5, yPos);
-                    yPos += 4 * lines.length;
-                });
-                if (patterns.phonicsPatterns.finalSoundErrors.length > 3) {
-                    doc.setTextColor(100);
-                    doc.text(`  ... and ${patterns.phonicsPatterns.finalSoundErrors.length - 3} more`, margin + 5, yPos);
-                    doc.setTextColor(0);
-                    yPos += 4;
-                }
-                yPos += 2;
-            }
-
-            if (patterns.phonicsPatterns.vowelPatterns.length > 0) {
-                if (yPos > 260) { doc.addPage(); yPos = 20; }
-                doc.setFont(undefined, 'bold');
-                doc.text(`• Vowel Pattern Errors (${patterns.phonicsPatterns.vowelPatterns.length}):`, margin + 2, yPos);
-                yPos += 4;
-                doc.setFont(undefined, 'normal');
-                patterns.phonicsPatterns.vowelPatterns.slice(0, 3).forEach(err => {
-                    if (yPos > 270) { doc.addPage(); yPos = 20; }
-                    const text = `  "${err.expected}" → "${err.actual}" (${err.pattern})`;
-                    const lines = doc.splitTextToSize(text, maxWidth - 10);
-                    doc.text(lines, margin + 5, yPos);
-                    yPos += 4 * lines.length;
-                });
-                yPos += 2;
-            }
-
-            if (patterns.phonicsPatterns.consonantBlends.length > 0) {
-                if (yPos > 260) { doc.addPage(); yPos = 20; }
-                doc.setFont(undefined, 'bold');
-                doc.text(`• Consonant Blend Errors (${patterns.phonicsPatterns.consonantBlends.length}):`, margin + 2, yPos);
-                yPos += 4;
-                doc.setFont(undefined, 'normal');
-                const blends = [...new Set(patterns.phonicsPatterns.consonantBlends.map(e => e.blend))];
-                doc.text(`  Difficulty with: ${blends.join(', ')}`, margin + 5, yPos);
-                yPos += 6;
-            }
-
-            if (patterns.phonicsPatterns.rControlledVowels.length > 0) {
-                if (yPos > 260) { doc.addPage(); yPos = 20; }
-                doc.setFont(undefined, 'bold');
-                doc.text(`• R-Controlled Vowel Errors (${patterns.phonicsPatterns.rControlledVowels.length}):`, margin + 2, yPos);
-                yPos += 4;
-                doc.setFont(undefined, 'normal');
-                patterns.phonicsPatterns.rControlledVowels.slice(0, 2).forEach(err => {
-                    if (yPos > 270) { doc.addPage(); yPos = 20; }
-                    const text = `  "${err.expected}" (${err.pattern})`;
-                    doc.text(text, margin + 5, yPos);
-                    yPos += 4;
-                });
-                yPos += 2;
-            }
-
-            if (patterns.phonicsPatterns.silentLetters.length > 0) {
-                if (yPos > 260) { doc.addPage(); yPos = 20; }
-                doc.setFont(undefined, 'bold');
-                doc.text(`• Silent Letter Confusion (${patterns.phonicsPatterns.silentLetters.length}):`, margin + 2, yPos);
-                yPos += 4;
-                doc.setFont(undefined, 'normal');
-                doc.text(`  CVCe (silent E) pattern difficulties`, margin + 5, yPos);
-                yPos += 6;
-            }
-
-            if (patterns.phonicsPatterns.digraphs.length > 0) {
-                if (yPos > 260) { doc.addPage(); yPos = 20; }
-                doc.setFont(undefined, 'bold');
-                doc.text(`• Digraph Errors (${patterns.phonicsPatterns.digraphs.length}):`, margin + 2, yPos);
-                yPos += 4;
-                doc.setFont(undefined, 'normal');
-                const digraphs = [...new Set(patterns.phonicsPatterns.digraphs.map(e => e.digraph))];
-                doc.text(`  Difficulty with: ${digraphs.join(', ')}`, margin + 5, yPos);
-                yPos += 6;
-            }
-        }
-
-        // Reading Strategy Issues
-        const hasStrategyIssues = patterns.readingStrategies.firstLetterGuessing.length > 0 ||
-                                  patterns.readingStrategies.partialDecoding.length > 0 ||
-                                  patterns.readingStrategies.contextGuessing.length > 0;
-
-        if (hasStrategyIssues) {
-            if (yPos > 250) {
-                doc.addPage();
-                yPos = 20;
-            }
-
-            doc.setFontSize(11);
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(234, 88, 12); // Orange
-            doc.text('[STRATEGY] Reading Strategy Issues:', margin, yPos);
-            doc.setTextColor(0);
-            yPos += 6;
-
-            doc.setFontSize(9);
-            doc.setFont(undefined, 'normal');
-
-            if (patterns.readingStrategies.firstLetterGuessing.length > 0) {
-                doc.text(`• First Letter Guessing (${patterns.readingStrategies.firstLetterGuessing.length} instances)`, margin + 2, yPos);
-                yPos += 4;
-                doc.setTextColor(100);
-                doc.text(`  Child may be looking at first letter and guessing`, margin + 5, yPos);
-                doc.setTextColor(0);
-                yPos += 6;
-            }
-
-            if (patterns.readingStrategies.partialDecoding.length > 0) {
-                doc.text(`• Partial Decoding (${patterns.readingStrategies.partialDecoding.length} instances)`, margin + 2, yPos);
-                yPos += 4;
-                doc.setTextColor(100);
-                doc.text(`  Decodes first part correctly, guesses the rest`, margin + 5, yPos);
-                doc.setTextColor(0);
-                yPos += 6;
-            }
-
-            if (patterns.readingStrategies.contextGuessing.length > 0) {
-                doc.text(`• Context-Based Guessing (${patterns.readingStrategies.contextGuessing.length} instances)`, margin + 2, yPos);
-                yPos += 4;
-                doc.setTextColor(100);
-                doc.text(`  Using context clues instead of decoding`, margin + 5, yPos);
-                doc.setTextColor(0);
-                yPos += 6;
-            }
-        }
-
-        // Speech Pattern Concerns
-        const hasSpeechIssues = patterns.speechPatterns.rSoundIssues.length > 0 ||
-                                patterns.speechPatterns.sSoundIssues.length > 0 ||
-                                patterns.speechPatterns.lSoundIssues.length > 0 ||
-                                patterns.speechPatterns.thSoundIssues.length > 0;
-
-        if (hasSpeechIssues) {
-            if (yPos > 250) {
-                doc.addPage();
-                yPos = 20;
-            }
-
-            doc.setFontSize(11);
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(168, 85, 247); // Purple
-            doc.text('[SPEECH] Possible Speech/Articulation Patterns:', margin, yPos);
-            doc.setTextColor(0);
-            yPos += 6;
-
-            doc.setFontSize(9);
-            doc.setFont(undefined, 'normal');
-            doc.setTextColor(150);
-            const noteLines = doc.splitTextToSize('Note: Consistent patterns may indicate articulation issues rather than reading errors. Consider speech-language evaluation.', maxWidth - 5);
-            doc.text(noteLines, margin + 2, yPos);
-            doc.setTextColor(0);
-            yPos += 4 * noteLines.length + 2;
-
-            if (patterns.speechPatterns.rSoundIssues.length >= 3) {
-                doc.text(`• R sound difficulties (${patterns.speechPatterns.rSoundIssues.length} instances)`, margin + 2, yPos);
-                yPos += 5;
-            }
-            if (patterns.speechPatterns.sSoundIssues.length >= 3) {
-                doc.text(`• S sound difficulties/possible lisp (${patterns.speechPatterns.sSoundIssues.length} instances)`, margin + 2, yPos);
-                yPos += 5;
-            }
-            if (patterns.speechPatterns.lSoundIssues.length >= 2) {
-                doc.text(`• L sound difficulties (${patterns.speechPatterns.lSoundIssues.length} instances)`, margin + 2, yPos);
-                yPos += 5;
-            }
-            if (patterns.speechPatterns.thSoundIssues.length >= 2) {
-                doc.text(`• TH sound difficulties (${patterns.speechPatterns.thSoundIssues.length} instances)`, margin + 2, yPos);
-                yPos += 5;
-            }
-            yPos += 2;
-        }
-
-        // Recommendations Section
+        // Show recommendations (brief)
         if (patterns.summary.recommendations && patterns.summary.recommendations.length > 0) {
-            if (yPos > 210) {
-                doc.addPage();
-                yPos = 20;
-            }
-
-            yPos += 5;
-            doc.setFontSize(12);
+            doc.setFontSize(11);
             doc.setFont(undefined, 'bold');
-            doc.setTextColor(16, 185, 129); // Green
-            doc.text('[RECOMMENDATIONS]', margin, yPos);
+            doc.setTextColor(16, 185, 129);
+            doc.text('Recommendations:', margin, yPos);
             doc.setTextColor(0);
-            yPos += 7;
+            yPos += 6;
 
-            doc.setFontSize(9);
+            doc.setFontSize(10);
             doc.setFont(undefined, 'normal');
-            patterns.summary.recommendations.forEach((rec, idx) => {
-                if (yPos > 270) {
-                    doc.addPage();
-                    yPos = 20;
-                }
+            patterns.summary.recommendations.slice(0, 3).forEach((rec, idx) => {
                 const lines = doc.splitTextToSize(`${idx + 1}. ${rec}`, maxWidth - 5);
-                doc.text(lines, margin + 2, yPos);
-                yPos += 4 * lines.length + 2;
+                doc.text(lines, margin + 3, yPos);
+                yPos += 5 * lines.length;
             });
+            yPos += 3;
         }
+
+        // Note about detailed report
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'italic');
+        doc.setTextColor(100);
+        doc.text('For detailed phonics patterns, reading strategies, and speech analysis, use "View Detailed Patterns" in the app.', margin, yPos);
+        doc.setTextColor(0);
     } else {
-        // No pattern data available - show message
         doc.setFontSize(10);
         doc.setFont(undefined, 'italic');
-        doc.setTextColor(128, 128, 128); // Gray
-        const noDataLines = doc.splitTextToSize('No error pattern analysis available for this assessment. This feature was added in version 2.0. Complete a new assessment to see detailed pattern analysis including phonics patterns, reading strategies, and speech/articulation insights.', maxWidth);
-        doc.text(noDataLines, margin, yPos);
+        doc.setTextColor(100);
+        doc.text('No error pattern data available for this assessment.', margin, yPos);
         doc.setTextColor(0);
-        yPos += 5 * noDataLines.length + 5;
     }
+    yPos += 10;
 
     // Save PDF
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
     doc.save(`oral-fluency-analysis-${timestamp}.pdf`);
+}
+
+// Download analysis using html2pdf (A/B comparison with jsPDF)
+function downloadAnalysisAsHtml2Pdf() {
+    if (!state.latestAnalysis || !state.latestExpectedWords) {
+        alert('No analysis data available');
+        return;
+    }
+
+    const analysis = state.latestAnalysis;
+    const prosodyMetrics = state.latestProsodyMetrics || {};
+    const patterns = state.latestErrorPatterns;
+
+    // Calculate metrics
+    const totalErrors = (analysis.errors?.skippedWords?.length || 0) +
+                        (analysis.errors?.misreadWords?.length || 0) +
+                        (analysis.errors?.substitutedWords?.length || 0);
+    const accuracy = analysis.correctCount > 0
+        ? Math.round((analysis.correctCount / (analysis.correctCount + totalErrors)) * 100)
+        : 0;
+
+    // Build word-by-word HTML
+    let wordsHtml = '';
+    if (analysis.aligned) {
+        analysis.aligned.forEach(item => {
+            const word = item.expected;
+            let className = 'correct';
+            if (item.status === 'skipped') className = 'skipped';
+            else if (item.status === 'misread') className = 'misread';
+            else if (item.status === 'substituted') className = 'substituted';
+            wordsHtml += `<span class="word ${className}">${word}</span> `;
+        });
+    }
+
+    // Build error breakdown HTML
+    let errorsHtml = '';
+    if (analysis.errors?.skippedWords?.length > 0) {
+        errorsHtml += `<div class="error-section"><strong>Skipped Words (${analysis.errors.skippedWords.length}):</strong> Words were not read</div>`;
+    }
+    if (analysis.errors?.misreadWords?.length > 0) {
+        const list = analysis.errors.misreadWords.map(e => `"${e.expected}"`).join(', ');
+        errorsHtml += `<div class="error-section"><strong>Misread Words (${analysis.errors.misreadWords.length}):</strong> ${list}</div>`;
+    }
+    if (analysis.errors?.substitutedWords?.length > 0) {
+        const list = analysis.errors.substitutedWords.map(e => `"${e.expected}" → "${e.spoken}"`).join(', ');
+        errorsHtml += `<div class="error-section"><strong>Substituted Words (${analysis.errors.substitutedWords.length}):</strong> ${list}</div>`;
+    }
+
+    // Build summary HTML
+    let summaryHtml = '';
+    if (patterns?.summary?.primaryIssues?.length > 0) {
+        summaryHtml += `<div class="summary-section"><strong>Primary Issues:</strong><ul>${patterns.summary.primaryIssues.slice(0, 3).map(i => `<li>${i}</li>`).join('')}</ul></div>`;
+    }
+    if (patterns?.summary?.recommendations?.length > 0) {
+        summaryHtml += `<div class="summary-section"><strong>Recommendations:</strong><ul>${patterns.summary.recommendations.slice(0, 3).map(r => `<li>${r}</li>`).join('')}</ul></div>`;
+    }
+
+    // Create the printable HTML element
+    const printContainer = document.createElement('div');
+    printContainer.id = 'html2pdf-container';
+    printContainer.innerHTML = `
+        <style>
+            #html2pdf-container {
+                font-family: Arial, sans-serif;
+                font-size: 11px;
+                line-height: 1.4;
+                color: #333;
+                padding: 15px;
+                max-width: 210mm;
+            }
+            #html2pdf-container h1 {
+                text-align: center;
+                color: #667eea;
+                font-size: 18px;
+                margin-bottom: 5px;
+            }
+            #html2pdf-container .subtitle {
+                text-align: center;
+                color: #666;
+                font-size: 10px;
+                margin-bottom: 15px;
+            }
+            #html2pdf-container .stats-row {
+                display: flex;
+                justify-content: space-around;
+                margin-bottom: 15px;
+                flex-wrap: wrap;
+            }
+            #html2pdf-container .stat-box {
+                text-align: center;
+                padding: 10px 15px;
+                background: #f5f5f5;
+                border-radius: 6px;
+                min-width: 80px;
+                margin: 3px;
+            }
+            #html2pdf-container .stat-value {
+                font-size: 20px;
+                font-weight: bold;
+                color: #333;
+            }
+            #html2pdf-container .stat-label {
+                font-size: 9px;
+                color: #666;
+            }
+            #html2pdf-container .section-title {
+                font-size: 13px;
+                font-weight: bold;
+                color: #667eea;
+                border-bottom: 1px solid #ddd;
+                padding-bottom: 3px;
+                margin: 12px 0 8px 0;
+            }
+            #html2pdf-container .word {
+                display: inline;
+                padding: 1px 3px;
+                margin: 1px;
+                border-radius: 3px;
+            }
+            #html2pdf-container .word.correct { color: #28a745; }
+            #html2pdf-container .word.skipped { color: #6c757d; text-decoration: line-through; }
+            #html2pdf-container .word.misread { color: #fd7e14; }
+            #html2pdf-container .word.substituted { color: #dc3545; }
+            #html2pdf-container .legend {
+                font-size: 9px;
+                color: #666;
+                margin-top: 8px;
+            }
+            #html2pdf-container .legend span { margin-right: 10px; }
+            #html2pdf-container .error-section {
+                background: #fff3cd;
+                padding: 8px;
+                border-radius: 4px;
+                margin-bottom: 6px;
+                font-size: 10px;
+            }
+            #html2pdf-container .summary-section {
+                background: #e8f4fd;
+                padding: 8px;
+                border-radius: 4px;
+                margin-bottom: 6px;
+                font-size: 10px;
+            }
+            #html2pdf-container .summary-section ul {
+                margin: 5px 0 0 20px;
+                padding: 0;
+            }
+            #html2pdf-container .summary-section li {
+                margin-bottom: 3px;
+            }
+            #html2pdf-container .footer {
+                text-align: center;
+                color: #999;
+                font-size: 8px;
+                margin-top: 15px;
+                font-style: italic;
+            }
+        </style>
+
+        <h1>Oral Fluency Analysis Report</h1>
+        <div class="subtitle">Generated via html2pdf on ${new Date().toLocaleDateString()}</div>
+
+        <div class="stats-row">
+            <div class="stat-box">
+                <div class="stat-value">${analysis.correctCount || 0}</div>
+                <div class="stat-label">Correct</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value">${totalErrors}</div>
+                <div class="stat-label">Errors</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value">${accuracy}%</div>
+                <div class="stat-label">Accuracy</div>
+            </div>
+            ${prosodyMetrics.wpm ? `
+            <div class="stat-box">
+                <div class="stat-value">${prosodyMetrics.wpm}</div>
+                <div class="stat-label">WPM</div>
+            </div>
+            ` : ''}
+            ${prosodyMetrics.prosodyScore ? `
+            <div class="stat-box">
+                <div class="stat-value">${prosodyMetrics.prosodyScore}</div>
+                <div class="stat-label">Prosody</div>
+            </div>
+            ` : ''}
+        </div>
+
+        <div class="section-title">Text with Error Highlighting</div>
+        <div class="words-container">${wordsHtml}</div>
+        <div class="legend">
+            <span style="color:#28a745">■ Correct</span>
+            <span style="color:#6c757d">■ Skipped</span>
+            <span style="color:#fd7e14">■ Misread</span>
+            <span style="color:#dc3545">■ Substituted</span>
+        </div>
+
+        ${errorsHtml ? `
+        <div class="section-title">Error Breakdown</div>
+        ${errorsHtml}
+        ` : ''}
+
+        ${summaryHtml ? `
+        <div class="section-title">Error Summary</div>
+        ${summaryHtml}
+        <div style="font-size: 9px; color: #666; font-style: italic; margin-top: 8px;">
+            For detailed phonics patterns, reading strategies, and speech analysis, use "View Detailed Patterns" in the app.
+        </div>
+        ` : ''}
+
+        <div class="footer">
+            Generated by Word Analyzer - Oral Fluency Assessment Tool
+        </div>
+    `;
+
+    // Temporarily add to document
+    document.body.appendChild(printContainer);
+
+    // Configure html2pdf options
+    const options = {
+        margin: 10,
+        filename: `oral-fluency-analysis-html2pdf-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    // Generate PDF
+    html2pdf().set(options).from(printContainer).save().then(() => {
+        // Remove temporary container
+        document.body.removeChild(printContainer);
+    }).catch(err => {
+        console.error('html2pdf error:', err);
+        document.body.removeChild(printContainer);
+        alert('Failed to generate PDF. Please try the jsPDF option instead.');
+    });
+}
+
+// View detailed error patterns in a new window
+function viewDetailedPatterns() {
+    if (!state.latestErrorPatterns) {
+        alert('No error pattern data available. Please run an analysis first.');
+        return;
+    }
+
+    const patterns = state.latestErrorPatterns;
+    const analysis = state.latestAnalysis;
+    const prosody = state.latestProsodyMetrics;
+
+    // Build the HTML report
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detailed Error Patterns Report</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .report-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .report-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+        .report-header h1 { font-size: 1.8rem; margin-bottom: 8px; }
+        .report-header p { opacity: 0.9; }
+        .print-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .print-btn:hover { background: #5a6fd6; }
+        @media print {
+            .print-btn { display: none; }
+            body { background: white; padding: 0; }
+            .report-container { box-shadow: none; }
+        }
+        .section {
+            padding: 20px 24px;
+            border-bottom: 1px solid #eee;
+        }
+        .section:last-child { border-bottom: none; }
+        .section-title {
+            font-size: 1.2rem;
+            color: #667eea;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .summary-box {
+            background: #f8f9ff;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .summary-box .label { font-size: 0.85rem; color: #666; }
+        .summary-box .value { font-size: 1.4rem; font-weight: bold; color: #333; }
+        .pattern-category {
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .pattern-category h4 {
+            color: #444;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+        .pattern-list { list-style: none; }
+        .pattern-list li {
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            border-left: 3px solid #667eea;
+        }
+        .pattern-word { font-weight: bold; color: #333; }
+        .pattern-desc { color: #666; font-size: 0.9rem; }
+        .no-data {
+            color: #999;
+            font-style: italic;
+            padding: 12px;
+        }
+        .issue-list {
+            background: #fff3cd;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .issue-list h4 { color: #856404; margin-bottom: 10px; }
+        .issue-list ul { margin-left: 20px; }
+        .issue-list li { margin-bottom: 6px; }
+        .rec-list {
+            background: #d4edda;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .rec-list h4 { color: #155724; margin-bottom: 10px; }
+        .rec-list ul { margin-left: 20px; }
+        .rec-list li { margin-bottom: 6px; }
+        .empty-section { color: #999; font-style: italic; }
+    </style>
+</head>
+<body>
+    <button class="print-btn" onclick="window.print()">Print Report</button>
+    <div class="report-container">
+        <div class="report-header">
+            <h1>Detailed Error Patterns Report</h1>
+            <p>Comprehensive Analysis of Reading Errors</p>
+        </div>
+
+        <!-- Overview Section -->
+        <div class="section">
+            <h3 class="section-title">Overview</h3>
+            <div class="summary-grid">
+                <div class="summary-box">
+                    <div class="label">Accuracy</div>
+                    <div class="value">${prosody?.accuracy || analysis?.correctCount ? Math.round((analysis.correctCount / (analysis.correctCount + (analysis.errors?.skippedWords?.length || 0) + (analysis.errors?.misreadWords?.length || 0) + (analysis.errors?.substitutedWords?.length || 0))) * 100) : 0}%</div>
+                </div>
+                <div class="summary-box">
+                    <div class="label">WPM</div>
+                    <div class="value">${prosody?.wpm || '-'}</div>
+                </div>
+                <div class="summary-box">
+                    <div class="label">Prosody Score</div>
+                    <div class="value">${prosody?.prosodyScore || '-'}</div>
+                </div>
+                <div class="summary-box">
+                    <div class="label">Total Errors</div>
+                    <div class="value">${(analysis?.errors?.skippedWords?.length || 0) + (analysis?.errors?.misreadWords?.length || 0) + (analysis?.errors?.substitutedWords?.length || 0) + (analysis?.errors?.hesitations?.length || 0) + (analysis?.errors?.repeatedWords?.length || 0)}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Primary Issues & Recommendations -->
+        <div class="section">
+            <h3 class="section-title">Summary</h3>
+            ${patterns.summary?.primaryIssues?.length > 0 ? `
+            <div class="issue-list">
+                <h4>Primary Issues Identified</h4>
+                <ul>
+                    ${patterns.summary.primaryIssues.map(issue => `<li>${issue}</li>`).join('')}
+                </ul>
+            </div>
+            ` : '<p class="no-data">No primary issues identified</p>'}
+
+            ${patterns.summary?.recommendations?.length > 0 ? `
+            <div class="rec-list">
+                <h4>Teaching Recommendations</h4>
+                <ul>
+                    ${patterns.summary.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                </ul>
+            </div>
+            ` : ''}
+        </div>
+
+        <!-- Phonics Patterns -->
+        <div class="section">
+            <h3 class="section-title">Phonics Patterns</h3>
+            ${buildPatternCategory('Initial Sound Errors', patterns.phonicsPatterns?.initialSoundErrors)}
+            ${buildPatternCategory('Final Sound Errors', patterns.phonicsPatterns?.finalSoundErrors)}
+            ${buildPatternCategory('Vowel Patterns', patterns.phonicsPatterns?.vowelPatterns)}
+            ${buildPatternCategory('Consonant Blends', patterns.phonicsPatterns?.consonantBlends)}
+            ${buildPatternCategory('Silent Letters', patterns.phonicsPatterns?.silentLetters)}
+            ${buildPatternCategory('R-Controlled Vowels', patterns.phonicsPatterns?.rControlledVowels)}
+            ${buildPatternCategory('Digraphs', patterns.phonicsPatterns?.digraphs)}
+            ${!hasAnyPhonicsPatterns(patterns) ? '<p class="empty-section">No phonics pattern errors detected</p>' : ''}
+        </div>
+
+        <!-- Reading Strategies -->
+        <div class="section">
+            <h3 class="section-title">Reading Strategy Issues</h3>
+            ${buildPatternCategory('First Letter Guessing', patterns.readingStrategies?.firstLetterGuessing)}
+            ${buildPatternCategory('Context Guessing', patterns.readingStrategies?.contextGuessing)}
+            ${buildPatternCategory('Partial Decoding', patterns.readingStrategies?.partialDecoding)}
+            ${!hasAnyReadingStrategies(patterns) ? '<p class="empty-section">No problematic reading strategies detected</p>' : ''}
+        </div>
+
+        <!-- Speech Patterns -->
+        <div class="section">
+            <h3 class="section-title">Speech Sound Patterns</h3>
+            ${buildPatternCategory('R Sound Issues', patterns.speechPatterns?.rSoundIssues)}
+            ${buildPatternCategory('S Sound Issues', patterns.speechPatterns?.sSoundIssues)}
+            ${buildPatternCategory('L Sound Issues', patterns.speechPatterns?.lSoundIssues)}
+            ${buildPatternCategory('TH Sound Issues', patterns.speechPatterns?.thSoundIssues)}
+            ${!hasAnySpeechPatterns(patterns) ? '<p class="empty-section">No speech sound issues detected</p>' : ''}
+        </div>
+
+        <!-- Visual Similarity -->
+        ${patterns.visualSimilarityErrors?.length > 0 ? `
+        <div class="section">
+            <h3 class="section-title">Visual Similarity Errors</h3>
+            ${buildPatternCategory('Similar Looking Words', patterns.visualSimilarityErrors)}
+        </div>
+        ` : ''}
+
+        <!-- Morphological Errors -->
+        ${patterns.morphologicalErrors?.length > 0 ? `
+        <div class="section">
+            <h3 class="section-title">Morphological Errors</h3>
+            ${buildPatternCategory('Word Structure Errors', patterns.morphologicalErrors)}
+        </div>
+        ` : ''}
+
+        <div class="section" style="text-align: center; color: #999; font-size: 0.85rem;">
+            Generated by Word Analyzer on ${new Date().toLocaleString()}
+        </div>
+    </div>
+</body>
+</html>
+    `;
+
+    // Helper functions embedded in the HTML
+    function buildPatternCategory(title, items) {
+        if (!items || items.length === 0) return '';
+        return `
+            <div class="pattern-category">
+                <h4>${title} (${items.length})</h4>
+                <ul class="pattern-list">
+                    ${items.map(item => `
+                        <li>
+                            <span class="pattern-word">"${item.expected || item.word || ''}" → "${item.actual || item.spoken || ''}"</span>
+                            ${item.pattern ? `<br><span class="pattern-desc">${item.pattern}</span>` : ''}
+                            ${item.description ? `<br><span class="pattern-desc">${item.description}</span>` : ''}
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        `;
+    }
+
+    function hasAnyPhonicsPatterns(p) {
+        const pp = p.phonicsPatterns;
+        return pp && (
+            (pp.initialSoundErrors?.length > 0) ||
+            (pp.finalSoundErrors?.length > 0) ||
+            (pp.vowelPatterns?.length > 0) ||
+            (pp.consonantBlends?.length > 0) ||
+            (pp.silentLetters?.length > 0) ||
+            (pp.rControlledVowels?.length > 0) ||
+            (pp.digraphs?.length > 0)
+        );
+    }
+
+    function hasAnyReadingStrategies(p) {
+        const rs = p.readingStrategies;
+        return rs && (
+            (rs.firstLetterGuessing?.length > 0) ||
+            (rs.contextGuessing?.length > 0) ||
+            (rs.partialDecoding?.length > 0)
+        );
+    }
+
+    function hasAnySpeechPatterns(p) {
+        const sp = p.speechPatterns;
+        return sp && (
+            (sp.rSoundIssues?.length > 0) ||
+            (sp.sSoundIssues?.length > 0) ||
+            (sp.lSoundIssues?.length > 0) ||
+            (sp.thSoundIssues?.length > 0)
+        );
+    }
+
+    // Open in new window
+    const newWindow = window.open('', '_blank', 'width=950,height=700');
+    if (newWindow) {
+        newWindow.document.write(html);
+        newWindow.document.close();
+    } else {
+        alert('Pop-up blocked. Please allow pop-ups for this site to view the detailed patterns report.');
+    }
 }
 
 // Generate transcript video with synchronized word highlighting
@@ -4102,6 +4795,58 @@ const currentStudentIndicator = document.getElementById('current-student-indicat
 // Current student being viewed
 let currentViewingStudentId = null;
 
+// ============ HTML COMPONENT HELPERS (reduces inline HTML bloat) ============
+
+// Create a stat box component
+function createStatBox(label, value, className = '') {
+    return `<div class="stat-item ${className}">
+        <div class="stat-item-label">${label}</div>
+        <div class="stat-item-value">${value}</div>
+    </div>`;
+}
+
+// Create a summary stat box
+function createSummaryStatBox(label, value) {
+    return `<div class="summary-stat-box">
+        <div class="summary-stat-label">${label}</div>
+        <div class="summary-stat-value">${value}</div>
+    </div>`;
+}
+
+// Create a pattern item (for phonics/reading patterns)
+function createPatternItem(label, value) {
+    if (!value || value <= 0) return '';
+    return `<div class="pattern-item">
+        <span class="pattern-label">${label}:</span>
+        <span class="pattern-value">${value}</span>
+    </div>`;
+}
+
+// Create assessment detail item
+function createAssessmentDetail(label, value) {
+    return `<div class="assessment-detail">
+        <div class="assessment-detail-label">${label}</div>
+        <div class="assessment-detail-value">${value}</div>
+    </div>`;
+}
+
+// Get accuracy class based on score
+function getAccuracyClass(accuracy) {
+    if (accuracy >= 95) return 'excellent';
+    if (accuracy >= 85) return 'good';
+    if (accuracy >= 75) return 'fair';
+    return 'poor';
+}
+
+// Get accuracy class for student cards
+function getCardAccuracyClass(accuracy) {
+    if (accuracy >= 95) return 'good';
+    if (accuracy >= 85) return 'warning';
+    return 'poor';
+}
+
+// ============ END HTML COMPONENT HELPERS ============
+
 // Show Class Overview
 async function showClassOverview() {
     // Hide all other sections
@@ -4146,11 +4891,7 @@ async function renderStudentsGrid() {
     studentsGrid.innerHTML = studentArray.map(student => {
         const stats = getStudentStats(student);
         const initial = student.name.charAt(0).toUpperCase();
-
-        let accuracyClass = 'good';
-        if (stats.latestAccuracy >= 95) accuracyClass = 'good';
-        else if (stats.latestAccuracy >= 85) accuracyClass = 'warning';
-        else accuracyClass = 'poor';
+        const accuracyClass = getCardAccuracyClass(stats.latestAccuracy);
 
         return `
             <div class="student-card" data-student-id="${student.id}">
@@ -4162,22 +4903,10 @@ async function renderStudentsGrid() {
                     </div>
                 </div>
                 <div class="student-stats">
-                    <div class="stat-item">
-                        <div class="stat-item-label">Assessments</div>
-                        <div class="stat-item-value">${stats.totalAssessments}</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-item-label">Avg Accuracy</div>
-                        <div class="stat-item-value ${accuracyClass}">${stats.avgAccuracy}%</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-item-label">Avg WPM</div>
-                        <div class="stat-item-value">${stats.avgWpm}</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-item-label">Prosody</div>
-                        <div class="stat-item-value">${stats.avgProsody}</div>
-                    </div>
+                    ${createStatBox('Assessments', stats.totalAssessments)}
+                    ${createStatBox('Avg Accuracy', stats.avgAccuracy + '%', accuracyClass)}
+                    ${createStatBox('Avg WPM', stats.avgWpm)}
+                    ${createStatBox('Prosody', stats.avgProsody)}
                 </div>
             </div>
         `;
@@ -4556,34 +5285,15 @@ function renderStudentSummary(student) {
             </div>
         </div>
         <div class="summary-stats-grid">
-            <div class="summary-stat-box">
-                <div class="summary-stat-label">Total Assessments</div>
-                <div class="summary-stat-value">${stats.totalAssessments}</div>
-            </div>
-            <div class="summary-stat-box">
-                <div class="summary-stat-label">Avg Accuracy</div>
-                <div class="summary-stat-value">${stats.avgAccuracy}%</div>
-            </div>
-            <div class="summary-stat-box">
-                <div class="summary-stat-label">Avg WPM</div>
-                <div class="summary-stat-value">${stats.avgWpm}</div>
-            </div>
-            <div class="summary-stat-box">
-                <div class="summary-stat-label">Avg Prosody</div>
-                <div class="summary-stat-value">${stats.avgProsody}</div>
-            </div>
-            <div class="summary-stat-box">
-                <div class="summary-stat-label">Latest Accuracy</div>
-                <div class="summary-stat-value">${stats.latestAccuracy}%</div>
-            </div>
+            ${createSummaryStatBox('Total Assessments', stats.totalAssessments)}
+            ${createSummaryStatBox('Avg Accuracy', stats.avgAccuracy + '%')}
+            ${createSummaryStatBox('Avg WPM', stats.avgWpm)}
+            ${createSummaryStatBox('Avg Prosody', stats.avgProsody)}
+            ${createSummaryStatBox('Latest Accuracy', stats.latestAccuracy + '%')}
         </div>
-
-        <!-- Progress Chart -->
         <div class="progress-chart-container">
             <canvas id="progress-chart"></canvas>
         </div>
-
-        <!-- Aggregated Pattern Analysis -->
         <div id="aggregated-patterns-section"></div>
     `;
 
@@ -4605,140 +5315,69 @@ function renderAggregatedPatterns(student) {
     if (aggregated.assessmentsWithPatterns === 0) {
         section.innerHTML = `
             <div class="pattern-analysis-card">
-                <h3>📊 Pattern Analysis</h3>
+                <h3>Pattern Analysis</h3>
                 <p class="pattern-note">Complete assessments with the latest version to see detailed error pattern analysis and insights.</p>
             </div>
         `;
         return;
     }
 
-    // Generate HTML for pattern analysis
-    let html = `
-        <div class="pattern-analysis-card">
-            <h3>📊 Pattern Analysis Across ${aggregated.assessmentsWithPatterns} Assessment${aggregated.assessmentsWithPatterns > 1 ? 's' : ''}</h3>
+    // Build phonics patterns using helper
+    const phonicsHtml = [
+        createPatternItem('Initial Sounds', aggregated.phonicsPatterns.initialSoundErrors),
+        createPatternItem('Final Sounds', aggregated.phonicsPatterns.finalSoundErrors),
+        createPatternItem('Vowel Patterns', aggregated.phonicsPatterns.vowelPatterns),
+        createPatternItem('Consonant Blends', aggregated.phonicsPatterns.consonantBlends),
+        createPatternItem('R-Controlled Vowels', aggregated.phonicsPatterns.rControlledVowels),
+        createPatternItem('Silent Letters', aggregated.phonicsPatterns.silentLetters),
+        createPatternItem('Digraphs', aggregated.phonicsPatterns.digraphs)
+    ].filter(h => h).join('');
 
+    // Build reading strategies using helper
+    const readingHtml = [
+        createPatternItem('First Letter Guessing', aggregated.readingStrategies.firstLetterGuessing),
+        createPatternItem('Partial Decoding', aggregated.readingStrategies.partialDecoding),
+        createPatternItem('Context Guessing', aggregated.readingStrategies.contextGuessing)
+    ].filter(h => h).join('');
+
+    // Build speech patterns using helper
+    const speechHtml = [
+        createPatternItem('R Sound', aggregated.speechPatterns.rSoundIssues),
+        createPatternItem('S Sound', aggregated.speechPatterns.sSoundIssues),
+        createPatternItem('L Sound', aggregated.speechPatterns.lSoundIssues),
+        createPatternItem('TH Sound', aggregated.speechPatterns.thSoundIssues)
+    ].filter(h => h).join('');
+
+    section.innerHTML = `
+        <div class="pattern-analysis-card">
+            <h3>Pattern Analysis Across ${aggregated.assessmentsWithPatterns} Assessment${aggregated.assessmentsWithPatterns > 1 ? 's' : ''}</h3>
             <div class="macro-insights">
-                <h4>💡 Key Insights:</h4>
+                <h4>Key Insights:</h4>
                 <ul class="insights-list">
                     ${insights.map(insight => `<li>${insight}</li>`).join('')}
                 </ul>
             </div>
-
-            <div class="pattern-breakdown">
-                <h4>🔤 Phonics Pattern Frequency:</h4>
-                <div class="pattern-grid">
-                    ${aggregated.phonicsPatterns.initialSoundErrors > 0 ? `
-                        <div class="pattern-item">
-                            <span class="pattern-label">Initial Sounds:</span>
-                            <span class="pattern-value">${aggregated.phonicsPatterns.initialSoundErrors}</span>
-                        </div>
-                    ` : ''}
-                    ${aggregated.phonicsPatterns.finalSoundErrors > 0 ? `
-                        <div class="pattern-item">
-                            <span class="pattern-label">Final Sounds:</span>
-                            <span class="pattern-value">${aggregated.phonicsPatterns.finalSoundErrors}</span>
-                        </div>
-                    ` : ''}
-                    ${aggregated.phonicsPatterns.vowelPatterns > 0 ? `
-                        <div class="pattern-item">
-                            <span class="pattern-label">Vowel Patterns:</span>
-                            <span class="pattern-value">${aggregated.phonicsPatterns.vowelPatterns}</span>
-                        </div>
-                    ` : ''}
-                    ${aggregated.phonicsPatterns.consonantBlends > 0 ? `
-                        <div class="pattern-item">
-                            <span class="pattern-label">Consonant Blends:</span>
-                            <span class="pattern-value">${aggregated.phonicsPatterns.consonantBlends}</span>
-                        </div>
-                    ` : ''}
-                    ${aggregated.phonicsPatterns.rControlledVowels > 0 ? `
-                        <div class="pattern-item">
-                            <span class="pattern-label">R-Controlled Vowels:</span>
-                            <span class="pattern-value">${aggregated.phonicsPatterns.rControlledVowels}</span>
-                        </div>
-                    ` : ''}
-                    ${aggregated.phonicsPatterns.silentLetters > 0 ? `
-                        <div class="pattern-item">
-                            <span class="pattern-label">Silent Letters:</span>
-                            <span class="pattern-value">${aggregated.phonicsPatterns.silentLetters}</span>
-                        </div>
-                    ` : ''}
-                    ${aggregated.phonicsPatterns.digraphs > 0 ? `
-                        <div class="pattern-item">
-                            <span class="pattern-label">Digraphs:</span>
-                            <span class="pattern-value">${aggregated.phonicsPatterns.digraphs}</span>
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-
-            ${(aggregated.readingStrategies.firstLetterGuessing > 0 ||
-               aggregated.readingStrategies.partialDecoding > 0 ||
-               aggregated.readingStrategies.contextGuessing > 0) ? `
+            ${phonicsHtml ? `
                 <div class="pattern-breakdown">
-                    <h4>🎯 Reading Strategy Issues:</h4>
-                    <div class="pattern-grid">
-                        ${aggregated.readingStrategies.firstLetterGuessing > 0 ? `
-                            <div class="pattern-item">
-                                <span class="pattern-label">First Letter Guessing:</span>
-                                <span class="pattern-value">${aggregated.readingStrategies.firstLetterGuessing}</span>
-                            </div>
-                        ` : ''}
-                        ${aggregated.readingStrategies.partialDecoding > 0 ? `
-                            <div class="pattern-item">
-                                <span class="pattern-label">Partial Decoding:</span>
-                                <span class="pattern-value">${aggregated.readingStrategies.partialDecoding}</span>
-                            </div>
-                        ` : ''}
-                        ${aggregated.readingStrategies.contextGuessing > 0 ? `
-                            <div class="pattern-item">
-                                <span class="pattern-label">Context Guessing:</span>
-                                <span class="pattern-value">${aggregated.readingStrategies.contextGuessing}</span>
-                            </div>
-                        ` : ''}
-                    </div>
+                    <h4>Phonics Pattern Frequency:</h4>
+                    <div class="pattern-grid">${phonicsHtml}</div>
                 </div>
             ` : ''}
-
-            ${(aggregated.speechPatterns.rSoundIssues > 0 ||
-               aggregated.speechPatterns.sSoundIssues > 0 ||
-               aggregated.speechPatterns.lSoundIssues > 0 ||
-               aggregated.speechPatterns.thSoundIssues > 0) ? `
+            ${readingHtml ? `
+                <div class="pattern-breakdown">
+                    <h4>Reading Strategy Issues:</h4>
+                    <div class="pattern-grid">${readingHtml}</div>
+                </div>
+            ` : ''}
+            ${speechHtml ? `
                 <div class="pattern-breakdown speech-patterns">
-                    <h4>🗣️ Possible Speech Patterns:</h4>
+                    <h4>Possible Speech Patterns:</h4>
                     <p class="pattern-note">Note: Consistent patterns may indicate articulation issues</p>
-                    <div class="pattern-grid">
-                        ${aggregated.speechPatterns.rSoundIssues > 0 ? `
-                            <div class="pattern-item">
-                                <span class="pattern-label">R Sound:</span>
-                                <span class="pattern-value">${aggregated.speechPatterns.rSoundIssues}</span>
-                            </div>
-                        ` : ''}
-                        ${aggregated.speechPatterns.sSoundIssues > 0 ? `
-                            <div class="pattern-item">
-                                <span class="pattern-label">S Sound:</span>
-                                <span class="pattern-value">${aggregated.speechPatterns.sSoundIssues}</span>
-                            </div>
-                        ` : ''}
-                        ${aggregated.speechPatterns.lSoundIssues > 0 ? `
-                            <div class="pattern-item">
-                                <span class="pattern-label">L Sound:</span>
-                                <span class="pattern-value">${aggregated.speechPatterns.lSoundIssues}</span>
-                            </div>
-                        ` : ''}
-                        ${aggregated.speechPatterns.thSoundIssues > 0 ? `
-                            <div class="pattern-item">
-                                <span class="pattern-label">TH Sound:</span>
-                                <span class="pattern-value">${aggregated.speechPatterns.thSoundIssues}</span>
-                            </div>
-                        ` : ''}
-                    </div>
+                    <div class="pattern-grid">${speechHtml}</div>
                 </div>
             ` : ''}
         </div>
     `;
-
-    section.innerHTML = html;
 }
 
 // Render assessment history
@@ -4756,17 +5395,11 @@ function renderAssessmentHistory(student) {
     // Sort assessments by date (newest first)
     const sortedAssessments = [...student.assessments].sort((a, b) => b.date - a.date);
 
-    assessmentHistory.innerHTML = '<h3>📈 Assessment History</h3>' + sortedAssessments.map(assessment => {
+    assessmentHistory.innerHTML = '<h3>Assessment History</h3>' + sortedAssessments.map(assessment => {
         const date = new Date(assessment.date);
         const dateStr = date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-
         const accuracy = assessment.accuracy || 0;
-        let scoreClass = 'excellent';
-        if (accuracy >= 95) scoreClass = 'excellent';
-        else if (accuracy >= 85) scoreClass = 'good';
-        else if (accuracy >= 75) scoreClass = 'fair';
-        else scoreClass = 'poor';
-
+        const scoreClass = getAccuracyClass(accuracy);
         const totalErrors = (assessment.errors.skippedWords?.length || 0) +
                            (assessment.errors.misreadWords?.length || 0) +
                            (assessment.errors.substitutedWords?.length || 0);
@@ -4774,38 +5407,19 @@ function renderAssessmentHistory(student) {
         return `
             <div class="assessment-item">
                 <div class="assessment-header">
-                    <div class="assessment-date">📅 ${dateStr}</div>
+                    <div class="assessment-date">${dateStr}</div>
                     <div class="assessment-score ${scoreClass}">${accuracy.toFixed(1)}%</div>
                 </div>
                 <div class="assessment-details">
-                    <div class="assessment-detail">
-                        <div class="assessment-detail-label">Correct</div>
-                        <div class="assessment-detail-value">${assessment.correctCount}</div>
-                    </div>
-                    <div class="assessment-detail">
-                        <div class="assessment-detail-label">Total Words</div>
-                        <div class="assessment-detail-value">${assessment.totalWords}</div>
-                    </div>
-                    <div class="assessment-detail">
-                        <div class="assessment-detail-label">Errors</div>
-                        <div class="assessment-detail-value">${totalErrors}</div>
-                    </div>
-                    <div class="assessment-detail">
-                        <div class="assessment-detail-label">WPM</div>
-                        <div class="assessment-detail-value">${assessment.wpm || 'N/A'}</div>
-                    </div>
-                    <div class="assessment-detail">
-                        <div class="assessment-detail-label">Prosody</div>
-                        <div class="assessment-detail-value">${assessment.prosodyScore ? assessment.prosodyScore.toFixed(1) : 'N/A'}</div>
-                    </div>
+                    ${createAssessmentDetail('Correct', assessment.correctCount)}
+                    ${createAssessmentDetail('Total', assessment.totalWords)}
+                    ${createAssessmentDetail('Errors', totalErrors)}
+                    ${createAssessmentDetail('WPM', assessment.wpm || 'N/A')}
+                    ${createAssessmentDetail('Prosody', assessment.prosodyScore ? assessment.prosodyScore.toFixed(1) : 'N/A')}
                 </div>
                 <div class="assessment-actions">
-                    <button class="btn btn-primary btn-small view-assessment-btn" data-assessment-id="${assessment.id}">
-                        <span class="icon">👁️</span> View Details
-                    </button>
-                    <button class="btn btn-danger btn-small delete-assessment-btn" data-assessment-id="${assessment.id}">
-                        <span class="icon">🗑️</span> Delete
-                    </button>
+                    <button class="btn btn-primary btn-small view-assessment-btn" data-assessment-id="${assessment.id}">View Details</button>
+                    <button class="btn btn-danger btn-small delete-assessment-btn" data-assessment-id="${assessment.id}">Delete</button>
                 </div>
             </div>
         `;

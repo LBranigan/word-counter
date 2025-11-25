@@ -285,6 +285,9 @@
                     <button id="reset-selection-btn" class="btn btn-secondary">
                         <span class="icon">✖️</span> Clear Selection
                     </button>
+                    <button id="auto-detect-btn" class="btn btn-beta" disabled title="Automatically detect which words were spoken">
+                        <span class="icon">🤖</span> Auto-Detect Reading <span class="beta-badge">BETA</span>
+                    </button>
                 </div>
 
                 <input type="file" id="file-input-image" accept="image/*" style="display: none;">
@@ -489,6 +492,7 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script type="module" src="firebase-config.js"></script>
     <script type="module" src="firebase-auth.js"></script>
     <script type="module" src="firebase-db.js"></script>

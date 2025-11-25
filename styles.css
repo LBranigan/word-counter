@@ -1016,6 +1016,46 @@ main {
     transform: scale(0.98);
 }
 
+/* Beta Feature Button */
+.btn-beta {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(240, 147, 251, 0.4);
+    position: relative;
+    overflow: visible;
+}
+
+.btn-beta:hover:not(:disabled) {
+    background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(240, 147, 251, 0.5);
+}
+
+.btn-beta:disabled {
+    background: linear-gradient(135deg, #ccc 0%, #999 100%);
+    box-shadow: none;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.btn-beta:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+.beta-badge {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+    vertical-align: middle;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 .btn-zoom {
     background: #667eea;
     color: white;
