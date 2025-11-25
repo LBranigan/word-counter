@@ -4578,19 +4578,12 @@ function downloadAnalysisAsHtml2Pdf() {
     // Scroll to top before capture
     window.scrollTo(0, 0);
 
-    // Create the content element with device-specific positioning
-    // Mobile: Use position: absolute (fixed fails on mobile Safari)
-    // Desktop: Use position: fixed with offscreen placement (works reliably)
+    // Create the content element - positioned at origin, hidden behind the overlay
+    // Using position: absolute works for both mobile and desktop
+    // The overlay (z-index: 10000) hides the content (z-index: 9999) from the user
     const printContainer = document.createElement('div');
     printContainer.id = 'pdf-content-container';
-
-    if (isMobile) {
-        // Mobile: absolute positioning at origin with explicit pixel dimensions
-        printContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 794px; min-height: 1123px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box; z-index: 9999;';
-    } else {
-        // Desktop: fixed positioning, offscreen to hide from view
-        printContainer.style.cssText = 'position: fixed; top: 0; left: -9999px; width: 794px; min-height: 1123px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box; z-index: 9999;';
-    }
+    printContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 794px; min-height: 1123px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box; z-index: 9999;';
 
     printContainer.innerHTML = `
         <h1 style="text-align: center; color: #667eea; font-size: 18px; margin: 0 0 5px 0;">Oral Fluency Analysis Report</h1>
@@ -4624,38 +4617,26 @@ function downloadAnalysisAsHtml2Pdf() {
 
     document.body.appendChild(printContainer);
 
-    // Delay to ensure DOM is fully rendered (longer on mobile)
+    // Delay to ensure DOM is fully rendered
     setTimeout(() => {
-        // Configure html2pdf options - different settings for mobile vs desktop
-        let html2canvasOptions;
+        // Configure html2pdf options
+        // Use lower scale on mobile to avoid iOS canvas size limits (4096x4096)
+        const scale = isMobile ? 1.5 : 2;
 
-        if (isMobile) {
-            // Mobile: Lower scale to avoid iOS canvas size limits, explicit dimensions
-            html2canvasOptions = {
-                scale: 1.5,
-                useCORS: true,
-                logging: false,
-                scrollX: 0,
-                scrollY: 0,
-                width: 794,
-                height: printContainer.scrollHeight,
-                windowWidth: 794,
-                windowHeight: printContainer.scrollHeight,
-                backgroundColor: '#ffffff'
-            };
-        } else {
-            // Desktop: Higher quality, simpler config
-            html2canvasOptions = {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                backgroundColor: '#ffffff',
-                x: 0,
-                y: 0,
-                width: 794,
-                height: printContainer.scrollHeight
-            };
-        }
+        const html2canvasOptions = {
+            scale: scale,
+            useCORS: true,
+            logging: false,
+            scrollX: 0,
+            scrollY: 0,
+            x: 0,
+            y: 0,
+            width: 794,
+            height: printContainer.scrollHeight,
+            windowWidth: 794,
+            windowHeight: printContainer.scrollHeight,
+            backgroundColor: '#ffffff'
+        };
 
         const options = {
             margin: 0,
