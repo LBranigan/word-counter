@@ -674,7 +674,7 @@ function skipAudioRecording() {
 // Initialize Camera
 async function initCamera() {
     try {
-        // Request high resolution with fallback
+        // Request high resolution - be aggressive about getting HD
         const constraints = {
             video: {
                 facingMode: 'environment',
@@ -686,9 +686,34 @@ async function initCamera() {
         state.stream = await navigator.mediaDevices.getUserMedia(constraints);
         camera.srcObject = state.stream;
 
-        // Log actual resolution for debugging
-        camera.onloadedmetadata = () => {
-            console.log(`Camera resolution: ${camera.videoWidth}x${camera.videoHeight}`);
+        // Wait for video to be ready and check resolution
+        camera.onloadedmetadata = async () => {
+            console.log(`Initial camera resolution: ${camera.videoWidth}x${camera.videoHeight}`);
+
+            // If resolution is too low, try to apply constraints to the track
+            if (camera.videoWidth < 1280 || camera.videoHeight < 720) {
+                console.log('Resolution too low, attempting to apply track constraints...');
+                const videoTrack = state.stream.getVideoTracks()[0];
+                if (videoTrack) {
+                    try {
+                        await videoTrack.applyConstraints({
+                            width: { ideal: 1920, min: 1280 },
+                            height: { ideal: 1080, min: 720 }
+                        });
+                        // Wait a moment for the resolution to update
+                        setTimeout(() => {
+                            console.log(`After constraints: ${camera.videoWidth}x${camera.videoHeight}`);
+                            // Check again and warn user if still low
+                            if (camera.videoWidth < 1280 || camera.videoHeight < 720) {
+                                showStatus(`Low camera resolution (${camera.videoWidth}x${camera.videoHeight}). For better OCR, use "Upload Image" instead.`, 'warning');
+                            }
+                        }, 500);
+                    } catch (e) {
+                        console.log('Could not apply higher resolution constraints:', e.message);
+                        showStatus(`Low camera resolution (${camera.videoWidth}x${camera.videoHeight}). For better OCR, use "Upload Image" instead.`, 'warning');
+                    }
+                }
+            }
         };
     } catch (error) {
         // Try again with less strict constraints
@@ -748,9 +773,19 @@ function capturePhoto() {
     const context = cameraCanvas.getContext('2d');
     cameraCanvas.width = camera.videoWidth;
     cameraCanvas.height = camera.videoHeight;
+
+    console.log(`Capturing photo at resolution: ${camera.videoWidth}x${camera.videoHeight}`);
+
+    // Warn if resolution is too low for good OCR
+    if (camera.videoWidth < 1280 || camera.videoHeight < 720) {
+        console.warn('Low resolution capture - OCR quality may be affected');
+        console.warn('Consider using "Upload Image" for better quality');
+    }
+
     context.drawImage(camera, 0, 0);
 
-    state.capturedImage = cameraCanvas.toDataURL('image/jpeg', 0.9);
+    // Use maximum quality for JPEG
+    state.capturedImage = cameraCanvas.toDataURL('image/jpeg', 1.0);
 
     // Stop camera stream
     if (state.stream) {
