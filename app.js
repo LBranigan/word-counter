@@ -4581,9 +4581,10 @@ function downloadAnalysisAsHtml2Pdf() {
     // Create the content element - positioned at origin, hidden behind the overlay
     // Using position: absolute works for both mobile and desktop
     // The overlay (z-index: 10000) hides the content (z-index: 9999) from the user
+    // Note: No min-height - let content determine height to avoid blank second page
     const printContainer = document.createElement('div');
     printContainer.id = 'pdf-content-container';
-    printContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 794px; min-height: 1123px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box; z-index: 9999;';
+    printContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 794px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box; z-index: 9999;';
 
     printContainer.innerHTML = `
         <h1 style="text-align: center; color: #667eea; font-size: 18px; margin: 0 0 5px 0;">Oral Fluency Analysis Report</h1>
@@ -4643,7 +4644,8 @@ function downloadAnalysisAsHtml2Pdf() {
             filename: `oral-fluency-analysis-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`,
             image: { type: 'jpeg', quality: 0.95 },
             html2canvas: html2canvasOptions,
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: 'avoid-all' } // Prevent automatic page breaks
         };
 
         // Generate PDF with proper cleanup
