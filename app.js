@@ -4401,159 +4401,262 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
     goToStep('results');
 }
 
-// Generate and download analysis as PDF using html2pdf
+// Generate and download analysis as PDF using jsPDF directly (no DOM rendering needed)
 function downloadAnalysisAsHtml2Pdf() {
     if (!state.latestAnalysis || !state.latestExpectedWords) {
         alert('No analysis data available');
         return;
     }
 
-    const analysis = state.latestAnalysis;
-    const prosodyMetrics = state.latestProsodyMetrics || {};
-    const patterns = state.latestErrorPatterns;
+    try {
+        const analysis = state.latestAnalysis;
+        const prosodyMetrics = state.latestProsodyMetrics || {};
+        const patterns = state.latestErrorPatterns;
 
-    // Calculate metrics
-    const totalErrors = (analysis.errors?.skippedWords?.length || 0) +
-                        (analysis.errors?.misreadWords?.length || 0) +
-                        (analysis.errors?.substitutedWords?.length || 0);
-    const accuracy = analysis.correctCount > 0
-        ? Math.round((analysis.correctCount / (analysis.correctCount + totalErrors)) * 100)
-        : 0;
+        // Calculate metrics
+        const totalErrors = (analysis.errors?.skippedWords?.length || 0) +
+                            (analysis.errors?.misreadWords?.length || 0) +
+                            (analysis.errors?.substitutedWords?.length || 0);
+        const accuracy = analysis.correctCount > 0
+            ? Math.round((analysis.correctCount / (analysis.correctCount + totalErrors)) * 100)
+            : 0;
 
-    // Build word-by-word HTML
-    let wordsHtml = '';
-    if (analysis.aligned) {
-        analysis.aligned.forEach(item => {
-            const word = item.expected;
-            let className = 'correct';
-            if (item.status === 'skipped') className = 'skipped';
-            else if (item.status === 'misread') className = 'misread';
-            else if (item.status === 'substituted') className = 'substituted';
-            wordsHtml += `<span class="word ${className}">${word}</span> `;
+        // Access jsPDF from the html2pdf bundle
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
         });
-    }
 
-    // Build error breakdown HTML
-    let errorsHtml = '';
-    if (analysis.errors?.skippedWords?.length > 0) {
-        errorsHtml += `<div class="error-section"><strong>Skipped Words (${analysis.errors.skippedWords.length}):</strong> Words were not read</div>`;
-    }
-    if (analysis.errors?.misreadWords?.length > 0) {
-        const list = analysis.errors.misreadWords.map(e => `"${e.expected}"`).join(', ');
-        errorsHtml += `<div class="error-section"><strong>Misread Words (${analysis.errors.misreadWords.length}):</strong> ${list}</div>`;
-    }
-    if (analysis.errors?.substitutedWords?.length > 0) {
-        const list = analysis.errors.substitutedWords.map(e => `"${e.expected}" → "${e.spoken}"`).join(', ');
-        errorsHtml += `<div class="error-section"><strong>Substituted Words (${analysis.errors.substitutedWords.length}):</strong> ${list}</div>`;
-    }
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 15;
+        const contentWidth = pageWidth - (margin * 2);
+        let y = 20;
 
-    // Build summary HTML
-    let summaryHtml = '';
-    if (patterns?.summary?.primaryIssues?.length > 0) {
-        summaryHtml += `<div class="summary-section"><strong>Primary Issues:</strong><ul>${patterns.summary.primaryIssues.slice(0, 3).map(i => `<li>${i}</li>`).join('')}</ul></div>`;
-    }
-    if (patterns?.summary?.recommendations?.length > 0) {
-        summaryHtml += `<div class="summary-section"><strong>Recommendations:</strong><ul>${patterns.summary.recommendations.slice(0, 3).map(r => `<li>${r}</li>`).join('')}</ul></div>`;
-    }
+        // Title
+        doc.setFontSize(18);
+        doc.setTextColor(102, 126, 234); // #667eea
+        doc.text('Oral Fluency Analysis Report', pageWidth / 2, y, { align: 'center' });
+        y += 8;
 
-    // Build stats cells - use table for reliable cross-device rendering
-    let statsCells = `
-        <td style="text-align: center; padding: 10px 15px; background: #f5f5f5; border-radius: 6px;">
-            <div style="font-size: 20px; font-weight: bold; color: #333;">${analysis.correctCount || 0}</div>
-            <div style="font-size: 9px; color: #666;">Correct</div>
-        </td>
-        <td style="text-align: center; padding: 10px 15px; background: #f5f5f5; border-radius: 6px;">
-            <div style="font-size: 20px; font-weight: bold; color: #333;">${totalErrors}</div>
-            <div style="font-size: 9px; color: #666;">Errors</div>
-        </td>
-        <td style="text-align: center; padding: 10px 15px; background: #f5f5f5; border-radius: 6px;">
-            <div style="font-size: 20px; font-weight: bold; color: #333;">${accuracy}%</div>
-            <div style="font-size: 9px; color: #666;">Accuracy</div>
-        </td>
-    `;
-    if (prosodyMetrics.wpm) {
-        statsCells += `
-        <td style="text-align: center; padding: 10px 15px; background: #f5f5f5; border-radius: 6px;">
-            <div style="font-size: 20px; font-weight: bold; color: #333;">${prosodyMetrics.wpm}</div>
-            <div style="font-size: 9px; color: #666;">WPM</div>
-        </td>`;
-    }
-    if (prosodyMetrics.prosodyScore) {
-        statsCells += `
-        <td style="text-align: center; padding: 10px 15px; background: #f5f5f5; border-radius: 6px;">
-            <div style="font-size: 20px; font-weight: bold; color: #333;">${prosodyMetrics.prosodyScore}</div>
-            <div style="font-size: 9px; color: #666;">Prosody</div>
-        </td>`;
-    }
+        // Date
+        doc.setFontSize(10);
+        doc.setTextColor(102, 102, 102);
+        doc.text(`Generated on ${new Date().toLocaleDateString()}`, pageWidth / 2, y, { align: 'center' });
+        y += 12;
 
-    // Create the printable HTML element with inline styles for maximum compatibility
-    const printContainer = document.createElement('div');
-    printContainer.id = 'html2pdf-container';
-    // Position off-screen but visible for html2canvas to render properly
-    printContainer.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 794px; background: white; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 15px; box-sizing: border-box;';
+        // Stats boxes
+        doc.setFontSize(9);
+        const stats = [
+            { label: 'Correct', value: analysis.correctCount || 0 },
+            { label: 'Errors', value: totalErrors },
+            { label: 'Accuracy', value: `${accuracy}%` }
+        ];
+        if (prosodyMetrics.wpm) stats.push({ label: 'WPM', value: prosodyMetrics.wpm });
+        if (prosodyMetrics.prosodyScore) stats.push({ label: 'Prosody', value: prosodyMetrics.prosodyScore });
 
-    printContainer.innerHTML = `
-        <h1 style="text-align: center; color: #667eea; font-size: 18px; margin: 0 0 5px 0;">Oral Fluency Analysis Report</h1>
-        <div style="text-align: center; color: #666; font-size: 10px; margin-bottom: 15px;">Generated on ${new Date().toLocaleDateString()}</div>
+        const boxWidth = (contentWidth - (stats.length - 1) * 5) / stats.length;
+        stats.forEach((stat, i) => {
+            const x = margin + i * (boxWidth + 5);
+            doc.setFillColor(245, 245, 245);
+            doc.roundedRect(x, y, boxWidth, 18, 2, 2, 'F');
+            doc.setFontSize(16);
+            doc.setTextColor(51, 51, 51);
+            doc.text(String(stat.value), x + boxWidth / 2, y + 10, { align: 'center' });
+            doc.setFontSize(8);
+            doc.setTextColor(102, 102, 102);
+            doc.text(stat.label, x + boxWidth / 2, y + 15, { align: 'center' });
+        });
+        y += 25;
 
-        <table style="width: 100%; border-collapse: separate; border-spacing: 6px; margin-bottom: 15px;">
-            <tr>${statsCells}</tr>
-        </table>
+        // Section: Text with Error Highlighting
+        doc.setFontSize(12);
+        doc.setTextColor(102, 126, 234);
+        doc.text('Text with Error Highlighting', margin, y);
+        y += 2;
+        doc.setDrawColor(221, 221, 221);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 6;
 
-        <div style="font-size: 13px; font-weight: bold; color: #667eea; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin: 12px 0 8px 0;">Text with Error Highlighting</div>
-        <div style="line-height: 1.8;">${wordsHtml.replace(/class="word correct"/g, 'style="color: #28a745;"').replace(/class="word skipped"/g, 'style="color: #6c757d; text-decoration: line-through;"').replace(/class="word misread"/g, 'style="color: #fd7e14;"').replace(/class="word substituted"/g, 'style="color: #dc3545;"')}</div>
-        <div style="font-size: 9px; color: #666; margin-top: 8px;">
-            <span style="color:#28a745; margin-right: 10px;">■ Correct</span>
-            <span style="color:#6c757d; margin-right: 10px;">■ Skipped</span>
-            <span style="color:#fd7e14; margin-right: 10px;">■ Misread</span>
-            <span style="color:#dc3545;">■ Substituted</span>
-        </div>
+        // Word-by-word text with colors
+        if (analysis.aligned) {
+            doc.setFontSize(10);
+            let lineText = '';
+            let lineColors = [];
+            const maxLineWidth = contentWidth;
 
-        ${errorsHtml ? `
-        <div style="font-size: 13px; font-weight: bold; color: #667eea; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin: 12px 0 8px 0;">Error Breakdown</div>
-        ${errorsHtml.replace(/class="error-section"/g, 'style="background: #fff3cd; padding: 8px; border-radius: 4px; margin-bottom: 6px; font-size: 10px;"')}
-        ` : ''}
+            analysis.aligned.forEach((item, idx) => {
+                const word = item.expected;
+                let color;
+                if (item.status === 'skipped') color = [108, 117, 125]; // gray
+                else if (item.status === 'misread') color = [253, 126, 20]; // orange
+                else if (item.status === 'substituted') color = [220, 53, 69]; // red
+                else color = [40, 167, 69]; // green
 
-        ${summaryHtml ? `
-        <div style="font-size: 13px; font-weight: bold; color: #667eea; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin: 12px 0 8px 0;">Error Summary</div>
-        ${summaryHtml.replace(/class="summary-section"/g, 'style="background: #e8f4fd; padding: 8px; border-radius: 4px; margin-bottom: 6px; font-size: 10px;"')}
-        <div style="font-size: 9px; color: #666; font-style: italic; margin-top: 8px;">
-            For detailed phonics patterns, reading strategies, and speech analysis, use "View Detailed Patterns" in the app.
-        </div>
-        ` : ''}
+                // Check if adding this word exceeds line width
+                const testLine = lineText + (lineText ? ' ' : '') + word;
+                const testWidth = doc.getTextWidth(testLine);
 
-        <div style="text-align: center; color: #999; font-size: 8px; margin-top: 15px; font-style: italic;">
-            Generated by Word Analyzer - Oral Fluency Assessment Tool
-        </div>
-    `;
+                if (testWidth > maxLineWidth && lineText) {
+                    // Print current line
+                    let xPos = margin;
+                    lineColors.forEach(({ text, color: c }) => {
+                        doc.setTextColor(c[0], c[1], c[2]);
+                        doc.text(text, xPos, y);
+                        xPos += doc.getTextWidth(text + ' ');
+                    });
+                    y += 5;
 
-    // Temporarily add to document for rendering
-    document.body.appendChild(printContainer);
+                    // Check for page break
+                    if (y > 270) {
+                        doc.addPage();
+                        y = 20;
+                    }
 
-    // Configure html2pdf options - optimized for mobile compatibility
-    const options = {
-        margin: 10,
-        filename: `oral-fluency-analysis-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            width: 794, // A4 width in pixels at 96 DPI
-            windowWidth: 794
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
+                    lineText = word;
+                    lineColors = [{ text: word, color }];
+                } else {
+                    lineText = testLine;
+                    lineColors.push({ text: word, color });
+                }
+            });
 
-    // Generate PDF
-    html2pdf().set(options).from(printContainer).save().then(() => {
-        // Remove temporary container
-        document.body.removeChild(printContainer);
-    }).catch(err => {
+            // Print remaining line
+            if (lineColors.length > 0) {
+                let xPos = margin;
+                lineColors.forEach(({ text, color: c }) => {
+                    doc.setTextColor(c[0], c[1], c[2]);
+                    doc.text(text, xPos, y);
+                    xPos += doc.getTextWidth(text + ' ');
+                });
+                y += 8;
+            }
+        }
+
+        // Legend
+        doc.setFontSize(8);
+        const legend = [
+            { label: 'Correct', color: [40, 167, 69] },
+            { label: 'Skipped', color: [108, 117, 125] },
+            { label: 'Misread', color: [253, 126, 20] },
+            { label: 'Substituted', color: [220, 53, 69] }
+        ];
+        let legendX = margin;
+        legend.forEach(item => {
+            doc.setTextColor(item.color[0], item.color[1], item.color[2]);
+            doc.text(`■ ${item.label}`, legendX, y);
+            legendX += 30;
+        });
+        y += 10;
+
+        // Check for page break
+        if (y > 250) {
+            doc.addPage();
+            y = 20;
+        }
+
+        // Error Breakdown section
+        const hasErrors = analysis.errors?.skippedWords?.length > 0 ||
+                         analysis.errors?.misreadWords?.length > 0 ||
+                         analysis.errors?.substitutedWords?.length > 0;
+
+        if (hasErrors) {
+            doc.setFontSize(12);
+            doc.setTextColor(102, 126, 234);
+            doc.text('Error Breakdown', margin, y);
+            y += 2;
+            doc.setDrawColor(221, 221, 221);
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 6;
+
+            doc.setFontSize(9);
+            doc.setTextColor(51, 51, 51);
+
+            if (analysis.errors?.skippedWords?.length > 0) {
+                doc.setFillColor(255, 243, 205);
+                doc.roundedRect(margin, y - 3, contentWidth, 8, 1, 1, 'F');
+                doc.text(`Skipped Words (${analysis.errors.skippedWords.length}): Words were not read`, margin + 2, y + 2);
+                y += 10;
+            }
+
+            if (analysis.errors?.misreadWords?.length > 0) {
+                const list = analysis.errors.misreadWords.map(e => `"${e.expected}"`).join(', ');
+                doc.setFillColor(255, 243, 205);
+                const lines = doc.splitTextToSize(`Misread Words (${analysis.errors.misreadWords.length}): ${list}`, contentWidth - 4);
+                const boxHeight = lines.length * 4 + 4;
+                doc.roundedRect(margin, y - 3, contentWidth, boxHeight, 1, 1, 'F');
+                doc.text(lines, margin + 2, y + 2);
+                y += boxHeight + 2;
+            }
+
+            if (analysis.errors?.substitutedWords?.length > 0) {
+                const list = analysis.errors.substitutedWords.map(e => `"${e.expected}" → "${e.spoken}"`).join(', ');
+                doc.setFillColor(255, 243, 205);
+                const lines = doc.splitTextToSize(`Substituted Words (${analysis.errors.substitutedWords.length}): ${list}`, contentWidth - 4);
+                const boxHeight = lines.length * 4 + 4;
+                doc.roundedRect(margin, y - 3, contentWidth, boxHeight, 1, 1, 'F');
+                doc.text(lines, margin + 2, y + 2);
+                y += boxHeight + 2;
+            }
+            y += 5;
+        }
+
+        // Check for page break
+        if (y > 250) {
+            doc.addPage();
+            y = 20;
+        }
+
+        // Summary section
+        if (patterns?.summary?.primaryIssues?.length > 0 || patterns?.summary?.recommendations?.length > 0) {
+            doc.setFontSize(12);
+            doc.setTextColor(102, 126, 234);
+            doc.text('Error Summary', margin, y);
+            y += 2;
+            doc.setDrawColor(221, 221, 221);
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 6;
+
+            doc.setFontSize(9);
+            doc.setTextColor(51, 51, 51);
+
+            if (patterns.summary.primaryIssues?.length > 0) {
+                doc.setFillColor(232, 244, 253);
+                doc.text('Primary Issues:', margin + 2, y + 2);
+                y += 5;
+                patterns.summary.primaryIssues.slice(0, 3).forEach(issue => {
+                    const lines = doc.splitTextToSize(`• ${issue}`, contentWidth - 8);
+                    doc.text(lines, margin + 4, y + 2);
+                    y += lines.length * 4 + 1;
+                });
+                y += 3;
+            }
+
+            if (patterns.summary.recommendations?.length > 0) {
+                doc.text('Recommendations:', margin + 2, y + 2);
+                y += 5;
+                patterns.summary.recommendations.slice(0, 3).forEach(rec => {
+                    const lines = doc.splitTextToSize(`• ${rec}`, contentWidth - 8);
+                    doc.text(lines, margin + 4, y + 2);
+                    y += lines.length * 4 + 1;
+                });
+            }
+        }
+
+        // Footer
+        doc.setFontSize(8);
+        doc.setTextColor(153, 153, 153);
+        doc.text('Generated by Word Analyzer - Oral Fluency Assessment Tool', pageWidth / 2, 285, { align: 'center' });
+
+        // Save the PDF
+        const filename = `oral-fluency-analysis-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`;
+        doc.save(filename);
+
+    } catch (err) {
         console.error('PDF generation error:', err);
-        document.body.removeChild(printContainer);
-        alert('Failed to generate PDF. Please try again.');
-    });
+        alert('Failed to generate PDF: ' + err.message);
+    }
 }
 
 // View detailed error patterns in a new window
