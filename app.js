@@ -4210,174 +4210,91 @@ function downloadAnalysisAsHtml2Pdf() {
         summaryHtml += `<div class="summary-section"><strong>Recommendations:</strong><ul>${patterns.summary.recommendations.slice(0, 3).map(r => `<li>${r}</li>`).join('')}</ul></div>`;
     }
 
-    // Create the printable HTML element
+    // Build stats cells - use table for reliable cross-device rendering
+    let statsCells = `
+        <td style="text-align: center; padding: 10px 15px; background: #f5f5f5; border-radius: 6px;">
+            <div style="font-size: 20px; font-weight: bold; color: #333;">${analysis.correctCount || 0}</div>
+            <div style="font-size: 9px; color: #666;">Correct</div>
+        </td>
+        <td style="text-align: center; padding: 10px 15px; background: #f5f5f5; border-radius: 6px;">
+            <div style="font-size: 20px; font-weight: bold; color: #333;">${totalErrors}</div>
+            <div style="font-size: 9px; color: #666;">Errors</div>
+        </td>
+        <td style="text-align: center; padding: 10px 15px; background: #f5f5f5; border-radius: 6px;">
+            <div style="font-size: 20px; font-weight: bold; color: #333;">${accuracy}%</div>
+            <div style="font-size: 9px; color: #666;">Accuracy</div>
+        </td>
+    `;
+    if (prosodyMetrics.wpm) {
+        statsCells += `
+        <td style="text-align: center; padding: 10px 15px; background: #f5f5f5; border-radius: 6px;">
+            <div style="font-size: 20px; font-weight: bold; color: #333;">${prosodyMetrics.wpm}</div>
+            <div style="font-size: 9px; color: #666;">WPM</div>
+        </td>`;
+    }
+    if (prosodyMetrics.prosodyScore) {
+        statsCells += `
+        <td style="text-align: center; padding: 10px 15px; background: #f5f5f5; border-radius: 6px;">
+            <div style="font-size: 20px; font-weight: bold; color: #333;">${prosodyMetrics.prosodyScore}</div>
+            <div style="font-size: 9px; color: #666;">Prosody</div>
+        </td>`;
+    }
+
+    // Create the printable HTML element with inline styles for maximum compatibility
     const printContainer = document.createElement('div');
     printContainer.id = 'html2pdf-container';
+    printContainer.style.cssText = 'position: absolute; left: 0; top: 0; width: 210mm; background: white; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 15px; box-sizing: border-box;';
+
     printContainer.innerHTML = `
-        <style>
-            #html2pdf-container {
-                font-family: Arial, sans-serif;
-                font-size: 11px;
-                line-height: 1.4;
-                color: #333;
-                padding: 15px;
-                max-width: 210mm;
-            }
-            #html2pdf-container h1 {
-                text-align: center;
-                color: #667eea;
-                font-size: 18px;
-                margin-bottom: 5px;
-            }
-            #html2pdf-container .subtitle {
-                text-align: center;
-                color: #666;
-                font-size: 10px;
-                margin-bottom: 15px;
-            }
-            #html2pdf-container .stats-row {
-                display: flex;
-                justify-content: space-around;
-                margin-bottom: 15px;
-                flex-wrap: wrap;
-            }
-            #html2pdf-container .stat-box {
-                text-align: center;
-                padding: 10px 15px;
-                background: #f5f5f5;
-                border-radius: 6px;
-                min-width: 80px;
-                margin: 3px;
-            }
-            #html2pdf-container .stat-value {
-                font-size: 20px;
-                font-weight: bold;
-                color: #333;
-            }
-            #html2pdf-container .stat-label {
-                font-size: 9px;
-                color: #666;
-            }
-            #html2pdf-container .section-title {
-                font-size: 13px;
-                font-weight: bold;
-                color: #667eea;
-                border-bottom: 1px solid #ddd;
-                padding-bottom: 3px;
-                margin: 12px 0 8px 0;
-            }
-            #html2pdf-container .word {
-                display: inline;
-                padding: 1px 3px;
-                margin: 1px;
-                border-radius: 3px;
-            }
-            #html2pdf-container .word.correct { color: #28a745; }
-            #html2pdf-container .word.skipped { color: #6c757d; text-decoration: line-through; }
-            #html2pdf-container .word.misread { color: #fd7e14; }
-            #html2pdf-container .word.substituted { color: #dc3545; }
-            #html2pdf-container .legend {
-                font-size: 9px;
-                color: #666;
-                margin-top: 8px;
-            }
-            #html2pdf-container .legend span { margin-right: 10px; }
-            #html2pdf-container .error-section {
-                background: #fff3cd;
-                padding: 8px;
-                border-radius: 4px;
-                margin-bottom: 6px;
-                font-size: 10px;
-            }
-            #html2pdf-container .summary-section {
-                background: #e8f4fd;
-                padding: 8px;
-                border-radius: 4px;
-                margin-bottom: 6px;
-                font-size: 10px;
-            }
-            #html2pdf-container .summary-section ul {
-                margin: 5px 0 0 20px;
-                padding: 0;
-            }
-            #html2pdf-container .summary-section li {
-                margin-bottom: 3px;
-            }
-            #html2pdf-container .footer {
-                text-align: center;
-                color: #999;
-                font-size: 8px;
-                margin-top: 15px;
-                font-style: italic;
-            }
-        </style>
+        <h1 style="text-align: center; color: #667eea; font-size: 18px; margin: 0 0 5px 0;">Oral Fluency Analysis Report</h1>
+        <div style="text-align: center; color: #666; font-size: 10px; margin-bottom: 15px;">Generated on ${new Date().toLocaleDateString()}</div>
 
-        <h1>Oral Fluency Analysis Report</h1>
-        <div class="subtitle">Generated on ${new Date().toLocaleDateString()}</div>
+        <table style="width: 100%; border-collapse: separate; border-spacing: 6px; margin-bottom: 15px;">
+            <tr>${statsCells}</tr>
+        </table>
 
-        <div class="stats-row">
-            <div class="stat-box">
-                <div class="stat-value">${analysis.correctCount || 0}</div>
-                <div class="stat-label">Correct</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-value">${totalErrors}</div>
-                <div class="stat-label">Errors</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-value">${accuracy}%</div>
-                <div class="stat-label">Accuracy</div>
-            </div>
-            ${prosodyMetrics.wpm ? `
-            <div class="stat-box">
-                <div class="stat-value">${prosodyMetrics.wpm}</div>
-                <div class="stat-label">WPM</div>
-            </div>
-            ` : ''}
-            ${prosodyMetrics.prosodyScore ? `
-            <div class="stat-box">
-                <div class="stat-value">${prosodyMetrics.prosodyScore}</div>
-                <div class="stat-label">Prosody</div>
-            </div>
-            ` : ''}
-        </div>
-
-        <div class="section-title">Text with Error Highlighting</div>
-        <div class="words-container">${wordsHtml}</div>
-        <div class="legend">
-            <span style="color:#28a745">■ Correct</span>
-            <span style="color:#6c757d">■ Skipped</span>
-            <span style="color:#fd7e14">■ Misread</span>
-            <span style="color:#dc3545">■ Substituted</span>
+        <div style="font-size: 13px; font-weight: bold; color: #667eea; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin: 12px 0 8px 0;">Text with Error Highlighting</div>
+        <div style="line-height: 1.8;">${wordsHtml.replace(/class="word correct"/g, 'style="color: #28a745;"').replace(/class="word skipped"/g, 'style="color: #6c757d; text-decoration: line-through;"').replace(/class="word misread"/g, 'style="color: #fd7e14;"').replace(/class="word substituted"/g, 'style="color: #dc3545;"')}</div>
+        <div style="font-size: 9px; color: #666; margin-top: 8px;">
+            <span style="color:#28a745; margin-right: 10px;">■ Correct</span>
+            <span style="color:#6c757d; margin-right: 10px;">■ Skipped</span>
+            <span style="color:#fd7e14; margin-right: 10px;">■ Misread</span>
+            <span style="color:#dc3545;">■ Substituted</span>
         </div>
 
         ${errorsHtml ? `
-        <div class="section-title">Error Breakdown</div>
-        ${errorsHtml}
+        <div style="font-size: 13px; font-weight: bold; color: #667eea; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin: 12px 0 8px 0;">Error Breakdown</div>
+        ${errorsHtml.replace(/class="error-section"/g, 'style="background: #fff3cd; padding: 8px; border-radius: 4px; margin-bottom: 6px; font-size: 10px;"')}
         ` : ''}
 
         ${summaryHtml ? `
-        <div class="section-title">Error Summary</div>
-        ${summaryHtml}
+        <div style="font-size: 13px; font-weight: bold; color: #667eea; border-bottom: 1px solid #ddd; padding-bottom: 3px; margin: 12px 0 8px 0;">Error Summary</div>
+        ${summaryHtml.replace(/class="summary-section"/g, 'style="background: #e8f4fd; padding: 8px; border-radius: 4px; margin-bottom: 6px; font-size: 10px;"')}
         <div style="font-size: 9px; color: #666; font-style: italic; margin-top: 8px;">
             For detailed phonics patterns, reading strategies, and speech analysis, use "View Detailed Patterns" in the app.
         </div>
         ` : ''}
 
-        <div class="footer">
+        <div style="text-align: center; color: #999; font-size: 8px; margin-top: 15px; font-style: italic;">
             Generated by Word Analyzer - Oral Fluency Assessment Tool
         </div>
     `;
 
-    // Temporarily add to document
+    // Temporarily add to document for rendering
     document.body.appendChild(printContainer);
 
-    // Configure html2pdf options
+    // Configure html2pdf options - optimized for mobile compatibility
     const options = {
         margin: 10,
         filename: `oral-fluency-analysis-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            width: 794, // A4 width in pixels at 96 DPI
+            windowWidth: 794
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
