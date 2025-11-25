@@ -278,6 +278,29 @@
 
             <!-- Image Processing Section -->
             <section id="image-section" class="section">
+                <!-- Auto-detect Loading Overlay -->
+                <div id="highlight-loading-overlay" class="highlight-loading-overlay" style="display: none;">
+                    <div class="highlight-loading-content">
+                        <div class="highlight-loading-spinner"></div>
+                        <h3>Analyzing Your Recording</h3>
+                        <p id="highlight-loading-status">Transcribing audio...</p>
+                        <div class="highlight-loading-steps">
+                            <div class="loading-step" id="loading-step-1">
+                                <span class="step-indicator active"></span>
+                                <span>Transcribing audio</span>
+                            </div>
+                            <div class="loading-step" id="loading-step-2">
+                                <span class="step-indicator"></span>
+                                <span>Matching words</span>
+                            </div>
+                            <div class="loading-step" id="loading-step-3">
+                                <span class="step-indicator"></span>
+                                <span>Highlighting text</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="step-header">
                     <div class="step-badge">Step 3</div>
                     <h2>Highlight Text</h2>
@@ -303,7 +326,8 @@
                     <button id="reset-selection-btn" class="btn btn-secondary">
                         <span class="icon">✖️</span> Clear Selection
                     </button>
-                    <button id="auto-detect-btn" class="btn btn-beta" disabled title="Automatically detect which words were spoken">
+                    <!-- Auto-detect now runs automatically when entering this step -->
+                    <button id="auto-detect-btn" class="btn btn-beta" disabled title="Automatically detect which words were spoken" style="display: none;">
                         <span class="icon">🤖</span> Auto-Detect Reading <span class="beta-badge">BETA</span>
                     </button>
                 </div>

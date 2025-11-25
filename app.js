@@ -296,6 +296,13 @@ const reqAudio = document.getElementById('req-audio');
 const reqSelection = document.getElementById('req-selection');
 const resultsContainer = document.getElementById('results-container');
 
+// Highlight Loading Overlay Elements
+const highlightLoadingOverlay = document.getElementById('highlight-loading-overlay');
+const highlightLoadingStatus = document.getElementById('highlight-loading-status');
+const loadingStep1 = document.getElementById('loading-step-1');
+const loadingStep2 = document.getElementById('loading-step-2');
+const loadingStep3 = document.getElementById('loading-step-3');
+
 // Initialize
 async function init() {
     // Check if API key is already saved in Firebase (or fallback to localStorage for migration)
@@ -519,12 +526,120 @@ function goToStep(step) {
         initCamera();
     }
 
+    // Special handling for highlight section
+    // Note: Auto-detect is triggered from processOCR() after OCR completes,
+    // not here, because OCR runs asynchronously after goToStep is called
+
     // Update breadcrumb and button states
     updateBreadcrumb();
     updateButtonStates();
 
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ============ HIGHLIGHT LOADING OVERLAY FUNCTIONS ============
+
+/**
+ * Show the highlight loading overlay
+ */
+function showHighlightLoadingOverlay() {
+    if (highlightLoadingOverlay) {
+        highlightLoadingOverlay.style.display = 'flex';
+        // Reset step indicators
+        resetLoadingSteps();
+        updateLoadingStep(1);
+    }
+}
+
+/**
+ * Hide the highlight loading overlay
+ */
+function hideHighlightLoadingOverlay() {
+    if (highlightLoadingOverlay) {
+        highlightLoadingOverlay.style.display = 'none';
+    }
+}
+
+/**
+ * Reset all loading step indicators
+ */
+function resetLoadingSteps() {
+    [loadingStep1, loadingStep2, loadingStep3].forEach(step => {
+        if (step) {
+            step.classList.remove('active', 'completed');
+            const indicator = step.querySelector('.step-indicator');
+            if (indicator) {
+                indicator.classList.remove('active', 'completed');
+            }
+        }
+    });
+}
+
+/**
+ * Update loading step indicator (1, 2, or 3)
+ * @param {number} stepNum - The step number to activate (1-3)
+ */
+function updateLoadingStep(stepNum) {
+    const steps = [loadingStep1, loadingStep2, loadingStep3];
+    const statusMessages = [
+        'Transcribing audio...',
+        'Matching words to text...',
+        'Highlighting selection...'
+    ];
+
+    steps.forEach((step, index) => {
+        if (step) {
+            const indicator = step.querySelector('.step-indicator');
+            if (index + 1 < stepNum) {
+                // Completed
+                step.classList.remove('active');
+                step.classList.add('completed');
+                if (indicator) {
+                    indicator.classList.remove('active');
+                    indicator.classList.add('completed');
+                }
+            } else if (index + 1 === stepNum) {
+                // Active
+                step.classList.remove('completed');
+                step.classList.add('active');
+                if (indicator) {
+                    indicator.classList.remove('completed');
+                    indicator.classList.add('active');
+                }
+            } else {
+                // Not yet reached
+                step.classList.remove('active', 'completed');
+                if (indicator) {
+                    indicator.classList.remove('active', 'completed');
+                }
+            }
+        }
+    });
+
+    // Update status text
+    if (highlightLoadingStatus && stepNum >= 1 && stepNum <= 3) {
+        highlightLoadingStatus.textContent = statusMessages[stepNum - 1];
+    }
+}
+
+/**
+ * Auto-detect spoken words when entering the highlight step
+ * This is a wrapper that handles the loading overlay
+ */
+async function runAutoDetectOnEntry() {
+    // Show loading overlay
+    showHighlightLoadingOverlay();
+
+    try {
+        await autoDetectSpokenWordsWithOverlay();
+    } catch (error) {
+        console.error('Auto-detect on entry failed:', error);
+        showStatus('Auto-detection failed. You can manually select words.', 'error');
+    } finally {
+        // Hide loading overlay
+        hideHighlightLoadingOverlay();
+    }
 }
 
 // Update breadcrumb visual state
@@ -1084,7 +1199,20 @@ async function processOCR() {
         // Update button states (enables auto-detect if audio is recorded)
         updateButtonStates();
 
-        showStatus(`Detected ${words.length} words. You can now auto-detect or manually select text.`, '');
+        // Auto-detect spoken words if audio was recorded (not in word-count-only mode)
+        const canAutoDetect = state.recordedAudioBlob !== null &&
+                             state.ocrData !== null &&
+                             state.ocrData.words &&
+                             state.ocrData.words.length > 0 &&
+                             !state.audioSkipped &&
+                             state.currentStep === 'highlight';
+
+        if (canAutoDetect) {
+            // Run auto-detect automatically after OCR completes
+            runAutoDetectOnEntry();
+        } else {
+            showStatus(`Detected ${words.length} words. Select the text that was read aloud.`, '');
+        }
 
     } catch (error) {
         console.error('Vision API error:', error);
@@ -1607,6 +1735,84 @@ async function autoDetectSpokenWords() {
         console.error('Auto-detect error:', error);
         showStatus('Error during auto-detection: ' + error.message, 'error');
     }
+}
+
+/**
+ * Auto-detect spoken words with loading overlay (called automatically on step entry).
+ * Similar to autoDetectSpokenWords but updates loading overlay instead of status messages.
+ */
+async function autoDetectSpokenWordsWithOverlay() {
+    // Validate requirements (silently fail - user can still manually select)
+    if (!state.recordedAudioBlob || !state.ocrData || !state.ocrData.words ||
+        state.ocrData.words.length === 0 || !state.apiKey) {
+        return;
+    }
+
+    // Clear any existing selection
+    state.selectedWords.clear();
+    updateWordCount();
+
+    // Step 1: Transcribing audio
+    updateLoadingStep(1);
+
+    // Step 1: Run speech-to-text to get spoken words
+    const spokenWords = await runSpeechToTextForAutoDetect();
+
+    if (!spokenWords || spokenWords.length === 0) {
+        showStatus('No speech detected. You can manually select words.', '');
+        return;
+    }
+
+    console.log('=== AUTO-DETECT: Spoken words from STT ===');
+    console.log('Spoken words:', spokenWords.map(w => w.word));
+
+    // Step 2: Matching words
+    updateLoadingStep(2);
+
+    // Small delay to show step transition
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    const ocrWords = state.ocrData.words.map(w => w.text);
+    console.log('OCR words:', ocrWords);
+
+    const matchResult = findSpokenRangeInOCR(spokenWords, ocrWords);
+
+    if (matchResult.firstIndex === -1 || matchResult.lastIndex === -1) {
+        showStatus('Could not match words. You can manually select text.', '');
+        return;
+    }
+
+    // Step 3: Highlighting
+    updateLoadingStep(3);
+
+    // Small delay to show step transition
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    const firstWord = ocrWords[matchResult.firstIndex];
+    const lastWord = ocrWords[matchResult.lastIndex];
+
+    console.log(`Auto-selecting words from index ${matchResult.firstIndex} to ${matchResult.lastIndex}`);
+    console.log(`First detected word: "${firstWord}"`);
+    console.log(`Last detected word: "${lastWord}"`);
+
+    // Select ALL words between first and last (inclusive)
+    for (let i = matchResult.firstIndex; i <= matchResult.lastIndex; i++) {
+        state.selectedWords.add(i);
+    }
+
+    updateWordCount();
+    redrawCanvas();
+
+    const totalSelected = matchResult.lastIndex - matchResult.firstIndex + 1;
+
+    showStatus(
+        `✅ Auto-detected ${totalSelected} words! ` +
+        `From "${firstWord}" to "${lastWord}". You can adjust the selection if needed.`,
+        ''
+    );
+
+    // Store the spoken words for later analysis
+    state.latestSpokenWords = spokenWords;
 }
 
 /**

@@ -270,6 +270,126 @@
     display: none;
 }
 
+/* Highlight Section Loading Overlay */
+.highlight-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.97);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    border-radius: 12px;
+}
+
+.highlight-loading-content {
+    text-align: center;
+    padding: 2rem;
+    max-width: 320px;
+}
+
+.highlight-loading-content h3 {
+    color: #667eea;
+    font-size: 1.4rem;
+    margin: 1rem 0 0.5rem;
+    font-weight: 600;
+}
+
+.highlight-loading-content > p {
+    color: #666;
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+}
+
+.highlight-loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 5px solid #e9ecef;
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+.highlight-loading-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: left;
+    background: #f8f9fa;
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+}
+
+.loading-step {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    color: #999;
+    transition: color 0.3s ease;
+}
+
+.loading-step.active {
+    color: #333;
+    font-weight: 500;
+}
+
+.loading-step.completed {
+    color: #28a745;
+}
+
+.step-indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.step-indicator.active {
+    background: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+}
+
+.step-indicator.active::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background: white;
+    border-radius: 50%;
+    animation: pulse 1s ease-in-out infinite;
+}
+
+.step-indicator.completed {
+    background: #28a745;
+}
+
+.step-indicator.completed::after {
+    content: '✓';
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(0.8); opacity: 0.7; }
+}
+
+/* Make image-section position relative for overlay positioning */
+#image-section {
+    position: relative;
+}
+
 /* API Usage Display */
 .api-usage-display {
     background: #f8f9fa;
