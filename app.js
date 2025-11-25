@@ -4519,6 +4519,10 @@ function downloadAnalysisAsHtml2Pdf() {
         </table>
     `;
 
+    // Detect if mobile device
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+        || (window.innerWidth <= 768);
+
     // Create a full-screen overlay to hide the rendering process
     const overlay = document.createElement('div');
     overlay.id = 'pdf-generation-overlay';
@@ -4532,15 +4536,22 @@ function downloadAnalysisAsHtml2Pdf() {
     `;
     document.body.appendChild(overlay);
 
-    // CRITICAL FIX: Scroll to top before capture - html2canvas captures from scroll position
+    // Scroll to top before capture
     window.scrollTo(0, 0);
 
-    // Create the content element
-    // CRITICAL FIX: Use position: absolute NOT position: fixed (fixed fails on mobile Safari)
-    // Use explicit pixel width (794px = A4 at 96 DPI) NOT mm units
+    // Create the content element with device-specific positioning
+    // Mobile: Use position: absolute (fixed fails on mobile Safari)
+    // Desktop: Use position: fixed with offscreen placement (works reliably)
     const printContainer = document.createElement('div');
     printContainer.id = 'pdf-content-container';
-    printContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 794px; min-height: 1123px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box; z-index: 9999;';
+
+    if (isMobile) {
+        // Mobile: absolute positioning at origin with explicit pixel dimensions
+        printContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 794px; min-height: 1123px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box; z-index: 9999;';
+    } else {
+        // Desktop: fixed positioning, offscreen to hide from view
+        printContainer.style.cssText = 'position: fixed; top: 0; left: -9999px; width: 794px; min-height: 1123px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box; z-index: 9999;';
+    }
 
     printContainer.innerHTML = `
         <h1 style="text-align: center; color: #667eea; font-size: 18px; margin: 0 0 5px 0;">Oral Fluency Analysis Report</h1>
@@ -4574,25 +4585,44 @@ function downloadAnalysisAsHtml2Pdf() {
 
     document.body.appendChild(printContainer);
 
-    // Longer delay to ensure DOM is fully rendered on mobile
+    // Delay to ensure DOM is fully rendered (longer on mobile)
     setTimeout(() => {
-        // Configure html2pdf options optimized for mobile
-        const options = {
-            margin: 0,
-            filename: `oral-fluency-analysis-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`,
-            image: { type: 'jpeg', quality: 0.95 },
-            html2canvas: {
-                scale: 1.5, // Lower scale to avoid iOS canvas size limits (4096x4096)
+        // Configure html2pdf options - different settings for mobile vs desktop
+        let html2canvasOptions;
+
+        if (isMobile) {
+            // Mobile: Lower scale to avoid iOS canvas size limits, explicit dimensions
+            html2canvasOptions = {
+                scale: 1.5,
                 useCORS: true,
                 logging: false,
                 scrollX: 0,
                 scrollY: 0,
-                width: 794, // Explicit width in pixels
-                height: printContainer.scrollHeight, // Use actual content height
+                width: 794,
+                height: printContainer.scrollHeight,
                 windowWidth: 794,
                 windowHeight: printContainer.scrollHeight,
-                backgroundColor: '#ffffff' // Explicit white background
-            },
+                backgroundColor: '#ffffff'
+            };
+        } else {
+            // Desktop: Higher quality, simpler config
+            html2canvasOptions = {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                x: 0,
+                y: 0,
+                width: 794,
+                height: printContainer.scrollHeight
+            };
+        }
+
+        const options = {
+            margin: 0,
+            filename: `oral-fluency-analysis-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`,
+            image: { type: 'jpeg', quality: 0.95 },
+            html2canvas: html2canvasOptions,
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
