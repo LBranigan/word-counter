@@ -6327,22 +6327,10 @@ async function saveCurrentAssessmentToStudent() {
         return;
     }
 
-    // Convert audio blob to base64 for storage
-    let audioBase64 = null;
-    if (state.recordedAudioBlob) {
-        try {
-            const reader = new FileReader();
-            audioBase64 = await new Promise((resolve, reject) => {
-                reader.onloadend = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(state.recordedAudioBlob);
-            });
-        } catch (error) {
-            console.warn('Failed to convert audio to base64:', error);
-        }
-    }
+    // Note: Audio is NOT stored in manual saves to avoid Firestore 1MB document limit
+    // Students with many assessments would exceed the limit if audio was included
 
-    // Prepare assessment data (store complete data for historical viewing)
+    // Prepare assessment data (without audio to prevent size overflow)
     const assessmentData = {
         correctCount: state.latestAnalysis.correctCount,
         totalWords: state.latestExpectedWords ? state.latestExpectedWords.length : 0,
@@ -6351,14 +6339,13 @@ async function saveCurrentAssessmentToStudent() {
         prosodyScore: state.latestProsodyMetrics?.prosodyScore || 0,
         errors: state.latestAnalysis.errors,
         duration: state.recordingDuration || 60,
-        // Store complete analysis data for recreating results page
+        // Store analysis data for recreating results page
         expectedWords: state.latestExpectedWords || [],
         spokenWords: state.latestSpokenWords || [],
         aligned: state.latestAnalysis.aligned || [],
         prosodyMetrics: state.latestProsodyMetrics || {},
-        errorPatterns: state.latestErrorPatterns || null,
-        // Store audio for video generation
-        audioData: audioBase64
+        errorPatterns: state.latestErrorPatterns || null
+        // audioData omitted to prevent Firestore document size limit (1MB)
     };
 
     const success = await addAssessmentToStudent(selectedStudentId, assessmentData);
@@ -6522,22 +6509,10 @@ async function autoSaveAssessmentIfStudentSelected() {
         return;
     }
 
-    // Convert audio blob to base64 for storage
-    let audioBase64 = null;
-    if (state.recordedAudioBlob) {
-        try {
-            const reader = new FileReader();
-            audioBase64 = await new Promise((resolve, reject) => {
-                reader.onloadend = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(state.recordedAudioBlob);
-            });
-        } catch (error) {
-            console.warn('Failed to convert audio to base64:', error);
-        }
-    }
+    // Note: Audio is NOT stored to avoid Firestore 1MB document limit
+    // Students with many assessments would exceed the limit if audio was included
 
-    // Prepare assessment data (store complete data for historical viewing)
+    // Prepare assessment data (without audio to prevent size overflow)
     const assessmentData = {
         correctCount: state.latestAnalysis.correctCount,
         totalWords: state.latestExpectedWords ? state.latestExpectedWords.length : 0,
@@ -6546,14 +6521,13 @@ async function autoSaveAssessmentIfStudentSelected() {
         prosodyScore: state.latestProsodyMetrics?.prosodyScore || 0,
         errors: state.latestAnalysis.errors,
         duration: state.recordingDuration || 60,
-        // Store complete analysis data for recreating results page
+        // Store analysis data for recreating results page
         expectedWords: state.latestExpectedWords || [],
         spokenWords: state.latestSpokenWords || [],
         aligned: state.latestAnalysis.aligned || [],
         prosodyMetrics: state.latestProsodyMetrics || {},
-        errorPatterns: state.latestErrorPatterns || null,
-        // Store audio for video generation
-        audioData: audioBase64
+        errorPatterns: state.latestErrorPatterns || null
+        // audioData omitted to prevent Firestore document size limit (1MB)
     };
 
     const success = await addAssessmentToStudent(state.currentAssessmentStudentId, assessmentData);
