@@ -244,7 +244,6 @@ const saveApiKeyBtn = document.getElementById('save-api-key-btn');
 const captureBtn = document.getElementById('capture-btn');
 const retakeBtn = document.getElementById('retake-btn');
 const resetSelectionBtn = document.getElementById('reset-selection-btn');
-const exportBtn = document.getElementById('export-btn');
 const exportOutput = document.getElementById('export-output');
 const uploadBtnCamera = document.getElementById('upload-btn-camera');
 const uploadBtnImage = document.getElementById('upload-btn-image');
@@ -325,7 +324,6 @@ async function init() {
     if (captureBtn) captureBtn.addEventListener('click', capturePhoto);
     if (retakeBtn) retakeBtn.addEventListener('click', retakePhoto);
     if (resetSelectionBtn) resetSelectionBtn.addEventListener('click', resetSelection);
-    if (exportBtn) exportBtn.addEventListener('click', exportSelectedWords);
     if (uploadBtnCamera && fileInputCamera) uploadBtnCamera.addEventListener('click', () => fileInputCamera.click());
     if (uploadBtnImage && fileInputImage) uploadBtnImage.addEventListener('click', () => fileInputImage.click());
     if (fileInputCamera) fileInputCamera.addEventListener('change', handleFileUpload);
@@ -4025,6 +4023,9 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
                 <button id="view-patterns-btn" class="btn btn-export">
                     <span class="icon">📊</span> View Detailed Patterns
                 </button>
+                <button id="export-words-btn" class="btn btn-export">
+                    <span class="icon">📋</span> Export Words
+                </button>
             </div>
             <div id="video-generation-status" class="video-status"></div>
 
@@ -4100,6 +4101,10 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
         if (viewPatternsBtnResults) {
             viewPatternsBtnResults.addEventListener('click', viewDetailedPatterns);
         }
+        const exportWordsBtnResults = resultsContainer.querySelector('#export-words-btn');
+        if (exportWordsBtnResults) {
+            exportWordsBtnResults.addEventListener('click', exportSelectedWords);
+        }
     }
 
     // Add event listener for download PDF button in export section
@@ -4118,6 +4123,12 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
     const viewPatternsBtn = document.getElementById('view-patterns-btn');
     if (viewPatternsBtn) {
         viewPatternsBtn.addEventListener('click', viewDetailedPatterns);
+    }
+
+    // Add event listener for export words button
+    const exportWordsBtn = document.getElementById('export-words-btn');
+    if (exportWordsBtn) {
+        exportWordsBtn.addEventListener('click', exportSelectedWords);
     }
 
     // Auto-save assessment if student was selected
