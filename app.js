@@ -674,62 +674,46 @@ function skipAudioRecording() {
 // Initialize Camera
 async function initCamera() {
     try {
-        // Request high resolution - be aggressive about getting HD
-        const constraints = {
+        // Request high resolution using 'ideal' only (no 'min' which can cause failures)
+        // This matches the original working configuration
+        state.stream = await navigator.mediaDevices.getUserMedia({
             video: {
                 facingMode: 'environment',
-                width: { ideal: 1920, min: 1280 },
-                height: { ideal: 1080, min: 720 }
+                width: { ideal: 1920 },
+                height: { ideal: 1080 }
             }
-        };
-
-        state.stream = await navigator.mediaDevices.getUserMedia(constraints);
+        });
         camera.srcObject = state.stream;
 
         // Wait for video to be ready and check resolution
         camera.onloadedmetadata = async () => {
-            console.log(`Initial camera resolution: ${camera.videoWidth}x${camera.videoHeight}`);
+            console.log(`Camera resolution: ${camera.videoWidth}x${camera.videoHeight}`);
 
-            // If resolution is too low, try to apply constraints to the track
+            // If resolution is lower than expected, try to request higher
             if (camera.videoWidth < 1280 || camera.videoHeight < 720) {
-                console.log('Resolution too low, attempting to apply track constraints...');
                 const videoTrack = state.stream.getVideoTracks()[0];
                 if (videoTrack) {
                     try {
                         await videoTrack.applyConstraints({
-                            width: { ideal: 1920, min: 1280 },
-                            height: { ideal: 1080, min: 720 }
+                            width: { ideal: 1920 },
+                            height: { ideal: 1080 }
                         });
-                        // Wait a moment for the resolution to update
                         setTimeout(() => {
-                            console.log(`After constraints: ${camera.videoWidth}x${camera.videoHeight}`);
-                            // Check again and warn user if still low
+                            console.log(`After applyConstraints: ${camera.videoWidth}x${camera.videoHeight}`);
                             if (camera.videoWidth < 1280 || camera.videoHeight < 720) {
                                 showStatus(`Low camera resolution (${camera.videoWidth}x${camera.videoHeight}). For better OCR, use "Upload Image" instead.`, 'warning');
                             }
                         }, 500);
                     } catch (e) {
-                        console.log('Could not apply higher resolution constraints:', e.message);
+                        console.log('Could not apply higher resolution:', e.message);
                         showStatus(`Low camera resolution (${camera.videoWidth}x${camera.videoHeight}). For better OCR, use "Upload Image" instead.`, 'warning');
                     }
                 }
             }
         };
     } catch (error) {
-        // Try again with less strict constraints
-        try {
-            console.log('High-res failed, trying default constraints');
-            state.stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' }
-            });
-            camera.srcObject = state.stream;
-            camera.onloadedmetadata = () => {
-                console.log(`Camera resolution (fallback): ${camera.videoWidth}x${camera.videoHeight}`);
-            };
-        } catch (fallbackError) {
-            alert('Camera access denied. Please allow camera permissions.');
-            console.error('Camera error:', fallbackError);
-        }
+        alert('Camera access denied. Please allow camera permissions.');
+        console.error('Camera error:', error);
     }
 }
 
