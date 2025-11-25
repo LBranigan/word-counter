@@ -5765,54 +5765,58 @@ function renderProgressChart(student) {
     drawLine(wpmData, '#3b82f6'); // Blue - WPM
     drawLine(prosodyData, '#8b5cf6'); // Purple - Prosody
 
-    // Chart title - draw first at top left
+    // Chart title - centered at top
     ctx.font = 'bold 28px Arial';
-    ctx.textAlign = 'left';
+    ctx.textAlign = 'center';
     ctx.fillStyle = '#111827';
-    ctx.fillText('Progress Over Time', padding, 30);
+    ctx.fillText('Progress Over Time', width / 2, 22);
 
-    // Draw legend - positioned at top right, or below chart on narrow screens
+    // Draw legend - centered below title on desktop, below chart on mobile
     const legendItems = [
         { label: 'Accuracy', color: '#10b981' },
         { label: 'WPM', color: '#3b82f6' },
         { label: 'Prosody (×2)', color: '#8b5cf6' }
     ];
 
-    ctx.font = 'bold 20px Arial';
     ctx.textBaseline = 'middle';
 
     if (useHorizontalLegend) {
-        // Horizontal layout - right side of title
-        const legendStartX = width - padding - totalLegendWidth + 20;
+        // Horizontal layout - centered below title
+        ctx.font = 'bold 18px Arial';
+        const itemSpacing = 130;
+        const actualLegendWidth = (legendItems.length - 1) * itemSpacing;
+        const legendStartX = (width - actualLegendWidth) / 2;
         legendItems.forEach((item, index) => {
-            const x = legendStartX + index * legendItemWidth;
-            const y = 30;
+            const x = legendStartX + index * itemSpacing;
+            const y = 48;
 
             // Draw color box
             ctx.fillStyle = item.color;
-            ctx.fillRect(x, y - 8, 16, 16);
+            ctx.fillRect(x - 10, y - 8, 16, 16);
 
             // Draw label
             ctx.textAlign = 'left';
             ctx.fillStyle = '#374151';
-            ctx.fillText(item.label, x + 22, y);
+            ctx.fillText(item.label, x + 12, y);
         });
     } else {
         // Horizontal layout below chart for mobile
-        const legendY = padding + chartHeight + 50;
-        const legendStartX = padding;
         ctx.font = 'bold 18px Arial';
+        const legendY = padding + chartHeight + 50;
+        const itemSpacing = 110;
+        const actualLegendWidth = (legendItems.length - 1) * itemSpacing;
+        const legendStartX = (width - actualLegendWidth) / 2;
         legendItems.forEach((item, index) => {
-            const x = legendStartX + index * 100;
+            const x = legendStartX + index * itemSpacing;
 
             // Draw color box
             ctx.fillStyle = item.color;
-            ctx.fillRect(x, legendY - 7, 14, 14);
+            ctx.fillRect(x - 10, legendY - 7, 14, 14);
 
             // Draw label
             ctx.textAlign = 'left';
             ctx.fillStyle = '#374151';
-            ctx.fillText(item.label, x + 20, legendY);
+            ctx.fillText(item.label, x + 10, legendY);
         });
     }
 }
