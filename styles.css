@@ -3143,6 +3143,30 @@ footer {
 
 /* Small mobile screens (< 480px) */
 @media (max-width: 480px) {
+    /* Export buttons grid for mobile */
+    .download-output-section {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+
+    .download-output-section .btn {
+        font-size: 0.75rem;
+        padding: 0.5rem 0.25rem;
+        min-height: 60px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        line-height: 1.2;
+    }
+
+    .download-output-section .btn .icon {
+        font-size: 1.25rem;
+        margin-bottom: 0.25rem;
+    }
+
     /* Stack action buttons vertically */
     .action-buttons,
     .step-nav-buttons {
