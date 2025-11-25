@@ -3176,6 +3176,77 @@ function downloadAnalysisAsPDF() {
     }
     yPos += 6;
 
+    // Color-Coded Transcription Section
+    if (analysis.aligned && analysis.aligned.length > 0) {
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Word-by-Word Transcription', margin, yPos);
+        yPos += 8;
+
+        // Add legend
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(34, 197, 94); // Green
+        doc.text('Green = Correct', margin, yPos);
+        doc.setTextColor(156, 163, 175); // Gray
+        doc.text('Gray = Skipped', margin + 40, yPos);
+        doc.setTextColor(249, 115, 22); // Orange
+        doc.text('Orange = Misread', margin + 75, yPos);
+        doc.setTextColor(239, 68, 68); // Red
+        doc.text('Red = Substituted', margin + 120, yPos);
+        doc.setTextColor(0);
+        yPos += 8;
+
+        // Build word-by-word colored text
+        let xPos = margin;
+        const lineHeight = 5;
+        const wordSpacing = 2;
+        doc.setFontSize(10);
+
+        analysis.aligned.forEach((item, index) => {
+            const word = item.expected;
+            const wordWidth = doc.getTextWidth(word);
+
+            // Check if we need to wrap to next line
+            if (xPos + wordWidth > pageWidth - margin) {
+                xPos = margin;
+                yPos += lineHeight;
+
+                // Check if we need a new page
+                if (yPos > 270) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+            }
+
+            // Set color based on status
+            if (item.status === 'correct') {
+                doc.setTextColor(34, 197, 94); // Green
+            } else if (item.status === 'skipped') {
+                doc.setTextColor(156, 163, 175); // Gray
+            } else if (item.status === 'misread') {
+                doc.setTextColor(249, 115, 22); // Orange
+            } else if (item.status === 'substituted') {
+                doc.setTextColor(239, 68, 68); // Red
+            } else {
+                doc.setTextColor(0); // Black default
+            }
+
+            doc.text(word, xPos, yPos);
+            xPos += wordWidth + wordSpacing;
+        });
+
+        // Reset color and position
+        doc.setTextColor(0);
+        yPos += lineHeight + 8;
+
+        // Check if we need a new page before Error Breakdown
+        if (yPos > 250) {
+            doc.addPage();
+            yPos = 20;
+        }
+    }
+
     // Error Breakdown
     if (totalErrors > 0) {
         doc.setFontSize(14);
@@ -3300,7 +3371,7 @@ function downloadAnalysisAsPDF() {
     doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
     doc.setTextColor(103, 126, 234); // Purple
-    doc.text('📊 Error Pattern Analysis', margin, yPos);
+    doc.text('[ANALYSIS] Error Pattern Analysis', margin, yPos);
     doc.setTextColor(0);
     yPos += 10;
 
@@ -3312,7 +3383,7 @@ function downloadAnalysisAsPDF() {
             doc.setFontSize(12);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(220, 53, 69); // Red for issues
-            doc.text('⚠️  Primary Issues Identified:', margin, yPos);
+            doc.text('[!] Primary Issues Identified:', margin, yPos);
             doc.setTextColor(0);
             yPos += 7;
 
@@ -3348,7 +3419,7 @@ function downloadAnalysisAsPDF() {
             doc.setFontSize(11);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(59, 130, 246); // Blue
-            doc.text('🔤 Phonics Pattern Errors:', margin, yPos);
+            doc.text('[PHONICS] Pattern Errors:', margin, yPos);
             doc.setTextColor(0);
             yPos += 6;
 
@@ -3476,7 +3547,7 @@ function downloadAnalysisAsPDF() {
             doc.setFontSize(11);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(234, 88, 12); // Orange
-            doc.text('🎯 Reading Strategy Issues:', margin, yPos);
+            doc.text('[STRATEGY] Reading Strategy Issues:', margin, yPos);
             doc.setTextColor(0);
             yPos += 6;
 
@@ -3526,7 +3597,7 @@ function downloadAnalysisAsPDF() {
             doc.setFontSize(11);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(168, 85, 247); // Purple
-            doc.text('🗣️  Possible Speech/Articulation Patterns:', margin, yPos);
+            doc.text('[SPEECH] Possible Speech/Articulation Patterns:', margin, yPos);
             doc.setTextColor(0);
             yPos += 6;
 
@@ -3568,7 +3639,7 @@ function downloadAnalysisAsPDF() {
             doc.setFontSize(12);
             doc.setFont(undefined, 'bold');
             doc.setTextColor(16, 185, 129); // Green
-            doc.text('💡 Recommendations:', margin, yPos);
+            doc.text('[RECOMMENDATIONS]', margin, yPos);
             doc.setTextColor(0);
             yPos += 7;
 
