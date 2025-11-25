@@ -13,6 +13,8 @@ const signOutBtn = document.getElementById('sign-out-btn');
 const userPhoto = document.getElementById('user-photo');
 const userName = document.getElementById('user-name');
 const userProfileDisplay = document.getElementById('user-profile-display');
+const userMenuBtn = document.getElementById('user-menu-btn');
+const userMenu = document.querySelector('.user-menu');
 
 // Initialize authentication
 function initAuth() {
@@ -21,6 +23,21 @@ function initAuth() {
 
     // Set up Sign-Out button
     signOutBtn.addEventListener('click', handleSignOut);
+
+    // Set up user menu dropdown toggle
+    if (userMenuBtn) {
+        userMenuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userMenu.classList.toggle('open');
+        });
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (userMenu && !userMenu.contains(e.target)) {
+            userMenu.classList.remove('open');
+        }
+    });
 
     // Listen for auth state changes
     onAuthStateChanged(auth, async (user) => {
@@ -92,6 +109,9 @@ async function handleGoogleSignIn() {
 
 // Handle Sign-Out
 async function handleSignOut() {
+    // Close the dropdown first
+    if (userMenu) userMenu.classList.remove('open');
+
     if (confirm('Are you sure you want to sign out?')) {
         try {
             await signOut(auth);

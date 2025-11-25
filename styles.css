@@ -97,38 +97,88 @@
 .user-profile-display {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    background: #f0f4ff;
-    padding: 0.5rem 1rem;
+}
+
+.user-menu {
+    position: relative;
+}
+
+.user-menu-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 0.4rem 0.75rem;
     border-radius: 25px;
-    border: 2px solid #667eea;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.user-menu-btn:hover {
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .user-photo {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    border: 2px solid white;
+    border: 2px solid #667eea;
 }
 
 .user-name {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 600;
     color: #333;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.btn-sign-out {
+.dropdown-arrow {
+    font-size: 0.6rem;
+    color: #666;
+    transition: transform 0.2s ease;
+}
+
+.user-menu.open .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.user-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 5px);
+    right: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    min-width: 140px;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.user-menu.open .user-dropdown {
+    display: block;
+}
+
+.dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 0.75rem 1rem;
     background: none;
     border: none;
+    text-align: left;
     cursor: pointer;
-    padding: 0.25rem;
-    color: #667eea;
-    transition: all 0.2s ease;
-    font-size: 1.2rem;
+    font-size: 0.9rem;
+    color: #333;
+    transition: background 0.2s ease;
 }
 
-.btn-sign-out:hover {
-    transform: scale(1.1);
+.dropdown-item:hover {
+    background: #f5f5f5;
     color: #dc3545;
 }
 

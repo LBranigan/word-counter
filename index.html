@@ -52,11 +52,18 @@
                     <span id="word-count">0</span> words
                 </div>
                 <div id="user-profile-display" class="user-profile-display">
-                    <img id="user-photo" class="user-photo" src="" alt="User">
-                    <span id="user-name" class="user-name"></span>
-                    <button id="sign-out-btn" class="btn-sign-out" title="Sign out">
-                        <span class="icon">🚪</span>
-                    </button>
+                    <div class="user-menu">
+                        <button id="user-menu-btn" class="user-menu-btn">
+                            <img id="user-photo" class="user-photo" src="" alt="User">
+                            <span id="user-name" class="user-name"></span>
+                            <span class="dropdown-arrow">▼</span>
+                        </button>
+                        <div id="user-dropdown" class="user-dropdown">
+                            <button id="sign-out-btn" class="dropdown-item">
+                                Sign Out
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </header>
