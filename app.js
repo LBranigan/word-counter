@@ -5652,7 +5652,17 @@ function renderProgressChart(student) {
 
     const ctx = canvas.getContext('2d');
     const width = canvas.width = canvas.offsetWidth * 2; // High DPI
-    const height = canvas.height = 400;
+
+    // Calculate legend layout early to determine canvas height
+    const legendItemWidth = 120;
+    const totalLegendWidth = 3 * legendItemWidth; // 3 legend items
+    const titleWidth = 280;
+    const padding = 60;
+    const availableWidth = width - padding - titleWidth - 20;
+    const useHorizontalLegend = availableWidth >= totalLegendWidth;
+
+    // Increase height if we need vertical legend layout
+    const height = canvas.height = useHorizontalLegend ? 400 : 440;
 
     // Clear canvas
     ctx.clearRect(0, 0, width, height);
@@ -5664,9 +5674,8 @@ function renderProgressChart(student) {
     if (assessmentCount === 0) return;
 
     // Chart dimensions
-    const padding = 60;
     const chartWidth = width - padding * 2;
-    const chartHeight = height - padding * 2;
+    const chartHeight = height - padding * 2 - (useHorizontalLegend ? 0 : 40);
 
     // Draw background
     ctx.fillStyle = '#f9fafb';
@@ -5756,35 +5765,56 @@ function renderProgressChart(student) {
     drawLine(wpmData, '#3b82f6'); // Blue - WPM
     drawLine(prosodyData, '#8b5cf6'); // Purple - Prosody
 
-    // Draw legend
-    const legendY = 30;
+    // Chart title - draw first at top left
+    ctx.font = 'bold 28px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#111827';
+    ctx.fillText('Progress Over Time', padding, 30);
+
+    // Draw legend - positioned at top right, or below chart on narrow screens
     const legendItems = [
         { label: 'Accuracy', color: '#10b981' },
-        { label: 'WPM (×2)', color: '#3b82f6' },
-        { label: 'Prosody (×25)', color: '#8b5cf6' }
+        { label: 'WPM', color: '#3b82f6' },
+        { label: 'Prosody (×2)', color: '#8b5cf6' }
     ];
 
-    ctx.textAlign = 'left';
+    ctx.font = 'bold 20px Arial';
     ctx.textBaseline = 'middle';
-    ctx.font = 'bold 24px Arial';
 
-    legendItems.forEach((item, index) => {
-        const x = padding + chartWidth - 300 + index * 100;
+    if (useHorizontalLegend) {
+        // Horizontal layout - right side of title
+        const legendStartX = width - padding - totalLegendWidth + 20;
+        legendItems.forEach((item, index) => {
+            const x = legendStartX + index * legendItemWidth;
+            const y = 30;
 
-        // Draw color box
-        ctx.fillStyle = item.color;
-        ctx.fillRect(x, legendY - 10, 20, 20);
+            // Draw color box
+            ctx.fillStyle = item.color;
+            ctx.fillRect(x, y - 8, 16, 16);
 
-        // Draw label
-        ctx.fillStyle = '#374151';
-        ctx.fillText(item.label, x + 30, legendY);
-    });
+            // Draw label
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#374151';
+            ctx.fillText(item.label, x + 22, y);
+        });
+    } else {
+        // Horizontal layout below chart for mobile
+        const legendY = padding + chartHeight + 50;
+        const legendStartX = padding;
+        ctx.font = 'bold 18px Arial';
+        legendItems.forEach((item, index) => {
+            const x = legendStartX + index * 100;
 
-    // Chart title
-    ctx.font = 'bold 28px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#111827';
-    ctx.fillText('Progress Over Time', width / 2, 30);
+            // Draw color box
+            ctx.fillStyle = item.color;
+            ctx.fillRect(x, legendY - 7, 14, 14);
+
+            // Draw label
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#374151';
+            ctx.fillText(item.label, x + 20, legendY);
+        });
+    }
 }
 
 // Render student summary
