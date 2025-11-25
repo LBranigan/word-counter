@@ -1513,7 +1513,7 @@ async function runSpeechToTextForAutoDetect() {
 
 /**
  * Find the range of OCR words that match the spoken words.
- * Uses fuzzy matching to handle slight pronunciation differences.
+ * Uses improved sequence alignment with fuzzy matching.
  *
  * @param {Array} spokenWords - Array of {word, confidence} from speech-to-text
  * @param {Array} ocrWords - Array of word strings from OCR
@@ -1523,13 +1523,13 @@ function findSpokenRangeInOCR(spokenWords, ocrWords) {
     // Normalize spoken words (remove filler words, clean up)
     const cleanSpoken = spokenWords
         .filter(w => w && w.word && !isFillerWord(w.word))
-        .map(w => normalizeWord(w.word))
+        .map(w => normalizeWordForMatching(w.word))
         .filter(w => w.length > 0);
 
     // Normalize OCR words
-    const cleanOCR = ocrWords.map(w => normalizeWord(w));
+    const cleanOCR = ocrWords.map(w => normalizeWordForMatching(w));
 
-    console.log('=== MATCHING ALGORITHM ===');
+    console.log('=== IMPROVED MATCHING ALGORITHM ===');
     console.log('Clean spoken words:', cleanSpoken);
     console.log('Clean OCR words:', cleanOCR);
 
@@ -1537,136 +1537,365 @@ function findSpokenRangeInOCR(spokenWords, ocrWords) {
         return { firstIndex: -1, lastIndex: -1, matchedCount: 0 };
     }
 
-    // Strategy: Find best contiguous match using sliding window + DP
-    // For each possible starting position in OCR, try to match spoken words
+    // Build a similarity matrix between spoken and OCR words
+    const similarityMatrix = buildSimilarityMatrix(cleanSpoken, cleanOCR);
 
-    let bestMatch = {
-        firstIndex: -1,
-        lastIndex: -1,
-        matchedCount: 0,
-        score: 0
-    };
+    // Use dynamic programming to find the best alignment
+    const alignment = findBestAlignment(cleanSpoken, cleanOCR, similarityMatrix);
 
-    // Try different starting positions in OCR text
-    for (let ocrStart = 0; ocrStart < cleanOCR.length; ocrStart++) {
-        let spokenIdx = 0;
-        let matchedCount = 0;
-        let lastMatchedOCRIdx = -1;
-        let firstMatchedOCRIdx = -1;
+    console.log('Alignment result:', alignment);
 
-        // Try to match spoken words starting from this OCR position
-        for (let ocrIdx = ocrStart; ocrIdx < cleanOCR.length && spokenIdx < cleanSpoken.length; ocrIdx++) {
-            const ocrWord = cleanOCR[ocrIdx];
-            const spokenWord = cleanSpoken[spokenIdx];
-
-            // Check for exact or fuzzy match
-            if (ocrWord === spokenWord || wordsAreSimilarForAutoDetect(ocrWord, spokenWord)) {
-                if (firstMatchedOCRIdx === -1) {
-                    firstMatchedOCRIdx = ocrIdx;
-                }
-                lastMatchedOCRIdx = ocrIdx;
-                matchedCount++;
-                spokenIdx++;
-            }
-        }
-
-        // Calculate score for this starting position
-        const coverage = matchedCount / cleanSpoken.length;
-        const density = matchedCount > 0 ? matchedCount / (lastMatchedOCRIdx - firstMatchedOCRIdx + 1) : 0;
-        const score = coverage * 0.7 + density * 0.3;
-
-        if (score > bestMatch.score && matchedCount >= Math.min(3, cleanSpoken.length * 0.3)) {
-            bestMatch = {
-                firstIndex: firstMatchedOCRIdx,
-                lastIndex: lastMatchedOCRIdx,
-                matchedCount: matchedCount,
-                score: score
-            };
-        }
+    if (alignment.firstOCRIndex === -1 || alignment.lastOCRIndex === -1) {
+        // Fallback: Try anchor-based matching
+        return findRangeByAnchors(cleanSpoken, cleanOCR);
     }
-
-    console.log('Best match result:', bestMatch);
-
-    // If we found a good match, return it
-    if (bestMatch.firstIndex !== -1) {
-        return bestMatch;
-    }
-
-    // Fallback: Use a more lenient approach - find first and last matching words independently
-    let firstMatch = -1;
-    let lastMatch = -1;
-    let totalMatches = 0;
-
-    // Find first spoken word in OCR
-    for (let s = 0; s < cleanSpoken.length && firstMatch === -1; s++) {
-        for (let o = 0; o < cleanOCR.length; o++) {
-            if (cleanOCR[o] === cleanSpoken[s] || wordsAreSimilarForAutoDetect(cleanOCR[o], cleanSpoken[s])) {
-                firstMatch = o;
-                break;
-            }
-        }
-    }
-
-    // Find last spoken word in OCR (search from end)
-    for (let s = cleanSpoken.length - 1; s >= 0 && lastMatch === -1; s--) {
-        for (let o = cleanOCR.length - 1; o >= 0; o--) {
-            if (cleanOCR[o] === cleanSpoken[s] || wordsAreSimilarForAutoDetect(cleanOCR[o], cleanSpoken[s])) {
-                if (o >= firstMatch) {
-                    lastMatch = o;
-                    break;
-                }
-            }
-        }
-    }
-
-    // Count matches in the range
-    if (firstMatch !== -1 && lastMatch !== -1) {
-        const spokenSet = new Set(cleanSpoken);
-        for (let i = firstMatch; i <= lastMatch; i++) {
-            if (spokenSet.has(cleanOCR[i])) {
-                totalMatches++;
-            }
-        }
-    }
-
-    console.log('Fallback match result:', { firstMatch, lastMatch, totalMatches });
 
     return {
-        firstIndex: firstMatch,
-        lastIndex: lastMatch,
-        matchedCount: totalMatches
+        firstIndex: alignment.firstOCRIndex,
+        lastIndex: alignment.lastOCRIndex,
+        matchedCount: alignment.matchedCount
     };
 }
 
 /**
- * Check if two words are similar enough for auto-detection matching.
- * More lenient than the pronunciation analysis matching.
+ * Build a similarity matrix between spoken and OCR words
  */
-function wordsAreSimilarForAutoDetect(word1, word2) {
-    if (!word1 || !word2) return false;
-    if (word1 === word2) return true;
+function buildSimilarityMatrix(spoken, ocr) {
+    const matrix = [];
+    for (let s = 0; s < spoken.length; s++) {
+        matrix[s] = [];
+        for (let o = 0; o < ocr.length; o++) {
+            matrix[s][o] = calculateWordSimilarity(spoken[s], ocr[o]);
+        }
+    }
+    return matrix;
+}
 
-    // Very short words need exact match
-    if (word1.length <= 2 || word2.length <= 2) {
-        return word1 === word2;
+/**
+ * Calculate similarity between two words (0 to 1)
+ */
+function calculateWordSimilarity(word1, word2) {
+    if (!word1 || !word2) return 0;
+    if (word1 === word2) return 1.0;
+
+    // Check phonetic similarity first
+    const phonetic1 = getPhoneticCode(word1);
+    const phonetic2 = getPhoneticCode(word2);
+    if (phonetic1 && phonetic2 && phonetic1 === phonetic2) {
+        return 0.95;  // High similarity for phonetic matches
     }
 
-    // Check if one is a prefix of the other (for partial words)
-    if (word1.startsWith(word2) || word2.startsWith(word1)) {
-        const shorter = Math.min(word1.length, word2.length);
-        const longer = Math.max(word1.length, word2.length);
-        if (shorter >= 3 && shorter / longer >= 0.7) {
+    // Check for common OCR/STT confusions
+    if (areCommonConfusions(word1, word2)) {
+        return 0.9;
+    }
+
+    // Check prefix matching (for truncated words)
+    const minLen = Math.min(word1.length, word2.length);
+    const maxLen = Math.max(word1.length, word2.length);
+
+    if (minLen >= 3) {
+        // Check if one starts with the other
+        if (word1.startsWith(word2) || word2.startsWith(word1)) {
+            return 0.7 + (0.25 * minLen / maxLen);
+        }
+        // Check if first 3+ characters match
+        const prefixLen = Math.min(4, minLen);
+        if (word1.substring(0, prefixLen) === word2.substring(0, prefixLen)) {
+            return 0.6 + (0.3 * minLen / maxLen);
+        }
+    }
+
+    // Levenshtein-based similarity
+    const distance = levenshteinDistance(word1, word2);
+    const similarity = 1 - (distance / maxLen);
+
+    // Boost similarity for longer words (they're less likely to match by chance)
+    const lengthBonus = Math.min(0.1, maxLen * 0.01);
+
+    return Math.min(1.0, similarity + lengthBonus);
+}
+
+/**
+ * Simple phonetic encoding (Soundex-like)
+ */
+function getPhoneticCode(word) {
+    if (!word || word.length < 2) return null;
+
+    // Simplified phonetic encoding
+    let code = word[0].toUpperCase();
+
+    const phonemeMap = {
+        'b': '1', 'f': '1', 'p': '1', 'v': '1',
+        'c': '2', 'g': '2', 'j': '2', 'k': '2', 'q': '2', 's': '2', 'x': '2', 'z': '2',
+        'd': '3', 't': '3',
+        'l': '4',
+        'm': '5', 'n': '5',
+        'r': '6'
+    };
+
+    let lastCode = '';
+    for (let i = 1; i < word.length && code.length < 4; i++) {
+        const char = word[i].toLowerCase();
+        const phoneCode = phonemeMap[char];
+        if (phoneCode && phoneCode !== lastCode) {
+            code += phoneCode;
+            lastCode = phoneCode;
+        } else if (!phonemeMap[char]) {
+            lastCode = '';
+        }
+    }
+
+    // Pad with zeros
+    while (code.length < 4) {
+        code += '0';
+    }
+
+    return code;
+}
+
+/**
+ * Check for common OCR and speech-to-text confusions
+ */
+function areCommonConfusions(word1, word2) {
+    // Common character confusions in OCR
+    const ocrConfusions = [
+        ['0', 'o'], ['1', 'l'], ['1', 'i'], ['5', 's'],
+        ['8', 'b'], ['rn', 'm'], ['cl', 'd'], ['vv', 'w']
+    ];
+
+    // Apply OCR confusion substitutions
+    let normalized1 = word1.toLowerCase();
+    let normalized2 = word2.toLowerCase();
+
+    for (const [from, to] of ocrConfusions) {
+        const alt1a = normalized1.replace(new RegExp(from, 'g'), to);
+        const alt1b = normalized1.replace(new RegExp(to, 'g'), from);
+        const alt2a = normalized2.replace(new RegExp(from, 'g'), to);
+        const alt2b = normalized2.replace(new RegExp(to, 'g'), from);
+
+        if (alt1a === normalized2 || alt1b === normalized2 ||
+            normalized1 === alt2a || normalized1 === alt2b) {
             return true;
         }
     }
 
-    // Use Levenshtein distance for fuzzy matching
-    const maxLen = Math.max(word1.length, word2.length);
-    const distance = levenshteinDistance(word1, word2);
-    const similarity = 1 - (distance / maxLen);
+    // Common word confusions in speech
+    const wordConfusions = [
+        ['the', 'a'], ['the', 'uh'], ['and', 'an'], ['to', 'too', 'two'],
+        ['there', 'their', 'theyre'], ['its', 'it\'s'], ['your', 'youre'],
+        ['were', 'where', 'we\'re'], ['then', 'than']
+    ];
 
-    // Require higher similarity for auto-detect (80%)
-    return similarity >= 0.8;
+    for (const group of wordConfusions) {
+        if (group.includes(normalized1) && group.includes(normalized2)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Find best alignment using dynamic programming
+ */
+function findBestAlignment(spoken, ocr, similarityMatrix) {
+    const m = spoken.length;
+    const n = ocr.length;
+
+    // DP table: dp[i][j] = best score aligning spoken[0..i-1] ending at ocr[j-1]
+    // We want to find a contiguous range in OCR that best matches spoken sequence
+
+    const MATCH_THRESHOLD = 0.55;  // Lowered threshold for matching
+    const SKIP_PENALTY = 0.3;      // Penalty for skipping an OCR word
+    const GAP_PENALTY = 0.4;       // Penalty for missing a spoken word
+
+    // Track best ending positions for each OCR position
+    let bestScore = 0;
+    let bestEndOCR = -1;
+    let bestStartOCR = -1;
+    let bestMatchCount = 0;
+
+    // Try each possible starting position in OCR
+    for (let startOCR = 0; startOCR < n; startOCR++) {
+        // DP for this starting position
+        // dp[s] = {score, matchCount, lastOCR} for matching spoken[0..s-1]
+        const dp = new Array(m + 1).fill(null).map(() => ({
+            score: 0,
+            matchCount: 0,
+            lastOCR: startOCR - 1
+        }));
+
+        for (let s = 0; s < m; s++) {
+            // Try matching spoken[s] with each OCR word from lastOCR+1 onwards
+            const prevState = dp[s];
+
+            for (let o = prevState.lastOCR + 1; o < n; o++) {
+                const sim = similarityMatrix[s][o];
+
+                if (sim >= MATCH_THRESHOLD) {
+                    // Calculate score including skip penalty for gaps
+                    const skippedOCR = o - prevState.lastOCR - 1;
+                    const skipPenalty = skippedOCR * SKIP_PENALTY;
+                    const newScore = prevState.score + sim - skipPenalty;
+
+                    if (newScore > dp[s + 1].score) {
+                        dp[s + 1] = {
+                            score: newScore,
+                            matchCount: prevState.matchCount + 1,
+                            lastOCR: o
+                        };
+                    }
+                }
+            }
+
+            // Also allow skipping this spoken word (gap in spoken)
+            if (dp[s].score - GAP_PENALTY > dp[s + 1].score) {
+                dp[s + 1] = {
+                    score: dp[s].score - GAP_PENALTY,
+                    matchCount: dp[s].matchCount,
+                    lastOCR: dp[s].lastOCR
+                };
+            }
+        }
+
+        // Check if this starting position gives better result
+        const finalState = dp[m];
+        if (finalState.matchCount >= 2 && finalState.score > bestScore) {
+            bestScore = finalState.score;
+            bestEndOCR = finalState.lastOCR;
+            bestStartOCR = startOCR;
+            bestMatchCount = finalState.matchCount;
+
+            // Refine start position by finding first actual match
+            for (let s = 0; s < m; s++) {
+                for (let o = startOCR; o < n; o++) {
+                    if (similarityMatrix[s][o] >= MATCH_THRESHOLD) {
+                        bestStartOCR = o;
+                        break;
+                    }
+                }
+                if (bestStartOCR !== startOCR) break;
+            }
+        }
+    }
+
+    console.log('DP alignment:', { bestStartOCR, bestEndOCR, bestScore, bestMatchCount });
+
+    return {
+        firstOCRIndex: bestStartOCR,
+        lastOCRIndex: bestEndOCR,
+        matchedCount: bestMatchCount,
+        score: bestScore
+    };
+}
+
+/**
+ * Fallback: Find range by anchor words (distinctive words that appear once)
+ */
+function findRangeByAnchors(spoken, ocr) {
+    console.log('Using anchor-based fallback...');
+
+    // Find distinctive words (longer words, appear once in OCR)
+    const ocrWordCounts = {};
+    ocr.forEach(w => { ocrWordCounts[w] = (ocrWordCounts[w] || 0) + 1; });
+
+    const anchors = [];
+
+    // Look for anchor matches
+    for (let s = 0; s < spoken.length; s++) {
+        const spokenWord = spoken[s];
+        if (spokenWord.length < 4) continue;  // Skip short words
+
+        for (let o = 0; o < ocr.length; o++) {
+            const ocrWord = ocr[o];
+            if (ocrWordCounts[ocrWord] > 2) continue;  // Skip very common words
+
+            const sim = calculateWordSimilarity(spokenWord, ocrWord);
+            if (sim >= 0.6) {
+                anchors.push({ spokenIdx: s, ocrIdx: o, similarity: sim });
+            }
+        }
+    }
+
+    if (anchors.length === 0) {
+        console.log('No anchors found');
+        return { firstIndex: -1, lastIndex: -1, matchedCount: 0 };
+    }
+
+    // Sort by spoken index and find consistent range
+    anchors.sort((a, b) => a.spokenIdx - b.spokenIdx);
+
+    // Find longest increasing subsequence of OCR indices
+    let bestStart = anchors[0].ocrIdx;
+    let bestEnd = anchors[0].ocrIdx;
+    let currentStart = anchors[0].ocrIdx;
+    let currentEnd = anchors[0].ocrIdx;
+    let matchCount = 1;
+    let bestMatchCount = 1;
+
+    for (let i = 1; i < anchors.length; i++) {
+        if (anchors[i].ocrIdx > currentEnd) {
+            currentEnd = anchors[i].ocrIdx;
+            matchCount++;
+            if (matchCount > bestMatchCount) {
+                bestMatchCount = matchCount;
+                bestStart = currentStart;
+                bestEnd = currentEnd;
+            }
+        } else if (anchors[i].ocrIdx < currentStart) {
+            // Reset
+            currentStart = anchors[i].ocrIdx;
+            currentEnd = anchors[i].ocrIdx;
+            matchCount = 1;
+        }
+    }
+
+    console.log('Anchor result:', { bestStart, bestEnd, bestMatchCount });
+
+    return {
+        firstIndex: bestStart,
+        lastIndex: bestEnd,
+        matchedCount: bestMatchCount
+    };
+}
+
+/**
+ * Normalize word for matching (more aggressive than regular normalize)
+ */
+function normalizeWordForMatching(word) {
+    if (!word || typeof word !== 'string') return '';
+
+    // Lowercase and remove punctuation
+    let normalized = word.toLowerCase().replace(/[^\w]/g, '');
+
+    // Handle common contractions
+    normalized = normalized
+        .replace(/n't$/, 'not')
+        .replace(/'re$/, 'are')
+        .replace(/'ve$/, 'have')
+        .replace(/'ll$/, 'will')
+        .replace(/'d$/, 'would')
+        .replace(/'s$/, '');  // Remove possessive/is
+
+    // Convert numbers to words for small numbers
+    const numberWords = {
+        '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four',
+        '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine',
+        '10': 'ten', '11': 'eleven', '12': 'twelve'
+    };
+    if (numberWords[normalized]) {
+        normalized = numberWords[normalized];
+    }
+
+    return normalized;
+}
+
+/**
+ * Check if two words are similar enough for auto-detection matching.
+ */
+function wordsAreSimilarForAutoDetect(word1, word2) {
+    return calculateWordSimilarity(word1, word2) >= 0.55;
 }
 
 // ============ END AUTO-DETECT SPOKEN WORDS ============
