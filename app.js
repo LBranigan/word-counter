@@ -2663,6 +2663,17 @@ async function analyzeRecordedAudio() {
         return;
     }
 
+    // Check if we already have spoken words from auto-detect (avoid redundant API call)
+    if (state.latestSpokenWords && state.latestSpokenWords.length > 0) {
+        console.log('Using cached spoken words from auto-detect, skipping Speech-to-Text API call');
+        showStatus('Analyzing pronunciation...', 'processing');
+
+        // Use cached data directly
+        performPronunciationAnalysis(state.latestSpokenWords);
+        return;
+    }
+
+    // No cached data - need to call Speech-to-Text API
     showStatus('Converting audio to speech using Google Speech-to-Text...', 'processing');
 
     try {
@@ -2801,42 +2812,8 @@ async function analyzeRecordedAudio() {
 
             console.log('Word-level info with timing:', wordInfo);
 
-            // Get expected text from highlighted words
-            const selectedIndices = Array.from(state.selectedWords).sort((a, b) => a - b);
-            const expectedWords = selectedIndices.map(index => state.ocrData.words[index].text);
-
-            // Analyze pronunciation by comparing expected vs spoken words
-            const analysis = analyzePronunciation(expectedWords, wordInfo);
-
-            // Analyze error patterns
-            const errorPatterns = analyzeErrorPatterns(analysis, expectedWords);
-            console.log('Error patterns detected:', errorPatterns);
-
-            // Calculate prosody metrics (WPM, prosody score)
-            const prosodyMetrics = calculateProsodyMetrics(
-                expectedWords,
-                wordInfo,
-                analysis,
-                state.recordingDuration
-            );
-
-            // Store analysis results for PDF export
-            state.latestAnalysis = analysis;
-            state.latestExpectedWords = expectedWords;
-            state.latestSpokenWords = wordInfo;
-            state.latestProsodyMetrics = prosodyMetrics;
-            state.latestErrorPatterns = errorPatterns;
-
-            // Display results with pronunciation analysis
-            displayPronunciationResults(expectedWords, wordInfo, analysis, prosodyMetrics);
-
-            const totalErrors = analysis.errors.skippedWords.length +
-                              analysis.errors.misreadWords.length +
-                              analysis.errors.substitutedWords.length;
-            showStatus(`Analysis complete! ${totalErrors} pronunciation error(s) detected.`, '');
-
-                // Scroll to results
-                exportOutput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Use the reusable function for analysis and display
+            performPronunciationAnalysis(wordInfo);
 
             } catch (innerError) {
                 console.error('Inner error during audio analysis:', innerError);
@@ -2848,6 +2825,51 @@ async function analyzeRecordedAudio() {
         console.error('Outer Speech-to-Text error:', error);
         showStatus('Error analyzing audio: ' + error.message, 'error');
     }
+}
+
+/**
+ * Perform pronunciation analysis using spoken word data.
+ * This function is reusable - can be called with cached data from auto-detect
+ * or fresh data from a new API call.
+ * @param {Array} wordInfo - Array of spoken word objects with word, confidence, startTime, endTime
+ */
+function performPronunciationAnalysis(wordInfo) {
+    // Get expected text from highlighted words
+    const selectedIndices = Array.from(state.selectedWords).sort((a, b) => a - b);
+    const expectedWords = selectedIndices.map(index => state.ocrData.words[index].text);
+
+    // Analyze pronunciation by comparing expected vs spoken words
+    const analysis = analyzePronunciation(expectedWords, wordInfo);
+
+    // Analyze error patterns
+    const errorPatterns = analyzeErrorPatterns(analysis, expectedWords);
+    console.log('Error patterns detected:', errorPatterns);
+
+    // Calculate prosody metrics (WPM, prosody score)
+    const prosodyMetrics = calculateProsodyMetrics(
+        expectedWords,
+        wordInfo,
+        analysis,
+        state.recordingDuration
+    );
+
+    // Store analysis results for PDF export
+    state.latestAnalysis = analysis;
+    state.latestExpectedWords = expectedWords;
+    state.latestSpokenWords = wordInfo;
+    state.latestProsodyMetrics = prosodyMetrics;
+    state.latestErrorPatterns = errorPatterns;
+
+    // Display results with pronunciation analysis
+    displayPronunciationResults(expectedWords, wordInfo, analysis, prosodyMetrics);
+
+    const totalErrors = analysis.errors.skippedWords.length +
+                      analysis.errors.misreadWords.length +
+                      analysis.errors.substitutedWords.length;
+    showStatus(`Analysis complete! ${totalErrors} pronunciation error(s) detected.`, '');
+
+    // Scroll to results
+    exportOutput.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 // Pronunciation Analysis Functions
