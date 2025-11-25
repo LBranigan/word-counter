@@ -34,6 +34,20 @@
         </div>
     </div>
 
+    <!-- Loading Screen (shown after auth, during app initialization) -->
+    <div id="loading-screen" class="loading-screen" style="display: none;">
+        <div class="loading-container">
+            <div class="loading-header">
+                <h1>📖 Word Analyzer</h1>
+                <p class="loading-subtitle">Morningside Academy</p>
+            </div>
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <p id="loading-status" class="loading-status">Loading your settings...</p>
+            </div>
+        </div>
+    </div>
+
     <div class="container" id="app-container" style="display: none;">
         <header>
             <div class="header-title">
@@ -59,8 +73,12 @@
                             <span class="dropdown-arrow">▼</span>
                         </button>
                         <div id="user-dropdown" class="user-dropdown">
+                            <button id="api-settings-btn" class="dropdown-item">
+                                <span class="dropdown-icon">🔑</span> API Settings
+                            </button>
+                            <div class="dropdown-divider"></div>
                             <button id="sign-out-btn" class="dropdown-item">
-                                Sign Out
+                                <span class="dropdown-icon">🚪</span> Sign Out
                             </button>
                         </div>
                     </div>

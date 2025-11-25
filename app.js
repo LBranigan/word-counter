@@ -21,6 +21,12 @@ import {
     getUsageStats
 } from './firebase-api-key-manager.js';
 
+// Firebase Auth (for loading screen control)
+import {
+    showAppReady,
+    updateLoadingStatus
+} from './firebase-auth.js';
+
 // App State
 const state = {
     apiKey: null,
@@ -5931,16 +5937,37 @@ async function initDatabaseFeaturesAsync() {
 async function initializeApp() {
     console.log('Initializing Word Analyzer app...');
 
-    // Initialize sample students if needed (for new users)
-    await initializeSampleStudents();
+    try {
+        // Update loading status
+        updateLoadingStatus('Setting up your classroom...');
 
-    // Initialize app
-    init();
+        // Initialize sample students if needed (for new users)
+        await initializeSampleStudents();
 
-    // Initialize database features
-    await initDatabaseFeaturesAsync();
+        // Update loading status
+        updateLoadingStatus('Loading API settings...');
 
-    console.log('App initialized successfully');
+        // Initialize app (loads API key)
+        await init();
+
+        // Update loading status
+        updateLoadingStatus('Preparing interface...');
+
+        // Initialize database features
+        await initDatabaseFeaturesAsync();
+
+        console.log('App initialized successfully');
+
+        // Small delay for smoother transition
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Show the app (hide loading screen)
+        showAppReady();
+
+    } catch (error) {
+        console.error('Error initializing app:', error);
+        updateLoadingStatus('Error loading app. Please refresh.');
+    }
 }
 
 // Wait for user authentication before initializing app
@@ -5948,3 +5975,36 @@ window.addEventListener('userAuthenticated', async (event) => {
     console.log('User authenticated, initializing app...');
     await initializeApp();
 });
+
+// Listen for API settings request from user menu
+window.addEventListener('openApiSettings', () => {
+    openApiSettingsFromMenu();
+});
+
+// Open API settings from the user menu dropdown
+function openApiSettingsFromMenu() {
+    // Navigate to setup section to show API key input
+    // First hide all other sections
+    const sections = document.querySelectorAll('.section');
+    sections.forEach(s => s.classList.remove('active'));
+
+    // Hide class overview and student profile if visible
+    if (classOverviewSection) classOverviewSection.classList.remove('active');
+    if (studentProfileSection) studentProfileSection.classList.remove('active');
+
+    // Show setup section
+    setupSection.classList.add('active');
+
+    // Update breadcrumb
+    state.currentStep = 'setup';
+    updateBreadcrumb();
+
+    // Pre-fill with existing key (masked) if available
+    if (state.apiKey && apiKeyInput) {
+        apiKeyInput.value = '';
+        apiKeyInput.placeholder = 'Enter new API key (current key is saved)';
+    }
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}

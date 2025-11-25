@@ -7,9 +7,12 @@ let currentUser = null;
 
 // DOM elements
 const loginScreen = document.getElementById('login-screen');
+const loadingScreen = document.getElementById('loading-screen');
+const loadingStatus = document.getElementById('loading-status');
 const appContainer = document.getElementById('app-container');
 const googleSignInBtn = document.getElementById('google-sign-in-btn');
 const signOutBtn = document.getElementById('sign-out-btn');
+const apiSettingsBtn = document.getElementById('api-settings-btn');
 const userPhoto = document.getElementById('user-photo');
 const userName = document.getElementById('user-name');
 const userProfileDisplay = document.getElementById('user-profile-display');
@@ -23,6 +26,11 @@ function initAuth() {
 
     // Set up Sign-Out button
     signOutBtn.addEventListener('click', handleSignOut);
+
+    // Set up API Settings button
+    if (apiSettingsBtn) {
+        apiSettingsBtn.addEventListener('click', handleApiSettings);
+    }
 
     // Set up user menu dropdown toggle
     if (userMenuBtn) {
@@ -49,25 +57,53 @@ function initAuth() {
             // Update UI with user info
             updateUserProfile(user);
 
-            // Hide login screen, show app
+            // Show loading screen, hide login screen
             loginScreen.classList.add('hidden');
-            appContainer.style.display = 'block';
+            loadingScreen.style.display = 'flex';
+            updateLoadingStatus('Checking your settings...');
 
             // Migrate localStorage data to Firestore (if any)
+            updateLoadingStatus('Syncing data...');
             await migrateLocalStorageToFirestore(user.uid);
 
-            // Dispatch custom event that app is ready
+            // Dispatch custom event for app initialization
+            // App will call showAppReady() when done loading
+            updateLoadingStatus('Loading your classroom...');
             window.dispatchEvent(new CustomEvent('userAuthenticated', { detail: { user } }));
         } else {
             // User is signed out
             currentUser = null;
             console.log('User signed out');
 
-            // Show login screen, hide app
+            // Show login screen, hide app and loading screen
             loginScreen.classList.remove('hidden');
+            loadingScreen.style.display = 'none';
             appContainer.style.display = 'none';
         }
     });
+}
+
+// Update loading status message
+function updateLoadingStatus(message) {
+    if (loadingStatus) {
+        loadingStatus.textContent = message;
+    }
+}
+
+// Called by app.js when initialization is complete
+function showAppReady() {
+    // Hide loading screen, show app
+    loadingScreen.style.display = 'none';
+    appContainer.style.display = 'block';
+}
+
+// Handle API Settings click
+function handleApiSettings() {
+    // Close the dropdown
+    if (userMenu) userMenu.classList.remove('open');
+
+    // Dispatch event for app.js to handle
+    window.dispatchEvent(new CustomEvent('openApiSettings'));
 }
 
 // Handle Google Sign-In
@@ -141,8 +177,8 @@ export function getCurrentUser() {
     return currentUser;
 }
 
-// Export init function
-export { initAuth };
+// Export functions
+export { initAuth, showAppReady, updateLoadingStatus };
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
