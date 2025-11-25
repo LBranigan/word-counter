@@ -456,6 +456,29 @@ async function init() {
 
     // Initialize word tooltip manager
     wordTooltipManager.init();
+
+    // Browser history integration for back/forward button support
+    window.addEventListener('popstate', (event) => {
+        if (event.state && event.state.step) {
+            // Navigate without adding another history entry
+            goToStep(event.state.step, false);
+        } else {
+            // No state = initial page, go to audio step
+            goToStep('audio', false);
+        }
+    });
+
+    // Initialize browser history state
+    const hashStep = window.location.hash.slice(1);
+    const validSteps = ['audio', 'capture', 'highlight', 'results'];
+    if (hashStep && validSteps.includes(hashStep) && canAccessStep(hashStep)) {
+        // Restore step from URL hash
+        history.replaceState({ step: hashStep }, '', `#${hashStep}`);
+        goToStep(hashStep, false);
+    } else {
+        // Set initial history state
+        history.replaceState({ step: state.currentStep }, '', `#${state.currentStep}`);
+    }
 }
 
 // Save API Key with validation
@@ -572,9 +595,14 @@ function showCameraSection() {
 // ============ STEP MANAGEMENT & NAVIGATION ============
 
 // Navigate to a specific step
-function goToStep(step) {
+function goToStep(step, addToHistory = true) {
     // Update current step
     state.currentStep = step;
+
+    // Add to browser history (unless navigating via popstate)
+    if (addToHistory && ['audio', 'capture', 'highlight', 'results'].includes(step)) {
+        history.pushState({ step: step }, '', `#${step}`);
+    }
 
     // Hide all sections
     setupSection.classList.remove('active');
