@@ -3610,7 +3610,7 @@ async function generateTranscriptVideoInContainer(container) {
 
     if (!state.recordedAudioBlob) {
         if (state.viewingHistoricalAssessment) {
-            alert('Video generation is not available for historical assessments. Audio recordings are not stored to save space. Only newly completed assessments can generate videos.');
+            alert('No audio recording available for this historical assessment. This assessment was saved before audio storage was enabled. New assessments will include audio for video generation.');
         } else {
             alert('No audio recording available');
         }
@@ -3644,7 +3644,7 @@ async function generateTranscriptVideoCore(statusDiv, generateBtn) {
 
     if (!state.recordedAudioBlob) {
         if (state.viewingHistoricalAssessment) {
-            alert('Video generation is not available for historical assessments. Audio recordings are not stored to save space. Only newly completed assessments can generate videos.');
+            alert('No audio recording available for this historical assessment. This assessment was saved before audio storage was enabled. New assessments will include audio for video generation.');
         } else {
             alert('No audio recording available');
         }
@@ -4723,6 +4723,22 @@ async function viewHistoricalAssessment(studentId, assessmentId) {
         correctCount: assessment.correctCount
     };
     state.latestErrorPatterns = assessment.errorPatterns || null;
+    state.recordingDuration = assessment.duration || 60;
+
+    // Load audio data if available
+    if (assessment.audioData) {
+        try {
+            // Convert base64 data URL back to blob
+            const response = await fetch(assessment.audioData);
+            state.recordedAudioBlob = await response.blob();
+            console.log('Audio loaded from historical assessment');
+        } catch (error) {
+            console.warn('Failed to load historical audio:', error);
+            state.recordedAudioBlob = null;
+        }
+    } else {
+        state.recordedAudioBlob = null;
+    }
 
     // Mark that we're viewing a historical assessment
     state.viewingHistoricalAssessment = true;
@@ -4792,6 +4808,21 @@ async function saveCurrentAssessmentToStudent() {
         return;
     }
 
+    // Convert audio blob to base64 for storage
+    let audioBase64 = null;
+    if (state.recordedAudioBlob) {
+        try {
+            const reader = new FileReader();
+            audioBase64 = await new Promise((resolve, reject) => {
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(state.recordedAudioBlob);
+            });
+        } catch (error) {
+            console.warn('Failed to convert audio to base64:', error);
+        }
+    }
+
     // Prepare assessment data (store complete data for historical viewing)
     const assessmentData = {
         correctCount: state.latestAnalysis.correctCount,
@@ -4806,7 +4837,9 @@ async function saveCurrentAssessmentToStudent() {
         spokenWords: state.latestSpokenWords || [],
         aligned: state.latestAnalysis.aligned || [],
         prosodyMetrics: state.latestProsodyMetrics || {},
-        errorPatterns: state.latestErrorPatterns || null
+        errorPatterns: state.latestErrorPatterns || null,
+        // Store audio for video generation
+        audioData: audioBase64
     };
 
     const success = await addAssessmentToStudent(selectedStudentId, assessmentData);
@@ -4966,6 +4999,21 @@ async function autoSaveAssessmentIfStudentSelected() {
         return;
     }
 
+    // Convert audio blob to base64 for storage
+    let audioBase64 = null;
+    if (state.recordedAudioBlob) {
+        try {
+            const reader = new FileReader();
+            audioBase64 = await new Promise((resolve, reject) => {
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(state.recordedAudioBlob);
+            });
+        } catch (error) {
+            console.warn('Failed to convert audio to base64:', error);
+        }
+    }
+
     // Prepare assessment data (store complete data for historical viewing)
     const assessmentData = {
         correctCount: state.latestAnalysis.correctCount,
@@ -4980,7 +5028,9 @@ async function autoSaveAssessmentIfStudentSelected() {
         spokenWords: state.latestSpokenWords || [],
         aligned: state.latestAnalysis.aligned || [],
         prosodyMetrics: state.latestProsodyMetrics || {},
-        errorPatterns: state.latestErrorPatterns || null
+        errorPatterns: state.latestErrorPatterns || null,
+        // Store audio for video generation
+        audioData: audioBase64
     };
 
     const success = await addAssessmentToStudent(state.currentAssessmentStudentId, assessmentData);
