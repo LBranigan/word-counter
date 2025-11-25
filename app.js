@@ -922,6 +922,11 @@ async function processOCR() {
         // Update breadcrumb now that OCR is complete
         updateBreadcrumb();
 
+        // Update button states (enables auto-detect if audio is recorded)
+        updateButtonStates();
+
+        showStatus(`Detected ${words.length} words. You can now auto-detect or manually select text.`, '');
+
     } catch (error) {
         console.error('Vision API error:', error);
 
