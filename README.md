@@ -382,7 +382,12 @@ word-analyzer/
 
 ## Version History
 
-### v2.1 (Current) - January 24, 2025
+### v2.2 (Current) - November 24, 2025
+- ✅ Fixed PDF generation on mobile devices
+- ✅ Fixed tap-to-deselect on touch devices after auto-detect
+- ✅ Tooltip displays for 4 seconds on mobile
+
+### v2.1 - January 24, 2025
 - ✅ Interactive word tooltips (hover/touch to see error details)
 - ✅ Phonetic matching for proper names (e.g., Graham/gram)
 - ✅ Improved auto-detect first word detection
