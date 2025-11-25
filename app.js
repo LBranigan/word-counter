@@ -269,6 +269,7 @@ const audioPlayer = document.getElementById('audio-player');
 const downloadAudioBtn = document.getElementById('download-audio-btn');
 const analyzeAudioBtn = document.getElementById('analyze-audio-btn');
 const autoDetectBtn = document.getElementById('auto-detect-btn');
+const redoAutodetectBtn = document.getElementById('redo-autodetect-btn');
 
 // New Step Navigation Elements
 const breadcrumbNav = document.getElementById('breadcrumb-nav');
@@ -345,6 +346,7 @@ async function init() {
     if (downloadAudioBtn) downloadAudioBtn.addEventListener('click', downloadRecordedAudio);
     if (analyzeAudioBtn) analyzeAudioBtn.addEventListener('click', analyzeRecordedAudio);
     if (autoDetectBtn) autoDetectBtn.addEventListener('click', autoDetectSpokenWords);
+    if (redoAutodetectBtn) redoAutodetectBtn.addEventListener('click', runAutoDetectOnEntry);
 
     // Zoom controls event listeners
     const zoomInBtn = document.getElementById('zoom-in-btn');
@@ -769,7 +771,7 @@ function updateButtonStates() {
         }
     }
 
-    // Enable/disable auto-detect button (BETA)
+    // Enable/disable auto-detect button (BETA) - kept for backwards compatibility
     // Requires: audio recorded + OCR data (image processed)
     if (autoDetectBtn) {
         const canAutoDetect = state.recordedAudioBlob !== null &&
@@ -784,6 +786,22 @@ function updateButtonStates() {
             autoDetectBtn.setAttribute('title', `Please ${reasons.join(' and ')} first`);
         } else {
             autoDetectBtn.setAttribute('title', 'Automatically detect which words were spoken (Beta feature)');
+        }
+    }
+
+    // Enable/disable redo autodetect button
+    // Requires: audio recorded + OCR data (image processed) + not in audio-skip mode
+    if (redoAutodetectBtn) {
+        const canRedo = state.recordedAudioBlob !== null &&
+                       state.ocrData !== null &&
+                       state.ocrData.words &&
+                       state.ocrData.words.length > 0 &&
+                       !state.audioSkipped;
+        redoAutodetectBtn.disabled = !canRedo;
+        if (!canRedo) {
+            redoAutodetectBtn.setAttribute('title', 'Audio recording required for auto-detection');
+        } else {
+            redoAutodetectBtn.setAttribute('title', 'Run auto-detection again');
         }
     }
 }
@@ -4449,7 +4467,8 @@ function downloadAnalysisAsHtml2Pdf() {
     // Create the printable HTML element with inline styles for maximum compatibility
     const printContainer = document.createElement('div');
     printContainer.id = 'html2pdf-container';
-    printContainer.style.cssText = 'position: absolute; left: 0; top: 0; width: 210mm; background: white; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 15px; box-sizing: border-box;';
+    // Position off-screen but visible for html2canvas to render properly
+    printContainer.style.cssText = 'position: absolute; left: -9999px; top: 0; width: 794px; background: white; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 15px; box-sizing: border-box;';
 
     printContainer.innerHTML = `
         <h1 style="text-align: center; color: #667eea; font-size: 18px; margin: 0 0 5px 0;">Oral Fluency Analysis Report</h1>
