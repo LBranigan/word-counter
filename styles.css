@@ -5,6 +5,61 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+/* ===== DESIGN TOKENS (CSS Variables) ===== */
+:root {
+    /* Primary Colors */
+    --primary: #667eea;
+    --primary-dark: #764ba2;
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --primary-gradient-reverse: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+
+    /* Semantic Colors */
+    --success: #28a745;
+    --success-dark: #218838;
+    --warning: #ffc107;
+    --error: #dc3545;
+    --info: #0066cc;
+
+    /* Text Colors */
+    --text: #333;
+    --text-light: #666;
+    --text-muted: #999;
+
+    /* Background Colors */
+    --bg-light: #f8f9fa;
+    --bg-white: #fff;
+    --border: #ddd;
+    --border-light: #e9ecef;
+
+    /* Spacing Scale (8pt grid) */
+    --space-xs: 0.5rem;   /* 8px */
+    --space-sm: 0.75rem;  /* 12px */
+    --space-md: 1rem;     /* 16px */
+    --space-lg: 1.5rem;   /* 24px */
+    --space-xl: 2rem;     /* 32px */
+    --space-2xl: 3rem;    /* 48px */
+
+    /* Border Radius */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+
+    /* Shadows */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.15);
+    --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.2);
+
+    /* Transitions */
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.2s ease;
+    --transition-slow: 0.3s ease;
+
+    /* Touch Target Size */
+    --touch-target: 48px;
+}
+
 /* ===== LOGIN SCREEN STYLES ===== */
 .login-screen {
     position: fixed;
@@ -1180,32 +1235,55 @@ main {
 }
 
 .btn-primary {
-    background: #667eea;
+    background: var(--primary);
     color: white;
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    transition: all var(--transition-normal);
 }
 
-.btn-primary:active {
+.btn-primary:hover:not(:disabled) {
+    background: var(--primary-gradient-reverse);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-primary:active:not(:disabled) {
     transform: scale(0.98);
 }
 
 .btn-secondary {
-    background: #fff;
-    color: #667eea;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    background: var(--bg-white);
+    color: var(--primary);
+    box-shadow: var(--shadow-sm);
+    border: 2px solid var(--border);
+    transition: all var(--transition-normal);
 }
 
-.btn-secondary:active {
+.btn-secondary:hover:not(:disabled) {
+    background: var(--bg-light);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-secondary:active:not(:disabled) {
     transform: scale(0.98);
 }
 
 .btn-export {
-    background: #28a745;
+    background: var(--success);
     color: white;
     box-shadow: 0 2px 10px rgba(40, 167, 69, 0.3);
+    transition: all var(--transition-normal);
 }
 
-.btn-export:active {
+.btn-export:hover:not(:disabled) {
+    background: var(--success-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-export:active:not(:disabled) {
     transform: scale(0.98);
 }
 
@@ -1213,9 +1291,16 @@ main {
     background: #ff6b6b;
     color: white;
     box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+    transition: all var(--transition-normal);
 }
 
-.btn-audio:active {
+.btn-audio:hover:not(:disabled) {
+    background: #ff5252;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.5);
+}
+
+.btn-audio:active:not(:disabled) {
     transform: scale(0.98);
 }
 
@@ -1260,13 +1345,20 @@ main {
 }
 
 .btn-zoom {
-    background: #667eea;
+    background: var(--primary);
     color: white;
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
     border: 2px solid rgba(255, 255, 255, 0.3);
+    transition: all var(--transition-normal);
 }
 
-.btn-zoom:active {
+.btn-zoom:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-zoom:active:not(:disabled) {
     transform: scale(0.98);
 }
 
@@ -1276,12 +1368,19 @@ main {
 }
 
 .btn-danger {
-    background: #dc3545;
+    background: var(--error);
     color: white;
     box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+    transition: all var(--transition-normal);
 }
 
-.btn-danger:active {
+.btn-danger:hover:not(:disabled) {
+    background: #c82333;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-danger:active:not(:disabled) {
     transform: scale(0.98);
 }
 
@@ -2981,4 +3080,112 @@ footer {
 /* Hide scroll gutters on desktop by default */
 .scroll-gutter {
     display: none;
+}
+
+/* ===== ENHANCED MOBILE/TOUCH STYLES ===== */
+
+/* Touch device detection - improve touch targets and feedback */
+@media (hover: none) and (pointer: coarse) {
+    /* Ensure all buttons meet minimum touch target size */
+    .btn,
+    button:not(.word-toggle) {
+        min-height: var(--touch-target);
+        min-width: var(--touch-target);
+    }
+
+    /* Larger zoom buttons for touch */
+    .btn-zoom,
+    .zoom-btn {
+        width: var(--touch-target);
+        height: var(--touch-target);
+        font-size: 1.4rem;
+    }
+
+    /* Better touch feedback (since hover doesn't exist) */
+    .btn:active:not(:disabled),
+    button:active:not(:disabled) {
+        transform: scale(0.95);
+        opacity: 0.9;
+    }
+
+    /* Larger touch targets for student cards */
+    .student-card {
+        min-height: 120px;
+    }
+
+    /* Increase tap area for word selection hints */
+    .word-hint {
+        padding: var(--space-md);
+    }
+
+    /* More prominent breadcrumb steps */
+    .breadcrumb-step {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    /* Ensure form inputs are touch-friendly */
+    input,
+    select,
+    textarea {
+        min-height: 44px;
+        font-size: 16px; /* Prevents iOS zoom on focus */
+    }
+
+    /* Larger modal close buttons */
+    .modal-close,
+    .close-btn {
+        min-width: var(--touch-target);
+        min-height: var(--touch-target);
+        font-size: 1.5rem;
+    }
+}
+
+/* Small mobile screens (< 480px) */
+@media (max-width: 480px) {
+    /* Stack action buttons vertically */
+    .action-buttons,
+    .step-nav-buttons {
+        flex-direction: column;
+        gap: var(--space-sm);
+    }
+
+    .action-buttons .btn,
+    .step-nav-buttons .btn {
+        width: 100%;
+    }
+
+    /* Reduce padding on small screens */
+    .container {
+        padding: var(--space-sm);
+    }
+
+    /* Smaller headings on mobile */
+    h1 {
+        font-size: 1.5rem;
+    }
+
+    h2 {
+        font-size: 1.25rem;
+    }
+
+    /* Ensure modals fit small screens */
+    .modal-content {
+        width: 95%;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+}
+
+/* Safe area insets for notched phones */
+@supports (padding: max(0px)) {
+    .container {
+        padding-left: max(var(--space-md), env(safe-area-inset-left));
+        padding-right: max(var(--space-md), env(safe-area-inset-right));
+        padding-bottom: max(var(--space-md), env(safe-area-inset-bottom));
+    }
+
+    .modal-content {
+        padding-bottom: max(var(--space-xl), env(safe-area-inset-bottom));
+    }
 }
