@@ -76,6 +76,58 @@ const state = {
     historicalAssessmentStudentId: null
 };
 
+// Image cache for canvas rendering performance
+const imageCache = {
+    img: null,
+    src: null,
+    loading: false,
+
+    // Load image and cache it, returns promise
+    load(src) {
+        // If same source and already loaded, return cached image
+        if (this.src === src && this.img && this.img.complete) {
+            return Promise.resolve(this.img);
+        }
+
+        // If already loading this source, wait for it
+        if (this.loading && this.src === src) {
+            return new Promise((resolve) => {
+                const checkLoaded = setInterval(() => {
+                    if (this.img && this.img.complete) {
+                        clearInterval(checkLoaded);
+                        resolve(this.img);
+                    }
+                }, 10);
+            });
+        }
+
+        // Load new image
+        this.loading = true;
+        this.src = src;
+
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                this.img = img;
+                this.loading = false;
+                resolve(img);
+            };
+            img.onerror = () => {
+                this.loading = false;
+                console.error('Failed to load image');
+            };
+            img.src = src;
+        });
+    },
+
+    // Clear the cache
+    clear() {
+        this.img = null;
+        this.src = null;
+        this.loading = false;
+    }
+};
+
 // Word Tooltip Manager
 const wordTooltipManager = {
     tooltip: null,
@@ -924,6 +976,21 @@ function setupPreviewToggle() {
 
 // Start new analysis
 function startNewAnalysis() {
+    // Confirm before clearing all data
+    const hasData = state.capturedImage || state.recordedAudioBlob || state.selectedWords.size > 0;
+    if (hasData) {
+        const confirmed = confirm(
+            'Start a new assessment?\n\n' +
+            'This will clear:\n' +
+            '• Current recording\n' +
+            '• Captured image\n' +
+            '• Text selection\n' +
+            '• Analysis results\n\n' +
+            'Continue?'
+        );
+        if (!confirmed) return;
+    }
+
     // Reset state (except API key)
     const savedApiKey = state.apiKey;
     Object.assign(state, {
@@ -952,6 +1019,9 @@ function startNewAnalysis() {
         historicalAssessmentDate: null,
         historicalAssessmentStudentId: null
     });
+
+    // Clear image cache
+    imageCache.clear();
 
     // Hide historical assessment banner
     if (historicalAssessmentBanner) {
@@ -1622,10 +1692,30 @@ function findClosestWordIndex(point) {
     return closestIndex;
 }
 
+// Track pending animation frame for debouncing
+let pendingRedrawFrame = null;
+
 function redrawCanvas() {
-    const img = new Image();
-    img.onload = function() {
+    // Use requestAnimationFrame for smooth rendering and debouncing
+    if (pendingRedrawFrame) {
+        cancelAnimationFrame(pendingRedrawFrame);
+    }
+
+    pendingRedrawFrame = requestAnimationFrame(() => {
+        pendingRedrawFrame = null;
+        performCanvasRedraw();
+    });
+}
+
+// Actual canvas drawing logic (separated for clarity)
+function performCanvasRedraw() {
+    if (!state.capturedImage) return;
+
+    // Use cached image for better performance
+    imageCache.load(state.capturedImage).then(img => {
         const canvas = document.getElementById('selection-canvas');
+        if (!canvas) return;
+
         const ctx = canvas.getContext('2d');
 
         // Clear canvas
@@ -1656,8 +1746,7 @@ function redrawCanvas() {
                 }
             });
         }
-    };
-    img.src = state.capturedImage;
+    });
 }
 
 // Zoom Functions
@@ -2353,6 +2442,17 @@ function wordsAreSimilarForAutoDetect(word1, word2) {
 // ============ END AUTO-DETECT SPOKEN WORDS ============
 
 function retakePhoto() {
+    // Confirm before clearing image data
+    const hasSelection = state.selectedWords.size > 0;
+    if (hasSelection) {
+        const confirmed = confirm(
+            'Retake photo?\n\n' +
+            'This will clear your current text selection.\n\n' +
+            'Continue?'
+        );
+        if (!confirmed) return;
+    }
+
     // Reset state
     state.selectedWords.clear();
     state.ocrData = null;
