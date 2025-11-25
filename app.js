@@ -1434,8 +1434,15 @@ function handleEnd(e) {
 
     console.log('Ended at:', state.endPoint);
 
-    // If it was a drag, select words between points
-    if (state.wasDragged) {
+    // Calculate drag distance to distinguish taps from drags
+    const dragDistance = Math.sqrt(
+        Math.pow(state.endPoint.x - state.startPoint.x, 2) +
+        Math.pow(state.endPoint.y - state.startPoint.y, 2)
+    );
+    const MIN_DRAG_DISTANCE = 15; // Minimum pixels to count as a drag
+
+    // If it was a significant drag, select words between points
+    if (state.wasDragged && dragDistance >= MIN_DRAG_DISTANCE) {
         // Select words between start and end
         selectWordsBetweenPoints();
 

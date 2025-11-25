@@ -2946,33 +2946,29 @@ footer {
         align-items: stretch;
     }
 
-    /* Scroll gutters on left and right sides */
-    .image-wrapper::before,
-    .image-wrapper::after {
-        content: '⋮';
-        display: flex;
+    /* Scroll gutters - visible on mobile */
+    .scroll-gutter {
+        display: flex !important;
         align-items: center;
         justify-content: center;
-        width: 28px;
-        min-width: 28px;
-        background: linear-gradient(180deg, #e8e8e8 0%, #d8d8d8 50%, #e8e8e8 100%);
-        color: #999;
-        font-size: 1.2rem;
-        letter-spacing: 2px;
+        width: 32px;
+        min-width: 32px;
+        background: linear-gradient(180deg, #e0e0e0 0%, #c8c8c8 50%, #e0e0e0 100%);
+        color: #888;
+        font-size: 1.5rem;
         touch-action: pan-y; /* Only allow vertical scrolling */
         user-select: none;
         flex-shrink: 0;
-        border-radius: 4px;
     }
 
-    .image-wrapper::before {
-        margin-right: 6px;
-        border-radius: 8px 4px 4px 8px;
+    .scroll-gutter-left {
+        border-radius: 8px 0 0 8px;
+        margin-right: 4px;
     }
 
-    .image-wrapper::after {
-        margin-left: 6px;
-        border-radius: 4px 8px 8px 4px;
+    .scroll-gutter-right {
+        border-radius: 0 8px 8px 0;
+        margin-left: 4px;
     }
 
     /* Make image container fill the space between gutters */
@@ -2980,14 +2976,9 @@ footer {
         flex: 1;
         min-width: 0;
     }
-
-    /* Hide the bottom scroll helper - gutters are better */
-    .scroll-helper {
-        display: none !important;
-    }
 }
 
-/* Hide scroll helper on desktop by default */
-.scroll-helper {
+/* Hide scroll gutters on desktop by default */
+.scroll-gutter {
     display: none;
 }
