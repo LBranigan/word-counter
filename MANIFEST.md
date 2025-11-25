@@ -516,6 +516,38 @@ Still used for backward compatibility and data migration. Structure identical to
 
 ### 🔐 Privacy & Security
 
+#### Audio Data Handling (Privacy-First Design)
+
+**Critical Policy**: Audio recordings are **NEVER stored** in the database.
+
+**Why This Matters:**
+- **COPPA Compliance**: Voice recordings are classified as "personal information" under the Children's Online Privacy Protection Act, requiring verifiable parental consent for storage
+- **FERPA Compliance**: Student voice recordings are "education records" requiring protection and deletion procedures
+- **Firebase Compliance Gap**: Firebase lacks explicit FERPA certification (unlike Google Workspace for Education)
+- **Risk Mitigation**: No stored recordings = no deletion requests, no breach liability, no retention limits
+
+**How Audio is Handled:**
+1. **Recording**: Audio captured in browser memory only
+2. **Processing**: Sent to Google Speech-to-Text API for transcription
+3. **Analysis**: Transcript compared against expected text
+4. **Storage**: Only text transcripts and analysis results saved to database
+5. **Disposal**: Original audio discarded after analysis completes
+
+**What IS Stored:**
+- Text transcripts (spoken words)
+- Analysis results (accuracy, WPM, errors)
+- Word alignment data
+- Prosody metrics
+
+**What is NOT Stored:**
+- Audio recordings
+- Voice biometric data
+- Raw audio files
+
+This design ensures compliance simplicity while still providing full assessment functionality.
+
+---
+
 - **Firebase Authentication**: Secure Google OAuth 2.0 sign-in
 - **User-Scoped Data**: Each teacher has completely isolated data
 - **Cloud Storage**: Student data stored in Firebase Firestore with strict security rules

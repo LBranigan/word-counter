@@ -635,6 +635,50 @@ const sanitized = text.replace(/[<>]/g, '');
 - Google APIs require valid CORS headers
 - GitHub Pages provides HTTPS automatically
 
+### Audio Data Privacy (COPPA/FERPA Compliance)
+
+**Design Principle**: Audio recordings are processed transiently and NEVER persisted to any database.
+
+**Data Flow**:
+```
+1. Student speaks → Audio captured in browser memory (MediaRecorder)
+2. Recording stops → Audio Blob created in browser memory
+3. Analysis requested → Audio converted to Base64, sent to Google Speech-to-Text API
+4. Google processes → Returns transcript + word timing data
+5. Analysis complete → Audio Blob is discarded from memory
+6. Only text results → Transcript and analysis metrics saved to Firestore
+```
+
+**What IS Stored in Database**:
+- Text transcripts (words recognized)
+- Analysis metrics (accuracy %, WPM, prosody score)
+- Error details (skipped words, misread words as text)
+- Assessment timestamps
+
+**What is NOT Stored**:
+- Audio recordings (never saved to Firestore or Firebase Storage)
+- Voice data in any form
+- Audio file references or URLs
+
+**Compliance Benefits**:
+- **COPPA**: Voice recordings are "personal information" requiring parental consent. No storage = no consent complexity.
+- **FERPA**: Student voice recordings are "education records" requiring protection. No storage = no breach liability.
+- **Data Minimization**: Only essential analysis results are retained.
+- **No Retention Limits**: Without audio storage, no need for retention/deletion policies for recordings.
+
+**Implementation Notes**:
+```javascript
+// In saveCurrentAssessmentToStudent():
+// Audio is explicitly excluded from saved assessment data
+const assessmentData = {
+    correctCount: analysis.correctCount,
+    totalWords: analysis.totalWords,
+    accuracy: analysis.accuracy,
+    wpm: analysis.wpm,
+    // Note: No audio/audioBlob field - audio is NOT stored
+};
+```
+
 ---
 
 ## Performance Optimization
