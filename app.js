@@ -71,7 +71,167 @@ const state = {
     viewingHistoricalAssessment: false,
     historicalAssessmentStudent: null,
     historicalAssessmentDate: null,
-    historicalAssessmentStudentId: null
+    historicalAssessmentStudentId: null,
+    // Auto-detect boundary tracking
+    autoDetectBounds: null
+};
+
+// Word Tooltip Manager
+const wordTooltipManager = {
+    tooltip: null,
+    touchTimer: null,
+    activeElement: null,
+
+    init() {
+        // Create tooltip element
+        this.tooltip = document.createElement('div');
+        this.tooltip.className = 'word-tooltip';
+        document.body.appendChild(this.tooltip);
+
+        // Add global event listeners
+        document.addEventListener('mouseover', this.handleMouseOver.bind(this));
+        document.addEventListener('mouseout', this.handleMouseOut.bind(this));
+        document.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
+        document.addEventListener('touchend', this.handleTouchEnd.bind(this));
+        document.addEventListener('touchmove', this.handleTouchMove.bind(this));
+        document.addEventListener('click', this.handleClick.bind(this));
+    },
+
+    handleMouseOver(e) {
+        const wordSpan = e.target.closest('[data-word-info]');
+        if (wordSpan) {
+            this.showTooltip(wordSpan, e);
+        }
+    },
+
+    handleMouseOut(e) {
+        const wordSpan = e.target.closest('[data-word-info]');
+        if (wordSpan) {
+            this.hideTooltip();
+        }
+    },
+
+    handleTouchStart(e) {
+        const wordSpan = e.target.closest('[data-word-info]');
+        if (wordSpan) {
+            this.activeElement = wordSpan;
+            // Show tooltip after 300ms hold
+            this.touchTimer = setTimeout(() => {
+                this.showTooltip(wordSpan, e.touches[0]);
+                e.preventDefault();
+            }, 300);
+        }
+    },
+
+    handleTouchEnd(e) {
+        if (this.touchTimer) {
+            clearTimeout(this.touchTimer);
+            this.touchTimer = null;
+        }
+        // Hide tooltip after 2 seconds on mobile
+        setTimeout(() => this.hideTooltip(), 2000);
+    },
+
+    handleTouchMove(e) {
+        if (this.touchTimer) {
+            clearTimeout(this.touchTimer);
+            this.touchTimer = null;
+        }
+    },
+
+    handleClick(e) {
+        const wordSpan = e.target.closest('[data-word-info]');
+        if (!wordSpan && this.tooltip.classList.contains('visible')) {
+            this.hideTooltip();
+        }
+    },
+
+    showTooltip(element, event) {
+        try {
+            const data = JSON.parse(element.dataset.wordInfo);
+            this.tooltip.innerHTML = this.buildTooltipContent(data);
+            this.tooltip.classList.add('visible');
+
+            // Position tooltip
+            const x = event.clientX || event.pageX;
+            const y = event.clientY || event.pageY;
+            this.positionTooltip(x, y);
+        } catch (err) {
+            console.error('Error showing tooltip:', err);
+        }
+    },
+
+    hideTooltip() {
+        this.tooltip.classList.remove('visible');
+        this.activeElement = null;
+    },
+
+    positionTooltip(x, y) {
+        const tooltip = this.tooltip;
+        const padding = 15;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // Get tooltip dimensions
+        tooltip.style.left = '0';
+        tooltip.style.top = '0';
+        const tooltipRect = tooltip.getBoundingClientRect();
+
+        // Calculate position
+        let left = x + padding;
+        let top = y + padding;
+
+        // Adjust if tooltip goes off-screen
+        if (left + tooltipRect.width > viewportWidth - padding) {
+            left = x - tooltipRect.width - padding;
+        }
+        if (top + tooltipRect.height > viewportHeight - padding) {
+            top = y - tooltipRect.height - padding;
+        }
+
+        // Ensure minimum position
+        left = Math.max(padding, left);
+        top = Math.max(padding, top);
+
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+    },
+
+    buildTooltipContent(data) {
+        const statusLabels = {
+            correct: 'Correct',
+            skipped: 'Skipped',
+            misread: 'Misread',
+            substituted: 'Substituted'
+        };
+
+        let html = `<div class="word-tooltip-header ${data.status}">${statusLabels[data.status] || data.status}</div>`;
+
+        html += `<div class="word-tooltip-row">
+            <span class="word-tooltip-label">Expected:</span>
+            <span class="word-tooltip-value">"${data.expected}"</span>
+        </div>`;
+
+        if (data.status !== 'correct' && data.status !== 'skipped' && data.spoken) {
+            html += `<div class="word-tooltip-row">
+                <span class="word-tooltip-label">Heard:</span>
+                <span class="word-tooltip-value">"${data.spoken}"</span>
+            </div>`;
+        }
+
+        if (data.status === 'correct' && data.confidence) {
+            html += `<div class="word-tooltip-row">
+                <span class="word-tooltip-label">Confidence:</span>
+                <span class="word-tooltip-value">${(data.confidence * 100).toFixed(0)}%</span>
+            </div>`;
+        }
+
+        if (data.reason) {
+            html += `<div class="word-tooltip-reason">${data.reason}</div>`;
+        }
+
+        return html;
+    }
 };
 
 // DOM Elements
@@ -210,6 +370,9 @@ async function init() {
 
     // Initialize breadcrumb update
     updateBreadcrumb();
+
+    // Initialize word tooltip manager
+    wordTooltipManager.init();
 }
 
 // Save API Key with validation
@@ -1283,16 +1446,42 @@ function redrawCanvas() {
                 const { x0, y0, x1, y1 } = word.bbox;
 
                 if (state.selectedWords.has(index)) {
-                    // Highlight selected words - bright yellow
-                    ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
-                    ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
-                    ctx.strokeStyle = 'rgba(255, 200, 0, 0.9)';
-                    ctx.lineWidth = 3 / state.zoom; // Adjust line width for zoom
-                    ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+                    // Check if this is a boundary word (first or last from auto-detect)
+                    const isBoundaryWord = state.autoDetectBounds &&
+                        (index === state.autoDetectBounds.firstIndex ||
+                         index === state.autoDetectBounds.lastIndex);
+
+                    if (isBoundaryWord) {
+                        // Emphasize first/last detected words - cyan/teal with thicker border
+                        ctx.fillStyle = 'rgba(0, 255, 200, 0.6)';
+                        ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+                        ctx.strokeStyle = 'rgba(0, 200, 180, 1)';
+                        ctx.lineWidth = 5 / state.zoom;
+                        ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+
+                        // Add corner markers for extra emphasis
+                        const markerSize = 8 / state.zoom;
+                        ctx.fillStyle = 'rgba(0, 200, 180, 1)';
+                        // Top-left corner
+                        ctx.fillRect(x0 - 2/state.zoom, y0 - 2/state.zoom, markerSize, markerSize);
+                        // Top-right corner
+                        ctx.fillRect(x1 - markerSize + 2/state.zoom, y0 - 2/state.zoom, markerSize, markerSize);
+                        // Bottom-left corner
+                        ctx.fillRect(x0 - 2/state.zoom, y1 - markerSize + 2/state.zoom, markerSize, markerSize);
+                        // Bottom-right corner
+                        ctx.fillRect(x1 - markerSize + 2/state.zoom, y1 - markerSize + 2/state.zoom, markerSize, markerSize);
+                    } else {
+                        // Highlight selected words - bright yellow
+                        ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+                        ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+                        ctx.strokeStyle = 'rgba(255, 200, 0, 0.9)';
+                        ctx.lineWidth = 3 / state.zoom;
+                        ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+                    }
                 } else {
                     // Subtle boundaries for unselected words
                     ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
-                    ctx.lineWidth = 1 / state.zoom; // Adjust line width for zoom
+                    ctx.lineWidth = 1 / state.zoom;
                     ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
                 }
             });
@@ -1329,6 +1518,7 @@ function resetSelection() {
     state.selectedWords.clear();
     state.startPoint = null;
     state.endPoint = null;
+    state.autoDetectBounds = null; // Clear auto-detect boundary markers
     updateWordCount();
     redrawCanvas();
 }
@@ -1340,8 +1530,12 @@ function resetSelection() {
  * This is a BETA feature that:
  * 1. Runs speech-to-text on the recorded audio
  * 2. Matches spoken words against OCR-detected words
- * 3. Finds the first and last matching words
- * 4. Highlights all words in between
+ * 3. Finds the FIRST and LAST detected words (shown with teal emphasis)
+ * 4. Highlights ALL words between first and last (inclusive)
+ *
+ * Note: Even if a student stumbles or misses words in between,
+ * the entire passage they attempted is highlighted since they
+ * were "supposed to" read those words.
  */
 async function autoDetectSpokenWords() {
     // Validate requirements
@@ -1393,14 +1587,25 @@ async function autoDetectSpokenWords() {
 
         showStatus('🤖 Auto-detecting spoken words... (Step 3/3: Highlighting)', 'processing');
 
-        // Step 3: Select all words from first to last match
-        console.log(`Auto-selecting words from index ${matchResult.firstIndex} to ${matchResult.lastIndex}`);
-        console.log(`First matched word: "${ocrWords[matchResult.firstIndex]}"`);
-        console.log(`Last matched word: "${ocrWords[matchResult.lastIndex]}"`);
+        // Step 3: Select all words from first to last match (inclusive)
+        // This ensures all words in the reading passage are highlighted, even if some were stumbled/missed
+        const firstWord = ocrWords[matchResult.firstIndex];
+        const lastWord = ocrWords[matchResult.lastIndex];
 
+        console.log(`Auto-selecting words from index ${matchResult.firstIndex} to ${matchResult.lastIndex}`);
+        console.log(`First detected word: "${firstWord}"`);
+        console.log(`Last detected word: "${lastWord}"`);
+
+        // Select ALL words between first and last (inclusive)
         for (let i = matchResult.firstIndex; i <= matchResult.lastIndex; i++) {
             state.selectedWords.add(i);
         }
+
+        // Store the boundary indices for visual emphasis
+        state.autoDetectBounds = {
+            firstIndex: matchResult.firstIndex,
+            lastIndex: matchResult.lastIndex
+        };
 
         updateWordCount();
         redrawCanvas();
@@ -1410,7 +1615,8 @@ async function autoDetectSpokenWords() {
 
         showStatus(
             `✅ Auto-detected ${totalSelected} words! ` +
-            `(${matchResult.matchedCount}/${spokenWords.length} spoken words matched, ${matchConfidence.toFixed(0)}% confidence)`,
+            `Started at "${firstWord}" → ended at "${lastWord}" ` +
+            `(${matchConfidence.toFixed(0)}% match confidence)`,
             ''
         );
 
@@ -2156,9 +2362,39 @@ function updateRecordingTimer() {
 function displayRecordedAudio(audioBlob) {
     const url = URL.createObjectURL(audioBlob);
 
+    // Helper to fix audio duration (WebM blobs often have incorrect duration metadata)
+    function fixAudioDuration(audioElement) {
+        // Force the browser to load metadata properly
+        audioElement.preload = 'metadata';
+
+        // Handle the case where duration is Infinity or incorrect
+        const handleMetadata = () => {
+            if (audioElement.duration === Infinity || isNaN(audioElement.duration)) {
+                // Seek to a large value to force duration calculation
+                audioElement.currentTime = 1e101;
+                audioElement.addEventListener('timeupdate', function seekBack() {
+                    audioElement.currentTime = 0;
+                    audioElement.removeEventListener('timeupdate', seekBack);
+                }, { once: true });
+            }
+        };
+
+        audioElement.addEventListener('loadedmetadata', handleMetadata);
+        audioElement.addEventListener('durationchange', () => {
+            // Duration is now correct, ensure we're at the start
+            if (audioElement.duration !== Infinity && !isNaN(audioElement.duration)) {
+                if (audioElement.currentTime > audioElement.duration) {
+                    audioElement.currentTime = 0;
+                }
+            }
+        });
+    }
+
     // Update the main audio player in the audio section
     if (audioPlayerMain) {
         audioPlayerMain.src = url;
+        audioPlayerMain.load(); // Force reload
+        fixAudioDuration(audioPlayerMain);
         if (audioPlayerSection) {
             audioPlayerSection.style.display = 'block';
         }
@@ -2166,6 +2402,8 @@ function displayRecordedAudio(audioBlob) {
 
     // Also update the old audio player for backward compatibility
     audioPlayer.src = url;
+    audioPlayer.load(); // Force reload
+    fixAudioDuration(audioPlayer);
     audioPlaybackSection.classList.add('active');
 
     // Mark audio step as complete
@@ -2480,6 +2718,112 @@ function wordToDigit(word) {
     return wordNumbers[word] || word;
 }
 
+// Phonetic equivalences for proper names and common speech recognition patterns
+// Maps normalized forms that sound alike when spoken
+const phoneticEquivalences = {
+    // Proper names that get simplified by speech recognition
+    'graham': ['gram', 'grahm', 'graeme'],
+    'michael': ['mike', 'micheal', 'mikael'],
+    'stephen': ['steven', 'stefan'],
+    'catherine': ['katherine', 'kathryn', 'katharine'],
+    'anne': ['ann', 'an'],
+    'sara': ['sarah', 'sera'],
+    'jon': ['john', 'juan'],
+    'marc': ['mark'],
+    'brian': ['bryan', 'brion'],
+    'eric': ['erik', 'erick'],
+    'geoffrey': ['jeffrey', 'geoffry'],
+    'philip': ['phillip', 'filip'],
+    'mathew': ['matthew', 'mathieu'],
+    'allan': ['alan', 'allen'],
+    'neil': ['neal', 'niel'],
+    'stuart': ['stewart', 'steward'],
+    'leah': ['lea', 'lia'],
+    'rebecca': ['rebekah', 'rebeca'],
+    'hannah': ['hanna', 'hana'],
+    'rachel': ['rachael', 'raquel'],
+    'megan': ['meghan', 'meagan'],
+    'caitlin': ['katelyn', 'kaitlyn', 'caitlyn'],
+    'ashley': ['ashlee', 'ashleigh'],
+    'haley': ['hailey', 'hayley', 'hailee'],
+    'mackenzie': ['mckenzie', 'makenzie'],
+
+    // Words where silent letters cause transcription issues
+    'knight': ['night', 'nite'],
+    'know': ['no'],
+    'knew': ['new', 'nu'],
+    'write': ['right', 'rite'],
+    'wrote': ['rote'],
+    'whole': ['hole'],
+    'hour': ['our'],
+    'heir': ['air', 'ere'],
+    'wrap': ['rap'],
+    'wring': ['ring'],
+    'gnaw': ['naw'],
+    'gnat': ['nat'],
+    'gnome': ['nome'],
+    'psalm': ['sam', 'salm'],
+    'island': ['iland'],
+    'aisle': ['isle', 'ile'],
+    'debt': ['det'],
+    'doubt': ['dout'],
+    'subtle': ['suttle', 'sutle'],
+    'comb': ['come', 'cohm'],
+    'tomb': ['toom', 'tume'],
+    'climb': ['clime'],
+    'lamb': ['lam'],
+    'could': ['cud', 'coud'],
+    'would': ['wud', 'wood'],
+    'should': ['shud', 'shoud'],
+
+    // Common contractions and their expansions
+    'cannot': ['cant', 'can not'],
+    'will not': ['wont', 'won\'t'],
+    'do not': ['dont', 'don\'t'],
+
+    // Words that sound similar
+    'their': ['there', 'theyre', 'they\'re'],
+    'your': ['youre', 'you\'re', 'yore'],
+    'its': ['it\'s'],
+    'whose': ['whos', 'who\'s'],
+    'to': ['too', 'two'],
+    'where': ['wear', 'ware'],
+    'weather': ['whether'],
+    'through': ['threw', 'thru'],
+    'though': ['tho'],
+    'thought': ['thot'],
+};
+
+// Build reverse lookup map for faster checking
+const phoneticLookup = new Map();
+for (const [primary, equivalents] of Object.entries(phoneticEquivalences)) {
+    phoneticLookup.set(primary, new Set([primary, ...equivalents]));
+    for (const equiv of equivalents) {
+        if (!phoneticLookup.has(equiv)) {
+            phoneticLookup.set(equiv, new Set([primary, ...equivalents]));
+        } else {
+            phoneticLookup.get(equiv).add(primary);
+            equivalents.forEach(e => phoneticLookup.get(equiv).add(e));
+        }
+    }
+}
+
+// Check if two words are phonetically equivalent
+function arePhoneticEquivalents(word1, word2) {
+    const w1 = word1.toLowerCase();
+    const w2 = word2.toLowerCase();
+
+    if (w1 === w2) return true;
+
+    const set1 = phoneticLookup.get(w1);
+    if (set1 && set1.has(w2)) return true;
+
+    const set2 = phoneticLookup.get(w2);
+    if (set2 && set2.has(w1)) return true;
+
+    return false;
+}
+
 // Normalize word for comparison (remove punctuation, lowercase, handle numbers)
 function normalizeWord(word) {
     if (!word || typeof word !== 'string') return '';
@@ -2512,6 +2856,9 @@ function wordsAreSimilar(expected, spoken) {
 
     if (!exp || !spk) return false;
     if (exp === spk) return true;
+
+    // Check phonetic equivalence first (handles proper names like Graham/gram)
+    if (arePhoneticEquivalents(exp, spk)) return true;
 
     const maxLen = Math.max(exp.length, spk.length);
     if (maxLen === 0) return false;
@@ -2682,8 +3029,8 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
             const spkNorm = normalizeWord(spoken.word);
 
             let matchScore;
-            if (expNorm === spkNorm) {
-                matchScore = 1; // Perfect match
+            if (expNorm === spkNorm || arePhoneticEquivalents(expNorm, spkNorm)) {
+                matchScore = 1; // Perfect match (including phonetic equivalents)
             } else if (wordsAreSimilar(expected, spoken.word)) {
                 matchScore = 0.3; // Partial match (misread)
             } else {
@@ -2728,7 +3075,8 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
             const expNorm = normalizeWord(expected);
             const spkNorm = normalizeWord(spoken.word);
 
-            if (expNorm === spkNorm) {
+            // Check for exact match OR phonetic equivalence (e.g., "Graham" / "gram")
+            if (expNorm === spkNorm || arePhoneticEquivalents(expNorm, spkNorm)) {
                 alignment.unshift({
                     expected: expected,
                     spoken: spoken.word,
@@ -3591,26 +3939,34 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
         const word = item.expected;
         let className = 'word-correct';
         let errorLabel = '';
-        let tooltip = 'Correct pronunciation';
+        let tooltipData = {
+            status: item.status,
+            expected: word,
+            spoken: item.spoken || '',
+            confidence: item.confidence || 0,
+            reason: ''
+        };
 
         if (item.status === 'correct') {
             className = 'word-correct';
-            tooltip = `Confidence: ${(item.confidence * 100).toFixed(0)}%`;
+            tooltipData.reason = 'Word was pronounced correctly';
         } else if (item.status === 'skipped') {
             className = 'word-skipped';
             errorLabel = '<span class="error-badge">skipped</span>';
-            tooltip = 'Word was not spoken';
+            tooltipData.reason = 'This word was not detected in the audio recording';
         } else if (item.status === 'misread') {
             className = 'word-misread';
             errorLabel = '<span class="error-badge">misread</span>';
-            tooltip = `Expected: "${word}", Heard: "${item.spoken}"`;
+            tooltipData.reason = 'The pronunciation was similar but not exact';
         } else if (item.status === 'substituted') {
             className = 'word-substituted';
             errorLabel = '<span class="error-badge">substituted</span>';
-            tooltip = `Expected: "${word}", Said: "${item.spoken}" instead`;
+            tooltipData.reason = 'A completely different word was spoken';
         }
 
-        wordsHtml += `<span class="${className}" title="${tooltip}">${word}${errorLabel}</span> `;
+        // Store data as JSON in data attribute
+        const dataAttr = `data-word-info='${JSON.stringify(tooltipData).replace(/'/g, "&#39;")}'`;
+        wordsHtml += `<span class="${className}" ${dataAttr}>${word}${errorLabel}</span> `;
     });
 
     // Build statistics
@@ -3704,11 +4060,8 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
         <h3>🎯 Oral Fluency Analysis</h3>
         <div class="audio-analysis-result">
             <div class="download-output-section">
-                <button id="download-output-btn" class="btn btn-export">
-                    <span class="icon">📄</span> PDF (jsPDF)
-                </button>
-                <button id="download-html2pdf-btn" class="btn btn-export">
-                    <span class="icon">📄</span> PDF (html2pdf)
+                <button id="download-pdf-btn" class="btn btn-export">
+                    <span class="icon">📄</span> Generate PDF
                 </button>
                 <button id="generate-video-btn" class="btn btn-export">
                     <span class="icon">🎬</span> Generate Video
@@ -3774,12 +4127,12 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
         resultsContainer.innerHTML = exportOutput.innerHTML;
 
         // Re-attach event listeners for the results section
-        const downloadOutputBtnResults = resultsContainer.querySelector('#download-output-btn');
+        const downloadPdfBtnResults = resultsContainer.querySelector('#download-pdf-btn');
         const generateVideoBtnResults = resultsContainer.querySelector('#generate-video-btn');
         const statusDivResults = resultsContainer.querySelector('#video-generation-status');
 
-        if (downloadOutputBtnResults) {
-            downloadOutputBtnResults.addEventListener('click', downloadAnalysisAsPDF);
+        if (downloadPdfBtnResults) {
+            downloadPdfBtnResults.addEventListener('click', downloadAnalysisAsHtml2Pdf);
         }
         if (generateVideoBtnResults) {
             generateVideoBtnResults.addEventListener('click', async function() {
@@ -3791,16 +4144,12 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
         if (viewPatternsBtnResults) {
             viewPatternsBtnResults.addEventListener('click', viewDetailedPatterns);
         }
-        const downloadHtml2pdfBtnResults = resultsContainer.querySelector('#download-html2pdf-btn');
-        if (downloadHtml2pdfBtnResults) {
-            downloadHtml2pdfBtnResults.addEventListener('click', downloadAnalysisAsHtml2Pdf);
-        }
     }
 
-    // Add event listener for download button in export section
-    const downloadOutputBtn = document.getElementById('download-output-btn');
-    if (downloadOutputBtn) {
-        downloadOutputBtn.addEventListener('click', downloadAnalysisAsPDF);
+    // Add event listener for download PDF button in export section
+    const downloadPdfBtn = document.getElementById('download-pdf-btn');
+    if (downloadPdfBtn) {
+        downloadPdfBtn.addEventListener('click', downloadAnalysisAsHtml2Pdf);
     }
 
     // Add event listener for video generation button in export section
@@ -3815,12 +4164,6 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
         viewPatternsBtn.addEventListener('click', viewDetailedPatterns);
     }
 
-    // Add event listener for html2pdf button in export section
-    const downloadHtml2pdfBtn = document.getElementById('download-html2pdf-btn');
-    if (downloadHtml2pdfBtn) {
-        downloadHtml2pdfBtn.addEventListener('click', downloadAnalysisAsHtml2Pdf);
-    }
-
     // Auto-save assessment if student was selected
     autoSaveAssessmentIfStudentSelected();
 
@@ -3830,333 +4173,7 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
     goToStep('results');
 }
 
-// Generate and download analysis as PDF
-function downloadAnalysisAsPDF() {
-    if (!state.latestAnalysis || !state.latestExpectedWords) {
-        alert('No analysis data available');
-        return;
-    }
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-
-    const analysis = state.latestAnalysis;
-    const expectedWords = state.latestExpectedWords;
-    const totalWords = expectedWords.length;
-    const correctCount = analysis.correctCount;
-    const totalErrors = analysis.errors.skippedWords.length +
-                        analysis.errors.misreadWords.length +
-                        analysis.errors.substitutedWords.length;
-    const accuracy = ((correctCount / totalWords) * 100).toFixed(1);
-
-    let yPos = 20;
-    const pageWidth = doc.internal.pageSize.width;
-    const margin = 20;
-    const maxWidth = pageWidth - (margin * 2);
-
-    // Title
-    doc.setFontSize(20);
-    doc.setFont(undefined, 'bold');
-    doc.text('Oral Fluency Analysis Report', margin, yPos);
-    yPos += 10;
-
-    // Date/Time
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.setTextColor(100);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, margin, yPos);
-    doc.setTextColor(0);
-    yPos += 15;
-
-    // Statistics Section
-    doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text('Summary Statistics', margin, yPos);
-    yPos += 8;
-
-    doc.setFontSize(11);
-    doc.setFont(undefined, 'normal');
-    doc.text(`Total Words: ${totalWords}`, margin, yPos);
-    yPos += 6;
-    doc.text(`Correct: ${correctCount}`, margin, yPos);
-    yPos += 6;
-    doc.text(`Errors: ${totalErrors}`, margin, yPos);
-    yPos += 6;
-    doc.text(`Accuracy: ${accuracy}%`, margin, yPos);
-    yPos += 6;
-
-    // Add prosody metrics if available
-    if (state.latestProsodyMetrics) {
-        doc.text(`Reading Rate: ${state.latestProsodyMetrics.wpm} WPM`, margin, yPos);
-        yPos += 6;
-        doc.text(`Prosody Score: ${state.latestProsodyMetrics.prosodyScore}/4.0 (${state.latestProsodyMetrics.prosodyGrade})`, margin, yPos);
-        yPos += 6;
-    }
-    yPos += 6;
-
-    // Color-Coded Transcription Section
-    if (analysis.aligned && analysis.aligned.length > 0) {
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.text('Word-by-Word Transcription', margin, yPos);
-        yPos += 8;
-
-        // Add legend
-        doc.setFontSize(9);
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(34, 197, 94); // Green
-        doc.text('Green = Correct', margin, yPos);
-        doc.setTextColor(156, 163, 175); // Gray
-        doc.text('Gray = Skipped', margin + 40, yPos);
-        doc.setTextColor(249, 115, 22); // Orange
-        doc.text('Orange = Misread', margin + 75, yPos);
-        doc.setTextColor(239, 68, 68); // Red
-        doc.text('Red = Substituted', margin + 120, yPos);
-        doc.setTextColor(0);
-        yPos += 8;
-
-        // Build word-by-word colored text
-        let xPos = margin;
-        const lineHeight = 5;
-        const wordSpacing = 2;
-        doc.setFontSize(10);
-
-        analysis.aligned.forEach((item, index) => {
-            const word = item.expected;
-            const wordWidth = doc.getTextWidth(word);
-
-            // Check if we need to wrap to next line
-            if (xPos + wordWidth > pageWidth - margin) {
-                xPos = margin;
-                yPos += lineHeight;
-
-                // Check if we need a new page
-                if (yPos > 270) {
-                    doc.addPage();
-                    yPos = 20;
-                }
-            }
-
-            // Set color based on status
-            if (item.status === 'correct') {
-                doc.setTextColor(34, 197, 94); // Green
-            } else if (item.status === 'skipped') {
-                doc.setTextColor(156, 163, 175); // Gray
-            } else if (item.status === 'misread') {
-                doc.setTextColor(249, 115, 22); // Orange
-            } else if (item.status === 'substituted') {
-                doc.setTextColor(239, 68, 68); // Red
-            } else {
-                doc.setTextColor(0); // Black default
-            }
-
-            doc.text(word, xPos, yPos);
-            xPos += wordWidth + wordSpacing;
-        });
-
-        // Reset color and position
-        doc.setTextColor(0);
-        yPos += lineHeight + 8;
-
-        // Check if we need a new page before Error Breakdown
-        if (yPos > 250) {
-            doc.addPage();
-            yPos = 20;
-        }
-    }
-
-    // Error Breakdown
-    if (totalErrors > 0) {
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.text('Error Breakdown', margin, yPos);
-        yPos += 8;
-
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'normal');
-
-        if (analysis.errors.skippedWords.length > 0) {
-            doc.setFont(undefined, 'bold');
-            doc.text(`Skipped Words: ${analysis.errors.skippedWords.length}`, margin, yPos);
-            yPos += 5;
-            doc.setFont(undefined, 'normal');
-            const skippedText = 'Words not read aloud';
-            doc.text(skippedText, margin + 5, yPos);
-            yPos += 7;
-        }
-
-        if (analysis.errors.misreadWords.length > 0) {
-            doc.setFont(undefined, 'bold');
-            doc.text(`Misread Words: ${analysis.errors.misreadWords.length}`, margin, yPos);
-            yPos += 5;
-            doc.setFont(undefined, 'normal');
-            analysis.errors.misreadWords.forEach(e => {
-                const text = `"${e.expected}" -> "${e.spoken}"`;
-                const lines = doc.splitTextToSize(text, maxWidth - 5);
-                doc.text(lines, margin + 5, yPos);
-                yPos += 5 * lines.length;
-            });
-            yPos += 2;
-        }
-
-        if (analysis.errors.substitutedWords.length > 0) {
-            doc.setFont(undefined, 'bold');
-            doc.text(`Substituted Words: ${analysis.errors.substitutedWords.length}`, margin, yPos);
-            yPos += 5;
-            doc.setFont(undefined, 'normal');
-            analysis.errors.substitutedWords.forEach(e => {
-                const text = `"${e.expected}" -> "${e.spoken}"`;
-                const lines = doc.splitTextToSize(text, maxWidth - 5);
-                doc.text(lines, margin + 5, yPos);
-                yPos += 5 * lines.length;
-            });
-            yPos += 2;
-        }
-
-        if (analysis.errors.hesitations.length > 0) {
-            if (yPos > 250) {
-                doc.addPage();
-                yPos = 20;
-            }
-            doc.setFont(undefined, 'bold');
-            doc.text(`Hesitations: ${analysis.errors.hesitations.length}`, margin, yPos);
-            yPos += 5;
-            doc.setFont(undefined, 'normal');
-            const hesitationText = analysis.errors.hesitations.map(h =>
-                h.type === 'filler' ? `"${h.word}"` : `pause before "${h.word}"`
-            ).join(', ');
-            const hesLines = doc.splitTextToSize(hesitationText, maxWidth - 5);
-            doc.text(hesLines, margin + 5, yPos);
-            yPos += 5 * hesLines.length + 2;
-        }
-
-        if (analysis.errors.repeatedWords.length > 0) {
-            if (yPos > 250) {
-                doc.addPage();
-                yPos = 20;
-            }
-            doc.setFont(undefined, 'bold');
-            doc.text(`Repeated Words: ${analysis.errors.repeatedWords.length}`, margin, yPos);
-            yPos += 5;
-            doc.setFont(undefined, 'normal');
-            const repeatText = analysis.errors.repeatedWords.map(r => `"${r.word}"`).join(', ');
-            const repeatLines = doc.splitTextToSize(repeatText, maxWidth - 5);
-            doc.text(repeatLines, margin + 5, yPos);
-            yPos += 5 * repeatLines.length + 2;
-        }
-
-        if (analysis.errors.skippedLines.length > 0) {
-            if (yPos > 250) {
-                doc.addPage();
-                yPos = 20;
-            }
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(220, 53, 69);
-            doc.text(`Skipped Lines: ${analysis.errors.skippedLines.length} (CRITICAL)`, margin, yPos);
-            doc.setTextColor(0);
-            yPos += 5;
-            doc.setFont(undefined, 'normal');
-            analysis.errors.skippedLines.forEach(l => {
-                doc.text(`${l.count} consecutive words skipped`, margin + 5, yPos);
-                yPos += 5;
-            });
-            yPos += 2;
-        }
-
-        if (analysis.errors.repeatedPhrases.length > 0) {
-            if (yPos > 250) {
-                doc.addPage();
-                yPos = 20;
-            }
-            doc.setFont(undefined, 'bold');
-            doc.text(`Repeated Phrases: ${analysis.errors.repeatedPhrases.length}`, margin, yPos);
-            yPos += 5;
-            doc.setFont(undefined, 'normal');
-            const phraseText = analysis.errors.repeatedPhrases.map(p => `"${p.phrase}"`).join(', ');
-            const phraseLines = doc.splitTextToSize(phraseText, maxWidth - 5);
-            doc.text(phraseLines, margin + 5, yPos);
-            yPos += 5 * phraseLines.length + 2;
-        }
-    }
-
-    // Simplified Error Summary Section (detailed patterns available via web report)
-    if (yPos > 220) {
-        doc.addPage();
-        yPos = 20;
-    }
-
-    yPos += 5;
-    doc.setFontSize(14);
-    doc.setFont(undefined, 'bold');
-    doc.text('Error Summary', margin, yPos);
-    yPos += 8;
-
-    if (state.latestErrorPatterns) {
-        const patterns = state.latestErrorPatterns;
-
-        // Show primary issues only (brief summary)
-        if (patterns.summary.primaryIssues && patterns.summary.primaryIssues.length > 0) {
-            doc.setFontSize(11);
-            doc.setFont(undefined, 'bold');
-            doc.text('Key Issues:', margin, yPos);
-            yPos += 6;
-
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'normal');
-            patterns.summary.primaryIssues.slice(0, 3).forEach((issue, idx) => {
-                const lines = doc.splitTextToSize(`${idx + 1}. ${issue}`, maxWidth - 5);
-                doc.text(lines, margin + 3, yPos);
-                yPos += 5 * lines.length;
-            });
-            if (patterns.summary.primaryIssues.length > 3) {
-                doc.setTextColor(100);
-                doc.text(`... and ${patterns.summary.primaryIssues.length - 3} more issues`, margin + 3, yPos);
-                doc.setTextColor(0);
-                yPos += 5;
-            }
-            yPos += 5;
-        }
-
-        // Show recommendations (brief)
-        if (patterns.summary.recommendations && patterns.summary.recommendations.length > 0) {
-            doc.setFontSize(11);
-            doc.setFont(undefined, 'bold');
-            doc.setTextColor(16, 185, 129);
-            doc.text('Recommendations:', margin, yPos);
-            doc.setTextColor(0);
-            yPos += 6;
-
-            doc.setFontSize(10);
-            doc.setFont(undefined, 'normal');
-            patterns.summary.recommendations.slice(0, 3).forEach((rec, idx) => {
-                const lines = doc.splitTextToSize(`${idx + 1}. ${rec}`, maxWidth - 5);
-                doc.text(lines, margin + 3, yPos);
-                yPos += 5 * lines.length;
-            });
-            yPos += 3;
-        }
-
-        // Note about detailed report
-        doc.setFontSize(9);
-        doc.setFont(undefined, 'italic');
-        doc.setTextColor(100);
-        doc.text('For detailed phonics patterns, reading strategies, and speech analysis, use "View Detailed Patterns" in the app.', margin, yPos);
-        doc.setTextColor(0);
-    } else {
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'italic');
-        doc.setTextColor(100);
-        doc.text('No error pattern data available for this assessment.', margin, yPos);
-        doc.setTextColor(0);
-    }
-    yPos += 10;
-
-    // Save PDF
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-    doc.save(`oral-fluency-analysis-${timestamp}.pdf`);
-}
-
-// Download analysis using html2pdf (A/B comparison with jsPDF)
+// Generate and download analysis as PDF using html2pdf
 function downloadAnalysisAsHtml2Pdf() {
     if (!state.latestAnalysis || !state.latestExpectedWords) {
         alert('No analysis data available');
@@ -4314,7 +4331,7 @@ function downloadAnalysisAsHtml2Pdf() {
         </style>
 
         <h1>Oral Fluency Analysis Report</h1>
-        <div class="subtitle">Generated via html2pdf on ${new Date().toLocaleDateString()}</div>
+        <div class="subtitle">Generated on ${new Date().toLocaleDateString()}</div>
 
         <div class="stats-row">
             <div class="stat-box">
@@ -4376,7 +4393,7 @@ function downloadAnalysisAsHtml2Pdf() {
     // Configure html2pdf options
     const options = {
         margin: 10,
-        filename: `oral-fluency-analysis-html2pdf-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`,
+        filename: `oral-fluency-analysis-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -4387,9 +4404,9 @@ function downloadAnalysisAsHtml2Pdf() {
         // Remove temporary container
         document.body.removeChild(printContainer);
     }).catch(err => {
-        console.error('html2pdf error:', err);
+        console.error('PDF generation error:', err);
         document.body.removeChild(printContainer);
-        alert('Failed to generate PDF. Please try the jsPDF option instead.');
+        alert('Failed to generate PDF. Please try again.');
     });
 }
 

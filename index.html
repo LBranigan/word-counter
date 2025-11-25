@@ -320,12 +320,7 @@
                     </button>
                 </div>
 
-                <div class="export-section">
-                    <button id="export-btn" class="btn btn-export">
-                        <span class="icon">📋</span> Export Selected Words
-                    </button>
-                    <div id="export-output" class="export-output"></div>
-                </div>
+                <div id="export-output" class="export-output"></div>
             </section>
 
             <!-- Results Section -->
@@ -361,6 +356,13 @@
 
                 <div id="results-container" class="results-container">
                     <!-- Results will be dynamically inserted here -->
+                </div>
+
+                <!-- Export Section -->
+                <div class="export-section">
+                    <button id="export-btn" class="btn btn-export">
+                        <span class="icon">📋</span> Export Selected Words
+                    </button>
                 </div>
 
                 <!-- Save Assessment Section -->
@@ -430,7 +432,7 @@
 
         <footer>
             <p class="hint">👆 Left-click: drag to select words • Right-click: drag to pan image • Click yellow words to deselect</p>
-            <p class="version">Version: 2025-01-22 (Guided UX)</p>
+            <p class="version">Version: 2025-01-24</p>
         </footer>
     </div>
 
@@ -509,7 +511,6 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script type="module" src="firebase-config.js"></script>
     <script type="module" src="firebase-auth.js"></script>

@@ -1816,6 +1816,84 @@ footer {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
+/* Custom Word Tooltip */
+.word-tooltip {
+    position: fixed;
+    z-index: 10000;
+    background: #1a1a2e;
+    color: white;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    max-width: 280px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(5px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.word-tooltip.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.word-tooltip-header {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.word-tooltip-header.correct { color: #4ade80; }
+.word-tooltip-header.skipped { color: #9ca3af; }
+.word-tooltip-header.misread { color: #fbbf24; }
+.word-tooltip-header.substituted { color: #f87171; }
+
+.word-tooltip-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 0.3rem 0;
+    font-size: 0.85rem;
+}
+
+.word-tooltip-label {
+    color: #9ca3af;
+}
+
+.word-tooltip-value {
+    font-weight: 500;
+    margin-left: 1rem;
+}
+
+.word-tooltip-reason {
+    margin-top: 0.5rem;
+    padding-top: 0.4rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.8rem;
+    color: #d1d5db;
+    font-style: italic;
+}
+
+/* Touch indicator for mobile */
+@media (hover: none) and (pointer: coarse) {
+    .analyzed-text span {
+        cursor: pointer;
+    }
+
+    .analyzed-text span::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        right: -2px;
+        transform: translateY(-50%);
+        width: 4px;
+        height: 4px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 50%;
+    }
+}
+
 .legend {
     display: flex;
     flex-wrap: wrap;
