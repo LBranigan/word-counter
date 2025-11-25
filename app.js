@@ -4480,30 +4480,43 @@ function downloadAnalysisAsHtml2Pdf() {
         summaryContent += `<div><strong>Recommendations:</strong><ul style="margin: 4px 0; padding-left: 20px;">${patterns.summary.recommendations.slice(0, 3).map(r => `<li>${r}</li>`).join('')}</ul></div>`;
     }
 
-    // Build stats row
+    // Build stats using TABLE layout (not flexbox - flexbox fails on mobile html2canvas)
+    // Count how many stat cells we'll have
+    let statCount = 3; // Correct, Errors, Accuracy are always shown
+    if (prosodyMetrics.wpm) statCount++;
+    if (prosodyMetrics.prosodyScore) statCount++;
+
     let statsHtml = `
-        <div style="display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 60px; text-align: center; padding: 10px; background: #f5f5f5; border-radius: 6px;">
-                <div style="font-size: 20px; font-weight: bold; color: #333;">${analysis.correctCount || 0}</div>
-                <div style="font-size: 9px; color: #666;">Correct</div>
-            </div>
-            <div style="flex: 1; min-width: 60px; text-align: center; padding: 10px; background: #f5f5f5; border-radius: 6px;">
-                <div style="font-size: 20px; font-weight: bold; color: #333;">${totalErrors}</div>
-                <div style="font-size: 9px; color: #666;">Errors</div>
-            </div>
-            <div style="flex: 1; min-width: 60px; text-align: center; padding: 10px; background: #f5f5f5; border-radius: 6px;">
-                <div style="font-size: 20px; font-weight: bold; color: #333;">${accuracy}%</div>
-                <div style="font-size: 9px; color: #666;">Accuracy</div>
-            </div>
-            ${prosodyMetrics.wpm ? `<div style="flex: 1; min-width: 60px; text-align: center; padding: 10px; background: #f5f5f5; border-radius: 6px;">
-                <div style="font-size: 20px; font-weight: bold; color: #333;">${prosodyMetrics.wpm}</div>
-                <div style="font-size: 9px; color: #666;">WPM</div>
-            </div>` : ''}
-            ${prosodyMetrics.prosodyScore ? `<div style="flex: 1; min-width: 60px; text-align: center; padding: 10px; background: #f5f5f5; border-radius: 6px;">
-                <div style="font-size: 20px; font-weight: bold; color: #333;">${prosodyMetrics.prosodyScore}</div>
-                <div style="font-size: 9px; color: #666;">Prosody</div>
-            </div>` : ''}
-        </div>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+            <tr>
+                <td style="text-align: center; padding: 10px; background: #f5f5f5; border-radius: 6px; width: ${100/statCount}%;">
+                    <div style="font-size: 20px; font-weight: bold; color: #333;">${analysis.correctCount || 0}</div>
+                    <div style="font-size: 9px; color: #666;">Correct</div>
+                </td>
+                <td style="width: 8px;"></td>
+                <td style="text-align: center; padding: 10px; background: #f5f5f5; border-radius: 6px; width: ${100/statCount}%;">
+                    <div style="font-size: 20px; font-weight: bold; color: #333;">${totalErrors}</div>
+                    <div style="font-size: 9px; color: #666;">Errors</div>
+                </td>
+                <td style="width: 8px;"></td>
+                <td style="text-align: center; padding: 10px; background: #f5f5f5; border-radius: 6px; width: ${100/statCount}%;">
+                    <div style="font-size: 20px; font-weight: bold; color: #333;">${accuracy}%</div>
+                    <div style="font-size: 9px; color: #666;">Accuracy</div>
+                </td>
+                ${prosodyMetrics.wpm ? `
+                <td style="width: 8px;"></td>
+                <td style="text-align: center; padding: 10px; background: #f5f5f5; border-radius: 6px; width: ${100/statCount}%;">
+                    <div style="font-size: 20px; font-weight: bold; color: #333;">${prosodyMetrics.wpm}</div>
+                    <div style="font-size: 9px; color: #666;">WPM</div>
+                </td>` : ''}
+                ${prosodyMetrics.prosodyScore ? `
+                <td style="width: 8px;"></td>
+                <td style="text-align: center; padding: 10px; background: #f5f5f5; border-radius: 6px; width: ${100/statCount}%;">
+                    <div style="font-size: 20px; font-weight: bold; color: #333;">${prosodyMetrics.prosodyScore}</div>
+                    <div style="font-size: 9px; color: #666;">Prosody</div>
+                </td>` : ''}
+            </tr>
+        </table>
     `;
 
     // Create a full-screen overlay to hide the rendering process
@@ -4519,10 +4532,15 @@ function downloadAnalysisAsHtml2Pdf() {
     `;
     document.body.appendChild(overlay);
 
-    // Create the content element - positioned behind the overlay
+    // CRITICAL FIX: Scroll to top before capture - html2canvas captures from scroll position
+    window.scrollTo(0, 0);
+
+    // Create the content element
+    // CRITICAL FIX: Use position: absolute NOT position: fixed (fixed fails on mobile Safari)
+    // Use explicit pixel width (794px = A4 at 96 DPI) NOT mm units
     const printContainer = document.createElement('div');
     printContainer.id = 'pdf-content-container';
-    printContainer.style.cssText = 'position: fixed; top: 0; left: 0; width: 210mm; min-height: 297mm; background: white; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 15mm; box-sizing: border-box; z-index: 9999;';
+    printContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 794px; min-height: 1123px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box; z-index: 9999;';
 
     printContainer.innerHTML = `
         <h1 style="text-align: center; color: #667eea; font-size: 18px; margin: 0 0 5px 0;">Oral Fluency Analysis Report</h1>
@@ -4556,20 +4574,24 @@ function downloadAnalysisAsHtml2Pdf() {
 
     document.body.appendChild(printContainer);
 
-    // Small delay to ensure DOM is ready
+    // Longer delay to ensure DOM is fully rendered on mobile
     setTimeout(() => {
-        // Configure html2pdf options
+        // Configure html2pdf options optimized for mobile
         const options = {
             margin: 0,
             filename: `oral-fluency-analysis-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
+            image: { type: 'jpeg', quality: 0.95 },
             html2canvas: {
-                scale: 2,
+                scale: 1.5, // Lower scale to avoid iOS canvas size limits (4096x4096)
                 useCORS: true,
                 logging: false,
                 scrollX: 0,
                 scrollY: 0,
-                windowWidth: printContainer.offsetWidth
+                width: 794, // Explicit width in pixels
+                height: printContainer.scrollHeight, // Use actual content height
+                windowWidth: 794,
+                windowHeight: printContainer.scrollHeight,
+                backgroundColor: '#ffffff' // Explicit white background
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
@@ -4586,9 +4608,9 @@ function downloadAnalysisAsHtml2Pdf() {
                 // Clean up on error
                 if (printContainer.parentNode) document.body.removeChild(printContainer);
                 if (overlay.parentNode) document.body.removeChild(overlay);
-                alert('Failed to generate PDF. Please try again.');
+                alert('Failed to generate PDF: ' + err.message);
             });
-    }, 100);
+    }, 200);
 }
 
 // View detailed error patterns in a new window

@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Analyzer - Code Bloat Analysis</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            text-align: center;
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+            color: #58a6ff;
+        }
+        .subtitle {
+            text-align: center;
+            color: #8b949e;
+            margin-bottom: 30px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        /* Summary Cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .summary-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        .summary-card .value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #58a6ff;
+        }
+        .summary-card .label {
+            font-size: 0.8rem;
+            color: #8b949e;
+        }
+
+        /* Section */
+        .section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-size: 1.1rem;
+            color: #58a6ff;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #30363d;
+        }
+
+        /* Code Size Bars */
+        .size-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .size-row {
+            display: grid;
+            grid-template-columns: 200px 1fr 80px;
+            align-items: center;
+            gap: 10px;
+        }
+        .size-label {
+            font-size: 0.85rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .size-bar-container {
+            background: #21262d;
+            border-radius: 4px;
+            height: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        .size-bar {
+            height: 100%;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            padding-left: 8px;
+            font-size: 0.75rem;
+            color: #fff;
+            font-weight: 500;
+        }
+        .size-bar.core { background: linear-gradient(90deg, #238636, #2ea043); }
+        .size-bar.feature { background: linear-gradient(90deg, #1f6feb, #388bfd); }
+        .size-bar.analysis { background: linear-gradient(90deg, #8957e5, #a371f7); }
+        .size-bar.ui { background: linear-gradient(90deg, #bf8700, #d29922); }
+        .size-bar.bloat { background: linear-gradient(90deg, #da3633, #f85149); }
+        .size-count {
+            font-size: 0.8rem;
+            color: #8b949e;
+            text-align: right;
+        }
+
+        /* Bloat Indicators */
+        .bloat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .bloat-card {
+            background: #21262d;
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 4px solid;
+        }
+        .bloat-card.high { border-color: #f85149; }
+        .bloat-card.medium { border-color: #d29922; }
+        .bloat-card.low { border-color: #3fb950; }
+        .bloat-card h3 {
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .bloat-card .lines {
+            font-size: 0.8rem;
+            color: #8b949e;
+            margin-bottom: 8px;
+        }
+        .bloat-card .issue {
+            font-size: 0.85rem;
+            color: #c9d1d9;
+            margin-bottom: 8px;
+        }
+        .bloat-card .suggestion {
+            font-size: 0.8rem;
+            color: #3fb950;
+            background: rgba(63, 185, 80, 0.1);
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+        .tag.high { background: #f8514933; color: #f85149; }
+        .tag.medium { background: #d2992233; color: #d29922; }
+        .tag.low { background: #3fb95033; color: #3fb950; }
+
+        /* Function Map */
+        .func-map {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .func-block {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .func-block:hover {
+            transform: scale(1.5);
+            z-index: 10;
+        }
+        .func-block.core { background: #238636; }
+        .func-block.feature { background: #1f6feb; }
+        .func-block.analysis { background: #8957e5; }
+        .func-block.ui { background: #bf8700; }
+        .func-block.bloat { background: #da3633; }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #30363d;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+        }
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        /* Recommendations */
+        .recommendations {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .rec-item {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 12px;
+            align-items: center;
+            background: #21262d;
+            padding: 12px;
+            border-radius: 6px;
+        }
+        .rec-priority {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        .rec-priority.p1 { background: #f8514933; color: #f85149; }
+        .rec-priority.p2 { background: #d2992233; color: #d29922; }
+        .rec-priority.p3 { background: #3fb95033; color: #3fb950; }
+        .rec-content h4 { font-size: 0.9rem; margin-bottom: 4px; }
+        .rec-content p { font-size: 0.8rem; color: #8b949e; }
+        .rec-savings {
+            font-size: 0.85rem;
+            color: #3fb950;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        /* File breakdown */
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .file-item {
+            background: #21262d;
+            padding: 12px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .file-item .name { font-size: 0.85rem; }
+        .file-item .size {
+            font-size: 0.8rem;
+            color: #8b949e;
+            background: #30363d;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Word Analyzer - Code Analysis</h1>
+        <p class="subtitle">Identifying bloat and optimization opportunities</p>
+
+        <!-- Summary -->
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="value">9,831</div>
+                <div class="label">Total Lines</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">5,336</div>
+                <div class="label">app.js Lines</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">108</div>
+                <div class="label">Functions</div>
+            </div>
+            <div class="summary-card">
+                <div class="value">~1,500</div>
+                <div class="label">Potential Savings</div>
+            </div>
+        </div>
+
+        <!-- File Breakdown -->
+        <div class="section">
+            <div class="section-title">File Size Breakdown</div>
+            <div class="file-grid">
+                <div class="file-item">
+                    <span class="name">app.js</span>
+                    <span class="size">5,336 lines (54%)</span>
+                </div>
+                <div class="file-item">
+                    <span class="name">styles.css</span>
+                    <span class="size">2,592 lines (26%)</span>
+                </div>
+                <div class="file-item">
+                    <span class="name">index.html</span>
+                    <span class="size">499 lines (5%)</span>
+                </div>
+                <div class="file-item">
+                    <span class="name">firebase-db.js</span>
+                    <span class="size">333 lines (3%)</span>
+                </div>
+                <div class="file-item">
+                    <span class="name">firebase-api-key-manager.js</span>
+                    <span class="size">204 lines (2%)</span>
+                </div>
+                <div class="file-item">
+                    <span class="name">firebase-auth.js</span>
+                    <span class="size">152 lines (2%)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Code Size by Feature -->
+        <div class="section">
+            <div class="section-title">app.js Breakdown by Feature (5,336 lines)</div>
+            <div class="size-chart">
+                <div class="size-row">
+                    <span class="size-label">Database & Students</span>
+                    <div class="size-bar-container">
+                        <div class="size-bar feature" style="width: 22%;">1,150 lines</div>
+                    </div>
+                    <span class="size-count">22%</span>
+                </div>
+                <div class="size-row">
+                    <span class="size-label">Error Pattern Analysis</span>
+                    <div class="size-bar-container">
+                        <div class="size-bar bloat" style="width: 12%;">~600 lines</div>
+                    </div>
+                    <span class="size-count">11%</span>
+                </div>
+                <div class="size-row">
+                    <span class="size-label">PDF Generation</span>
+                    <div class="size-bar-container">
+                        <div class="size-bar bloat" style="width: 11%;">~560 lines</div>
+                    </div>
+                    <span class="size-count">10%</span>
+                </div>
+                <div class="size-row">
+                    <span class="size-label">Pronunciation Analysis</span>
+                    <div class="size-bar-container">
+                        <div class="size-bar analysis" style="width: 9%;">~455 lines</div>
+                    </div>
+                    <span class="size-count">9%</span>
+                </div>
+                <div class="size-row">
+                    <span class="size-label">Canvas & Selection</span>
+                    <div class="size-bar-container">
+                        <div class="size-bar core" style="width: 8%;">~410 lines</div>
+                    </div>
+                    <span class="size-count">8%</span>
+                </div>
+                <div class="size-row">
+                    <span class="size-label">Display Results UI</span>
+                    <div class="size-bar-container">
+                        <div class="size-bar ui" style="width: 7%;">~370 lines</div>
+                    </div>
+                    <span class="size-count">7%</span>
+                </div>
+                <div class="size-row">
+                    <span class="size-label">Step Navigation</span>
+                    <div class="size-bar-container">
+                        <div class="size-bar ui" style="width: 7%;">~355 lines</div>
+                    </div>
+                    <span class="size-count">7%</span>
+                </div>
+                <div class="size-row">
+                    <span class="size-label">Audio Recording</span>
+                    <div class="size-bar-container">
+                        <div class="size-bar core" style="width: 5%;">~280 lines</div>
+                    </div>
+                    <span class="size-count">5%</span>
+                </div>
+                <div class="size-row">
+                    <span class="size-label">Video Generation</span>
+                    <div class="size-bar-container">
+                        <div class="size-bar feature" style="width: 5%;">~275 lines</div>
+                    </div>
+                    <span class="size-count">5%</span>
+                </div>
+                <div class="size-row">
+                    <span class="size-label">Speech-to-Text</span>
+                    <div class="size-bar-container">
+                        <div class="size-bar core" style="width: 4%;">~220 lines</div>
+                    </div>
+                    <span class="size-count">4%</span>
+                </div>
+                <div class="size-row">
+                    <span class="size-label">Init & API Keys</span>
+                    <div class="size-bar-container">
+                        <div class="size-bar core" style="width: 4%;">~180 lines</div>
+                    </div>
+                    <span class="size-count">3%</span>
+                </div>
+                <div class="size-row">
+                    <span class="size-label">DOM Elements</span>
+                    <div class="size-bar-container">
+                        <div class="size-bar core" style="width: 3%;">~135 lines</div>
+                    </div>
+                    <span class="size-count">3%</span>
+                </div>
+                <div class="size-row">
+                    <span class="size-label">OCR Processing</span>
+                    <div class="size-bar-container">
+                        <div class="size-bar core" style="width: 3%;">~130 lines</div>
+                    </div>
+                    <span class="size-count">2%</span>
+                </div>
+                <div class="size-row">
+                    <span class="size-label">Camera/Image</span>
+                    <div class="size-bar-container">
+                        <div class="size-bar core" style="width: 2%;">~120 lines</div>
+                    </div>
+                    <span class="size-count">2%</span>
+                </div>
+            </div>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color" style="background:#238636;"></div> Core (essential)</div>
+                <div class="legend-item"><div class="legend-color" style="background:#1f6feb;"></div> Features</div>
+                <div class="legend-item"><div class="legend-color" style="background:#8957e5;"></div> Analysis</div>
+                <div class="legend-item"><div class="legend-color" style="background:#bf8700;"></div> UI/Navigation</div>
+                <div class="legend-item"><div class="legend-color" style="background:#da3633;"></div> Potential Bloat</div>
+            </div>
+        </div>
+
+        <!-- Bloat Analysis -->
+        <div class="section">
+            <div class="section-title">Identified Bloat Areas</div>
+            <div class="bloat-grid">
+                <div class="bloat-card high">
+                    <h3><span class="tag high">HIGH</span> Error Pattern Analysis</h3>
+                    <div class="lines">~600 lines (11% of app.js)</div>
+                    <div class="issue">
+                        Extensive phonics analysis with many specialized functions for detecting reading patterns (r-controlled vowels, digraphs, consonant blends, etc.). Very detailed but rarely used.
+                    </div>
+                    <div class="suggestion">
+                        <strong>Savings: ~400 lines</strong><br>
+                        Simplify to basic error categories. Move advanced analysis to optional module loaded on-demand.
+                    </div>
+                </div>
+
+                <div class="bloat-card high">
+                    <h3><span class="tag high">HIGH</span> PDF Generation</h3>
+                    <div class="lines">~560 lines (10% of app.js)</div>
+                    <div class="issue">
+                        Massive function building PDF manually with jsPDF. Includes full error pattern report, recommendations, and formatting logic duplicated from display.
+                    </div>
+                    <div class="suggestion">
+                        <strong>Savings: ~350 lines</strong><br>
+                        Use simpler PDF template. Reuse display HTML with html2pdf library instead of manual construction.
+                    </div>
+                </div>
+
+                <div class="bloat-card medium">
+                    <h3><span class="tag medium">MED</span> Student Profile Rendering</h3>
+                    <div class="lines">~400 lines in Database section</div>
+                    <div class="issue">
+                        Multiple functions for rendering student cards, profiles, charts, and aggregated patterns. Lots of inline HTML strings.
+                    </div>
+                    <div class="suggestion">
+                        <strong>Savings: ~200 lines</strong><br>
+                        Use template literals more efficiently. Extract common card components.
+                    </div>
+                </div>
+
+                <div class="bloat-card medium">
+                    <h3><span class="tag medium">MED</span> Step Navigation</h3>
+                    <div class="lines">~355 lines</div>
+                    <div class="issue">
+                        Complex state management for breadcrumb navigation. Multiple functions checking step completion, requirements, and button states.
+                    </div>
+                    <div class="suggestion">
+                        <strong>Savings: ~150 lines</strong><br>
+                        Simplify with declarative step configuration object instead of scattered logic.
+                    </div>
+                </div>
+
+                <div class="bloat-card medium">
+                    <h3><span class="tag medium">MED</span> Video Generation</h3>
+                    <div class="lines">~275 lines</div>
+                    <div class="issue">
+                        Complex canvas animation and MediaRecorder logic for generating transcript videos. Feature is rarely used.
+                    </div>
+                    <div class="suggestion">
+                        <strong>Savings: ~200 lines</strong><br>
+                        Make this a premium/optional feature that loads separately. Most users just need PDF.
+                    </div>
+                </div>
+
+                <div class="bloat-card low">
+                    <h3><span class="tag low">LOW</span> CSS Styles</h3>
+                    <div class="lines">2,592 lines</div>
+                    <div class="issue">
+                        Large CSS file with many selectors. Some duplication in responsive styles and component variants.
+                    </div>
+                    <div class="suggestion">
+                        <strong>Savings: ~400 lines</strong><br>
+                        Use CSS variables more. Remove unused selectors. Consolidate similar components.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feature Usage Matrix -->
+        <div class="section">
+            <div class="section-title">Feature Importance vs Code Size</div>
+            <table style="width:100%; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                    <tr style="border-bottom: 1px solid #30363d;">
+                        <th style="text-align:left; padding: 8px;">Feature</th>
+                        <th style="text-align:center; padding: 8px;">Lines</th>
+                        <th style="text-align:center; padding: 8px;">Usage</th>
+                        <th style="text-align:center; padding: 8px;">Essential?</th>
+                        <th style="text-align:left; padding: 8px;">Verdict</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td style="padding:8px;">Audio Recording</td><td style="text-align:center;">280</td><td style="text-align:center;">Every session</td><td style="text-align:center;">Yes</td><td style="color:#3fb950;">Keep</td></tr>
+                    <tr><td style="padding:8px;">Camera/OCR</td><td style="text-align:center;">250</td><td style="text-align:center;">Every session</td><td style="text-align:center;">Yes</td><td style="color:#3fb950;">Keep</td></tr>
+                    <tr><td style="padding:8px;">Word Selection</td><td style="text-align:center;">410</td><td style="text-align:center;">Every session</td><td style="text-align:center;">Yes</td><td style="color:#3fb950;">Keep</td></tr>
+                    <tr><td style="padding:8px;">Pronunciation Analysis</td><td style="text-align:center;">455</td><td style="text-align:center;">Every session</td><td style="text-align:center;">Yes</td><td style="color:#3fb950;">Keep</td></tr>
+                    <tr><td style="padding:8px;">Student Database</td><td style="text-align:center;">1,150</td><td style="text-align:center;">Every session</td><td style="text-align:center;">Yes</td><td style="color:#d29922;">Optimize</td></tr>
+                    <tr><td style="padding:8px;">Error Patterns (Advanced)</td><td style="text-align:center;">600</td><td style="text-align:center;">Sometimes viewed</td><td style="text-align:center;">No</td><td style="color:#f85149;">Reduce/Lazy-load</td></tr>
+                    <tr><td style="padding:8px;">PDF Export</td><td style="text-align:center;">560</td><td style="text-align:center;">Occasionally</td><td style="text-align:center;">No</td><td style="color:#f85149;">Simplify</td></tr>
+                    <tr><td style="padding:8px;">Video Generation</td><td style="text-align:center;">275</td><td style="text-align:center;">Rarely</td><td style="text-align:center;">No</td><td style="color:#f85149;">Make optional</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="section">
+            <div class="section-title">Optimization Recommendations</div>
+            <div class="recommendations">
+                <div class="rec-item">
+                    <div class="rec-priority p1">1</div>
+                    <div class="rec-content">
+                        <h4>Simplify Error Pattern Analysis</h4>
+                        <p>Keep basic error types (skipped, misread, substituted). Move phonics/speech pattern detection to optional advanced mode.</p>
+                    </div>
+                    <div class="rec-savings">-400 lines</div>
+                </div>
+                <div class="rec-item">
+                    <div class="rec-priority p1">2</div>
+                    <div class="rec-content">
+                        <h4>Replace PDF with html2pdf</h4>
+                        <p>Instead of manually building PDF with jsPDF, render results as HTML and use html2pdf.js to convert. Reuses existing display code.</p>
+                    </div>
+                    <div class="rec-savings">-350 lines</div>
+                </div>
+                <div class="rec-item">
+                    <div class="rec-priority p2">3</div>
+                    <div class="rec-content">
+                        <h4>Lazy-load Video Generation</h4>
+                        <p>Move video generation to separate file that loads only when user clicks "Generate Video". Most users don't use this feature.</p>
+                    </div>
+                    <div class="rec-savings">-275 lines</div>
+                </div>
+                <div class="rec-item">
+                    <div class="rec-priority p2">4</div>
+                    <div class="rec-content">
+                        <h4>Consolidate Student Rendering</h4>
+                        <p>Create reusable component functions for student cards, stats displays, and assessment lists instead of inline HTML.</p>
+                    </div>
+                    <div class="rec-savings">-200 lines</div>
+                </div>
+                <div class="rec-item">
+                    <div class="rec-priority p3">5</div>
+                    <div class="rec-content">
+                        <h4>Simplify Step Navigation</h4>
+                        <p>Replace procedural step logic with declarative configuration object defining steps, requirements, and transitions.</p>
+                    </div>
+                    <div class="rec-savings">-150 lines</div>
+                </div>
+                <div class="rec-item">
+                    <div class="rec-priority p3">6</div>
+                    <div class="rec-content">
+                        <h4>CSS Cleanup</h4>
+                        <p>Remove unused styles, consolidate similar components, use more CSS custom properties.</p>
+                    </div>
+                    <div class="rec-savings">-400 lines</div>
+                </div>
+            </div>
+            <div style="margin-top: 20px; padding: 15px; background: #238636; border-radius: 8px; text-align: center;">
+                <strong style="font-size: 1.1rem;">Total Potential Savings: ~1,775 lines (18% reduction)</strong>
+                <div style="font-size: 0.85rem; margin-top: 5px; opacity: 0.9;">From 9,831 → ~8,056 lines without losing functionality</div>
+            </div>
+        </div>
+
+        <!-- Quick Wins -->
+        <div class="section">
+            <div class="section-title">Quick Wins (Easy to Implement)</div>
+            <div style="display: grid; gap: 10px;">
+                <div style="background:#21262d; padding:12px; border-radius:6px; display:flex; justify-content:space-between;">
+                    <span>Remove console.log statements (debugging)</span>
+                    <span style="color:#8b949e;">~50 lines</span>
+                </div>
+                <div style="background:#21262d; padding:12px; border-radius:6px; display:flex; justify-content:space-between;">
+                    <span>Remove unused CSS selectors</span>
+                    <span style="color:#8b949e;">~200 lines</span>
+                </div>
+                <div style="background:#21262d; padding:12px; border-radius:6px; display:flex; justify-content:space-between;">
+                    <span>Consolidate duplicate error handling code</span>
+                    <span style="color:#8b949e;">~100 lines</span>
+                </div>
+                <div style="background:#21262d; padding:12px; border-radius:6px; display:flex; justify-content:space-between;">
+                    <span>Remove deprecated/unused functions</span>
+                    <span style="color:#8b949e;">~50 lines</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>
