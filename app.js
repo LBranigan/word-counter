@@ -126,8 +126,8 @@ const wordTooltipManager = {
             clearTimeout(this.touchTimer);
             this.touchTimer = null;
         }
-        // Hide tooltip after 2 seconds on mobile
-        setTimeout(() => this.hideTooltip(), 2000);
+        // Hide tooltip after 4 seconds on mobile
+        setTimeout(() => this.hideTooltip(), 4000);
     },
 
     handleTouchMove(e) {
