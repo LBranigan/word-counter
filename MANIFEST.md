@@ -145,21 +145,27 @@ A comprehensive reading fluency assessment tool for Morningside Academy that com
 
    - **Step 2: Capture Image**
      - Camera capture with mobile support
-     - Photo upload from device
+     - Photo upload from device ("Browse" button)
+     - **Mobile-optimized button layout** (Capture prominent, Browse secondary)
      - Image preview
      - Retake/re-upload options
 
    - **Step 3: Highlight Text**
      - Google Cloud Vision API integration
      - OCR word detection with 99%+ accuracy
+     - **Auto-detect spoken words** (automatic on entering step)
+     - Loading overlay with progress during auto-detection
      - Touch-based word selection (drag gesture)
-     - Click individual words to select/deselect
+     - Click/tap individual words to select/deselect
+     - **15px drag threshold** prevents accidental selections on touch
      - Zoom controls (in/out/reset)
      - Pan with right-click or shift+drag
      - Real-time word count display
      - Punctuation filtering
      - Green boxes for detected words
      - Yellow highlighting for selected words
+     - **Redo Autodetect button** for re-running detection
+     - **Mobile scroll gutters** on left/right for easy scrolling
 
    - **Step 4: Analysis Results**
      - Speech-to-Text transcription
@@ -178,7 +184,8 @@ A comprehensive reading fluency assessment tool for Morningside Academy that com
        - Prosody score (1-5 scale)
        - Total errors breakdown
      - Color-coded results display
-     - Download as PDF
+     - **Interactive word tooltips** (tap to see error details, 5-second display on mobile)
+     - Download as PDF (mobile and desktop optimized)
      - Generate transcript video
 
 #### 2. **Student Database & Tracking**
@@ -618,6 +625,13 @@ npx localtunnel --port 8000
 8. ✅ Fixed inline audio size limits (removed Long Running API)
 9. ✅ Fixed video color-coding bug (proper word matching)
 10. ✅ Fixed zoom/pan coordinate calculations
+11. ✅ Fixed PDF generation blank pages on mobile (position: absolute, table layout)
+12. ✅ Fixed PDF generation blank pages on desktop (unified positioning strategy)
+13. ✅ Fixed iPad audio sample rate issue (explicit sampleRateHertz in API config)
+14. ✅ Fixed iPad stereo audio channel mismatch (capture and pass audioChannelCount)
+15. ✅ Fixed mobile word deselection (15px minimum drag threshold)
+16. ✅ Fixed mobile tooltip disappearing too quickly (5-second display time)
+17. ✅ Eliminated redundant Speech-to-Text API calls (cache and reuse transcription)
 
 ### 🎨 UI/UX Improvements Made
 
@@ -636,6 +650,11 @@ npx localtunnel --port 8000
 13. **Quick Actions**: "Add Student" button available in workflow
 14. **Export Options**: Multiple export formats (PDF, audio, transcript video)
 15. **Zoom Controls**: Easy image navigation for accuracy
+16. **Auto-Detect**: Automatic spoken word detection on entering highlight step
+17. **Mobile Scroll Gutters**: Visible scroll areas on left/right of image
+18. **Prominent Capture Button**: Mobile-optimized button hierarchy
+19. **Touch-Friendly Interactions**: 15px drag threshold for reliable tap detection
+20. **Version Timestamps**: Footer displays current version for cache verification
 
 ### 📦 Dependencies
 
@@ -695,34 +714,24 @@ This project demonstrates:
 - **UX Design**: Multi-step workflows, guided experiences
 - **Error Handling**: Graceful degradation, helpful messages
 
-### 📋 Feature Comparison (v1.0 → v2.0 → v3.0)
+### 📋 Feature Comparison (v1.0 → v2.0 → v3.0 → v3.1)
 
-| Feature | v1.0 Word Counter | v2.0 Word Analyzer | v3.0 Multi-User |
-|---------|-------------------|-------------------|-----------------|
-| Word Count | ✅ | ✅ | ✅ |
-| Audio Recording | ❌ | ✅ | ✅ |
-| Speech Analysis | ❌ | ✅ | ✅ |
-| Pronunciation Errors | ❌ | ✅ | ✅ |
-| WPM Calculation | ❌ | ✅ | ✅ |
-| Prosody Score | ❌ | ✅ | ✅ |
-| Student Database | ❌ | ✅ | ✅ |
-| Class Overview | ❌ | ✅ | ✅ |
-| Student Profiles | ❌ | ✅ | ✅ |
-| Longitudinal Tracking | ❌ | ✅ | ✅ |
-| Assessment History | ❌ | ✅ | ✅ |
-| Auto-Save | ❌ | ✅ | ✅ |
-| PDF Export | ❌ | ✅ | ✅ |
-| Video Generation | ❌ | ✅ | ✅ |
-| Breadcrumb Nav | ❌ | ✅ | ✅ |
-| Guided Workflow | ❌ | ✅ | ✅ |
-| **User Authentication** | ❌ | ❌ | ✅ |
-| **Google Sign-In** | ❌ | ❌ | ✅ |
-| **Cloud Sync** | ❌ | ❌ | ✅ |
-| **Multi-Device Access** | ❌ | ❌ | ✅ |
-| **Multi-User Support** | ❌ | ❌ | ✅ |
-| **API Key Validation** | ❌ | ❌ | ✅ |
-| **Usage Tracking** | ❌ | ❌ | ✅ |
-| **Data Privacy** | Local only | Local only | User-scoped cloud |
+| Feature | v1.0 | v2.0 | v3.0 | v3.1 |
+|---------|------|------|------|------|
+| Word Count | ✅ | ✅ | ✅ | ✅ |
+| Audio Recording | ❌ | ✅ | ✅ | ✅ |
+| Speech Analysis | ❌ | ✅ | ✅ | ✅ |
+| Student Database | ❌ | ✅ | ✅ | ✅ |
+| PDF Export | ❌ | ✅ | ✅ | ✅ |
+| User Authentication | ❌ | ❌ | ✅ | ✅ |
+| Cloud Sync | ❌ | ❌ | ✅ | ✅ |
+| Usage Tracking | ❌ | ❌ | ✅ | ✅ |
+| **Auto-Detect Words** | ❌ | ❌ | ❌ | ✅ |
+| **Mobile PDF Fix** | ❌ | ❌ | ❌ | ✅ |
+| **iPad Audio Support** | ❌ | ❌ | ❌ | ✅ |
+| **Mobile Scroll Gutters** | ❌ | ❌ | ❌ | ✅ |
+| **Touch Optimization** | ❌ | ❌ | ❌ | ✅ |
+| **Cached Transcription** | ❌ | ❌ | ❌ | ✅ |
 
 ### 🚧 Future Considerations
 
@@ -762,6 +771,7 @@ The Word Analyzer application is fully functional, comprehensively tested, thoro
 - **v1.0**: Basic word counting tool
 - **v2.0**: Full reading assessment with student database (localStorage)
 - **v3.0**: Multi-user platform with Firebase authentication and cloud sync
+- **v3.1**: Mobile UX improvements, iPad support, PDF fixes, auto-detect
 
 **Ready for:**
 - Real-world classroom use at Morningside Academy and other schools
@@ -773,12 +783,12 @@ The Word Analyzer application is fully functional, comprehensively tested, thoro
 - Progress reporting
 - Secure multi-user deployment
 
-**Last Updated**: 2025-01-25
-**Version**: 3.0 (stable with Firebase multi-user)
+**Last Updated**: 2025-11-25
+**Version**: 3.1 (mobile UX improvements + bug fixes)
 **Status**: Complete and deployed
 **Lines of Code**:
-- ~3,600 lines (app.js)
-- ~2,000 lines (styles.css)
+- ~6,200 lines (app.js)
+- ~3,000 lines (styles.css)
 - ~150 lines (firebase-auth.js)
 - ~350 lines (firebase-db.js)
 - ~200 lines (firebase-api-key-manager.js)
