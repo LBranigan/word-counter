@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Analyzer - Conceptual Map</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2rem;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+        }
+        .map-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Main Architecture Section */
+        .section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .section-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(180deg, #667eea, #764ba2);
+            border-radius: 2px;
+        }
+
+        /* Flow Diagram */
+        .flow-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+        }
+        .flow-step {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 20px;
+            border-radius: 12px;
+            text-align: center;
+            min-width: 120px;
+            position: relative;
+        }
+        .flow-step .step-num {
+            position: absolute;
+            top: -10px;
+            left: -10px;
+            background: #fff;
+            color: #667eea;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .flow-step .icon {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+        .flow-step .label {
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .flow-arrow {
+            color: #667eea;
+            font-size: 1.5rem;
+        }
+
+        /* Architecture Grid */
+        .arch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .arch-box {
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .arch-box h3 {
+            font-size: 0.9rem;
+            color: #667eea;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .arch-box ul {
+            list-style: none;
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+        .arch-box ul li {
+            padding: 4px 0;
+            padding-left: 15px;
+            position: relative;
+        }
+        .arch-box ul li::before {
+            content: '>';
+            position: absolute;
+            left: 0;
+            color: #667eea;
+        }
+
+        /* Data Flow */
+        .data-flow {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .data-layer {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .data-box {
+            background: rgba(102, 126, 234, 0.2);
+            border: 2px solid #667eea;
+            border-radius: 12px;
+            padding: 15px 20px;
+            text-align: center;
+            min-width: 150px;
+        }
+        .data-box.api {
+            background: rgba(76, 175, 80, 0.2);
+            border-color: #4caf50;
+        }
+        .data-box.firebase {
+            background: rgba(255, 152, 0, 0.2);
+            border-color: #ff9800;
+        }
+        .data-box.client {
+            background: rgba(33, 150, 243, 0.2);
+            border-color: #2196f3;
+        }
+        .data-box .icon {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+        .data-box .name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .data-box .desc {
+            font-size: 0.75rem;
+            color: #aaa;
+            margin-top: 5px;
+        }
+        .connector {
+            display: flex;
+            justify-content: center;
+            color: #667eea;
+            font-size: 1.2rem;
+        }
+
+        /* File Structure */
+        .file-tree {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        .file-tree .folder {
+            color: #667eea;
+        }
+        .file-tree .file {
+            color: #4caf50;
+        }
+        .file-tree .comment {
+            color: #888;
+        }
+
+        /* Error Types */
+        .error-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        .error-type {
+            background: rgba(255,255,255,0.05);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 3px solid;
+        }
+        .error-type.skipped { border-color: #9e9e9e; }
+        .error-type.misread { border-color: #ff9800; }
+        .error-type.substituted { border-color: #f44336; }
+        .error-type.hesitation { border-color: #9c27b0; }
+        .error-type.repeated { border-color: #2196f3; }
+        .error-type .name {
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+        .error-type .desc {
+            font-size: 0.7rem;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .flow-container {
+                flex-direction: column;
+            }
+            .flow-arrow {
+                transform: rotate(90deg);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="map-container">
+        <h1>Word Analyzer - Conceptual Map</h1>
+        <p class="subtitle">Reading Fluency Assessment Platform for Morningside Academy</p>
+
+        <!-- User Workflow -->
+        <div class="section">
+            <div class="section-title">User Workflow (Assessment Process)</div>
+            <div class="flow-container">
+                <div class="flow-step">
+                    <span class="step-num">1</span>
+                    <div class="icon">👤</div>
+                    <div class="label">Select<br>Student</div>
+                </div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-step">
+                    <span class="step-num">2</span>
+                    <div class="icon">🎤</div>
+                    <div class="label">Record<br>Audio</div>
+                </div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-step">
+                    <span class="step-num">3</span>
+                    <div class="icon">📷</div>
+                    <div class="label">Capture<br>Image</div>
+                </div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-step">
+                    <span class="step-num">4</span>
+                    <div class="icon">✏️</div>
+                    <div class="label">Highlight<br>Text</div>
+                </div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-step">
+                    <span class="step-num">5</span>
+                    <div class="icon">📊</div>
+                    <div class="label">View<br>Results</div>
+                </div>
+                <span class="flow-arrow">→</span>
+                <div class="flow-step">
+                    <span class="step-num">6</span>
+                    <div class="icon">💾</div>
+                    <div class="label">Auto<br>Save</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Architecture -->
+        <div class="section">
+            <div class="section-title">System Architecture</div>
+            <div class="data-flow">
+                <!-- External APIs Layer -->
+                <div class="data-layer">
+                    <div class="data-box api">
+                        <div class="icon">👁️</div>
+                        <div class="name">Google Vision API</div>
+                        <div class="desc">OCR / Text Detection</div>
+                    </div>
+                    <div class="data-box api">
+                        <div class="icon">🗣️</div>
+                        <div class="name">Google Speech API</div>
+                        <div class="desc">Audio Transcription</div>
+                    </div>
+                </div>
+
+                <div class="connector">↕️ REST API Calls ↕️</div>
+
+                <!-- Firebase Layer -->
+                <div class="data-layer">
+                    <div class="data-box firebase">
+                        <div class="icon">🔐</div>
+                        <div class="name">Firebase Auth</div>
+                        <div class="desc">Google Sign-In</div>
+                    </div>
+                    <div class="data-box firebase">
+                        <div class="icon">🗄️</div>
+                        <div class="name">Firestore DB</div>
+                        <div class="desc">User-Scoped Data</div>
+                    </div>
+                </div>
+
+                <div class="connector">↕️ Firebase SDK ↕️</div>
+
+                <!-- Client Layer -->
+                <div class="data-layer">
+                    <div class="data-box client">
+                        <div class="icon">🌐</div>
+                        <div class="name">Web Browser</div>
+                        <div class="desc">HTML/CSS/JS App</div>
+                    </div>
+                    <div class="data-box client">
+                        <div class="icon">📱</div>
+                        <div class="name">Device APIs</div>
+                        <div class="desc">Camera, Microphone, Canvas</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Core Components -->
+        <div class="section">
+            <div class="section-title">Core Components</div>
+            <div class="arch-grid">
+                <div class="arch-box">
+                    <h3>🔐 Authentication</h3>
+                    <ul>
+                        <li>Google OAuth 2.0</li>
+                        <li>Session management</li>
+                        <li>User profile display</li>
+                        <li>Sign-out handling</li>
+                    </ul>
+                </div>
+                <div class="arch-box">
+                    <h3>🎤 Audio Recording</h3>
+                    <ul>
+                        <li>MediaRecorder API</li>
+                        <li>30s / 1min / 2min options</li>
+                        <li>WebM/Opus format</li>
+                        <li>Mobile codec fallback</li>
+                    </ul>
+                </div>
+                <div class="arch-box">
+                    <h3>📷 Image Capture</h3>
+                    <ul>
+                        <li>getUserMedia API</li>
+                        <li>HD resolution (1920x1080)</li>
+                        <li>File upload alternative</li>
+                        <li>Canvas rendering</li>
+                    </ul>
+                </div>
+                <div class="arch-box">
+                    <h3>✏️ Text Selection</h3>
+                    <ul>
+                        <li>OCR word detection</li>
+                        <li>Touch/mouse selection</li>
+                        <li>Zoom & pan controls</li>
+                        <li>Yellow highlight overlay</li>
+                    </ul>
+                </div>
+                <div class="arch-box">
+                    <h3>📊 Analysis Engine</h3>
+                    <ul>
+                        <li>Word alignment algorithm</li>
+                        <li>Error classification</li>
+                        <li>WPM calculation</li>
+                        <li>Prosody scoring</li>
+                    </ul>
+                </div>
+                <div class="arch-box">
+                    <h3>👥 Student Database</h3>
+                    <ul>
+                        <li>Firestore collections</li>
+                        <li>Assessment history</li>
+                        <li>Progress tracking</li>
+                        <li>Class overview</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Detection Types -->
+        <div class="section">
+            <div class="section-title">Error Detection Categories</div>
+            <div class="error-grid">
+                <div class="error-type skipped">
+                    <div class="name">Skipped</div>
+                    <div class="desc">Words not spoken</div>
+                </div>
+                <div class="error-type misread">
+                    <div class="name">Misread</div>
+                    <div class="desc">Wrong pronunciation</div>
+                </div>
+                <div class="error-type substituted">
+                    <div class="name">Substituted</div>
+                    <div class="desc">Different word used</div>
+                </div>
+                <div class="error-type hesitation">
+                    <div class="name">Hesitation</div>
+                    <div class="desc">Pauses & fillers</div>
+                </div>
+                <div class="error-type repeated">
+                    <div class="name">Repeated</div>
+                    <div class="desc">Words said twice</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Structure -->
+        <div class="section">
+            <div class="section-title">Firestore Data Structure</div>
+            <div class="file-tree">
+<span class="folder">firestore/</span>
+└── <span class="folder">users/</span>
+    └── <span class="folder">{userId}/</span> <span class="comment">← Authenticated user</span>
+        ├── <span class="folder">students/</span>
+        │   ├── <span class="file">student-001</span> <span class="comment">← name, grade, assessments[]</span>
+        │   ├── <span class="file">student-002</span>
+        │   └── ...
+        ├── <span class="folder">config/</span>
+        │   └── <span class="file">apiKeys</span> <span class="comment">← Google Cloud API key</span>
+        └── <span class="folder">usage/</span>
+            ├── <span class="file">vision</span> <span class="comment">← OCR call count</span>
+            └── <span class="file">speech</span> <span class="comment">← Audio minutes used</span>
+            </div>
+        </div>
+
+        <!-- File Structure -->
+        <div class="section">
+            <div class="section-title">Project File Structure</div>
+            <div class="file-tree">
+<span class="folder">word-analyzer/</span>
+├── <span class="file">index.html</span>        <span class="comment">← Main HTML (~400 lines)</span>
+├── <span class="file">styles.css</span>        <span class="comment">← Responsive CSS (~2000 lines)</span>
+├── <span class="file">app.js</span>            <span class="comment">← Core logic (~5000 lines)</span>
+├── <span class="file">firebase-auth.js</span>  <span class="comment">← Authentication (~150 lines)</span>
+├── <span class="file">firebase-db.js</span>    <span class="comment">← Database ops (~350 lines)</span>
+├── <span class="file">firebase-config.js</span> <span class="comment">← Firebase keys (not in repo)</span>
+└── <span class="file">manifest.md</span>       <span class="comment">← Documentation (~800 lines)</span>
+            </div>
+        </div>
+
+        <!-- Metrics Output -->
+        <div class="section">
+            <div class="section-title">Assessment Output Metrics</div>
+            <div class="arch-grid">
+                <div class="arch-box">
+                    <h3>📈 Accuracy</h3>
+                    <ul>
+                        <li>Correct words / Total words</li>
+                        <li>Percentage score</li>
+                        <li>Color-coded (green/yellow/red)</li>
+                    </ul>
+                </div>
+                <div class="arch-box">
+                    <h3>⚡ WPM</h3>
+                    <ul>
+                        <li>Words per minute</li>
+                        <li>Based on audio duration</li>
+                        <li>Grade-level benchmarks</li>
+                    </ul>
+                </div>
+                <div class="arch-box">
+                    <h3>🎵 Prosody</h3>
+                    <ul>
+                        <li>1.0 - 4.0 scale</li>
+                        <li>Expression & rhythm</li>
+                        <li>Based on pauses & pacing</li>
+                    </ul>
+                </div>
+                <div class="arch-box">
+                    <h3>📋 Error Analysis</h3>
+                    <ul>
+                        <li>Phonics patterns</li>
+                        <li>Reading strategies</li>
+                        <li>Speech patterns</li>
+                        <li>Recommendations</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #4caf50;"></div>
+                <span>External APIs</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ff9800;"></div>
+                <span>Firebase Services</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #2196f3;"></div>
+                <span>Client-Side</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #667eea;"></div>
+                <span>Workflow Steps</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
