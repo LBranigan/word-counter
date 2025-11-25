@@ -3345,10 +3345,44 @@ function expandCurrencySymbols(words) {
     return expanded;
 }
 
+// Expand hyphenated spoken words into component parts
+// e.g., "run-of-the-mill" → ["run", "of", "the", "mill"]
+// This allows proper alignment with OCR text that has these as separate words
+function expandSpokenCompounds(spokenWordInfo) {
+    const expanded = [];
+
+    for (const spoken of spokenWordInfo) {
+        // Check if this spoken word contains hyphens
+        if (spoken.word && spoken.word.includes('-')) {
+            const parts = spoken.word.split('-').filter(p => p.length > 0);
+
+            // Add each part as a separate "spoken" word with same timing/confidence
+            for (let i = 0; i < parts.length; i++) {
+                expanded.push({
+                    word: parts[i],
+                    confidence: spoken.confidence,
+                    startTime: spoken.startTime,
+                    endTime: spoken.endTime,
+                    isCompoundPart: true,
+                    originalWord: spoken.word
+                });
+            }
+        } else {
+            expanded.push(spoken);
+        }
+    }
+
+    return expanded;
+}
+
 // Analyze pronunciation by comparing expected vs spoken words
 function analyzePronunciation(expectedWords, spokenWordInfo) {
-    // Preprocess: Expand currency symbols
+    // Preprocess: Expand currency symbols in expected words
     expectedWords = expandCurrencySymbols(expectedWords);
+
+    // Preprocess: Expand hyphenated compounds in spoken words
+    // e.g., "run-of-the-mill" → ["run", "of", "the", "mill"]
+    spokenWordInfo = expandSpokenCompounds(spokenWordInfo);
 
     const analysis = {
         aligned: [],
