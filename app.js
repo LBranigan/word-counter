@@ -4028,8 +4028,8 @@ async function renderStudentsGrid() {
 }
 
 // Show student profile
-function showStudentProfile(studentId) {
-    const student = getStudent(studentId);
+async function showStudentProfile(studentId) {
+    const student = await getStudent(studentId);
     if (!student) {
         alert('Student not found');
         return;
@@ -4691,8 +4691,8 @@ function returnToStudentProfile() {
 }
 
 // View historical assessment
-function viewHistoricalAssessment(studentId, assessmentId) {
-    const student = getStudent(studentId);
+async function viewHistoricalAssessment(studentId, assessmentId) {
+    const student = await getStudent(studentId);
     if (!student) {
         alert('Student not found');
         return;
@@ -4771,7 +4771,7 @@ async function updateStudentDropdown() {
 }
 
 // Save current assessment to student
-function saveCurrentAssessmentToStudent() {
+async function saveCurrentAssessmentToStudent() {
     const selectedStudentId = studentSelect.value;
 
     if (!selectedStudentId) {
@@ -4803,11 +4803,11 @@ function saveCurrentAssessmentToStudent() {
         errorPatterns: state.latestErrorPatterns || null
     };
 
-    const success = addAssessmentToStudent(selectedStudentId, assessmentData);
+    const success = await addAssessmentToStudent(selectedStudentId, assessmentData);
 
     if (success) {
-        const student = getStudent(selectedStudentId);
-        saveStatus.textContent = `✓ Assessment saved to ${student.name}'s profile!`;
+        const student = await getStudent(selectedStudentId);
+        saveStatus.textContent = `✓ Assessment saved to ${student?.name || 'student'}'s profile!`;
         saveStatus.className = 'save-status success';
 
         // Clear selection after 3 seconds
@@ -4858,14 +4858,14 @@ async function confirmAddStudent() {
 }
 
 // Delete current student
-function deleteCurrentStudent() {
+async function deleteCurrentStudent() {
     if (!currentViewingStudentId) return;
 
-    const student = getStudent(currentViewingStudentId);
+    const student = await getStudent(currentViewingStudentId);
     if (!student) return;
 
     if (confirm(`Are you sure you want to delete ${student.name} and all their assessments? This cannot be undone.`)) {
-        deleteStudent(currentViewingStudentId);
+        await deleteStudent(currentViewingStudentId);
         showClassOverview();
     }
 }
@@ -4884,7 +4884,7 @@ async function updateAssessmentStudentDropdown() {
 }
 
 // Handle assessment student selection
-function selectAssessmentStudent() {
+async function selectAssessmentStudent() {
     const studentId = assessmentStudentSelect.value;
 
     if (!studentId) {
@@ -4894,7 +4894,7 @@ function selectAssessmentStudent() {
         return;
     }
 
-    const student = getStudent(studentId);
+    const student = await getStudent(studentId);
     if (!student) return;
 
     state.currentAssessmentStudentId = studentId;
@@ -4955,7 +4955,7 @@ function changeSelectedStudent() {
 }
 
 // Auto-save assessment after analysis completes
-function autoSaveAssessmentIfStudentSelected() {
+async function autoSaveAssessmentIfStudentSelected() {
     if (!state.currentAssessmentStudentId || !state.latestAnalysis) {
         return;
     }
@@ -4977,14 +4977,14 @@ function autoSaveAssessmentIfStudentSelected() {
         errorPatterns: state.latestErrorPatterns || null
     };
 
-    const success = addAssessmentToStudent(state.currentAssessmentStudentId, assessmentData);
+    const success = await addAssessmentToStudent(state.currentAssessmentStudentId, assessmentData);
 
     if (success) {
-        const student = getStudent(state.currentAssessmentStudentId);
+        const student = await getStudent(state.currentAssessmentStudentId);
 
         // Show success message in the save section
         if (saveStatus) {
-            saveStatus.textContent = `✓ Automatically saved to ${student.name}'s profile!`;
+            saveStatus.textContent = `✓ Automatically saved to ${student?.name || 'student'}'s profile!`;
             saveStatus.className = 'save-status success';
         }
 
