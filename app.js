@@ -67,6 +67,8 @@ const state = {
     stepsOrder: ['setup', 'audio', 'capture', 'highlight', 'results'],
     // Current student being assessed
     currentAssessmentStudentId: null,
+    // Track if current assessment was already saved (prevents duplicates)
+    assessmentAlreadySaved: false,
     // Audio skip mode (word count only)
     audioSkipped: false,
     // Historical assessment viewing
@@ -1041,6 +1043,7 @@ function startNewAnalysis() {
         currentStep: 'audio',
         completedSteps: new Set(['setup']),
         currentAssessmentStudentId: null,
+        assessmentAlreadySaved: false,
         audioSkipped: false,
         viewingHistoricalAssessment: false,
         historicalAssessmentStudent: null,
@@ -6326,6 +6329,9 @@ async function saveCurrentAssessmentToStudent() {
     const success = await addAssessmentToStudent(selectedStudentId, assessmentData);
 
     if (success) {
+        // Mark as saved to prevent duplicates
+        state.assessmentAlreadySaved = true;
+
         const student = await getStudent(selectedStudentId);
         saveStatus.textContent = `✓ Assessment saved to ${student?.name || 'student'}'s profile!`;
         saveStatus.className = 'save-status success';
@@ -6476,7 +6482,8 @@ function changeSelectedStudent() {
 
 // Auto-save assessment after analysis completes
 async function autoSaveAssessmentIfStudentSelected() {
-    if (!state.currentAssessmentStudentId || !state.latestAnalysis) {
+    // Skip if no student selected, no analysis, or already saved
+    if (!state.currentAssessmentStudentId || !state.latestAnalysis || state.assessmentAlreadySaved) {
         return;
     }
 
@@ -6517,6 +6524,9 @@ async function autoSaveAssessmentIfStudentSelected() {
     const success = await addAssessmentToStudent(state.currentAssessmentStudentId, assessmentData);
 
     if (success) {
+        // Mark as saved to prevent duplicates on back/forward navigation
+        state.assessmentAlreadySaved = true;
+
         const student = await getStudent(state.currentAssessmentStudentId);
 
         // Show success message in the save section
