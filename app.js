@@ -78,7 +78,9 @@ const state = {
 const wordTooltipManager = {
     tooltip: null,
     touchTimer: null,
+    hideTimer: null,
     activeElement: null,
+    isTouchDevice: false,
 
     init() {
         // Create tooltip element
@@ -96,6 +98,9 @@ const wordTooltipManager = {
     },
 
     handleMouseOver(e) {
+        // Ignore mouse events on touch devices
+        if (this.isTouchDevice) return;
+
         const wordSpan = e.target.closest('[data-word-info]');
         if (wordSpan) {
             this.showTooltip(wordSpan, e);
@@ -103,6 +108,9 @@ const wordTooltipManager = {
     },
 
     handleMouseOut(e) {
+        // Ignore mouse events on touch devices
+        if (this.isTouchDevice) return;
+
         const wordSpan = e.target.closest('[data-word-info]');
         if (wordSpan) {
             this.hideTooltip();
@@ -110,14 +118,17 @@ const wordTooltipManager = {
     },
 
     handleTouchStart(e) {
+        this.isTouchDevice = true;
         const wordSpan = e.target.closest('[data-word-info]');
         if (wordSpan) {
             this.activeElement = wordSpan;
-            // Show tooltip after 300ms hold
-            this.touchTimer = setTimeout(() => {
-                this.showTooltip(wordSpan, e.touches[0]);
-                e.preventDefault();
-            }, 300);
+            // Clear any existing hide timer
+            if (this.hideTimer) {
+                clearTimeout(this.hideTimer);
+                this.hideTimer = null;
+            }
+            // Show tooltip immediately on tap (no delay)
+            this.showTooltip(wordSpan, e.touches[0]);
         }
     },
 
@@ -126,8 +137,15 @@ const wordTooltipManager = {
             clearTimeout(this.touchTimer);
             this.touchTimer = null;
         }
-        // Hide tooltip after 4 seconds on mobile
-        setTimeout(() => this.hideTooltip(), 4000);
+        // Only set hide timer if tooltip is visible
+        if (this.tooltip.classList.contains('visible')) {
+            // Clear any existing hide timer
+            if (this.hideTimer) {
+                clearTimeout(this.hideTimer);
+            }
+            // Hide tooltip after 5 seconds on mobile
+            this.hideTimer = setTimeout(() => this.hideTooltip(), 5000);
+        }
     },
 
     handleTouchMove(e) {
@@ -138,6 +156,12 @@ const wordTooltipManager = {
     },
 
     handleClick(e) {
+        // On touch devices, ignore click events on word spans (handled by touch)
+        if (this.isTouchDevice) {
+            const wordSpan = e.target.closest('[data-word-info]');
+            if (wordSpan) return; // Let touch handle it
+        }
+
         const wordSpan = e.target.closest('[data-word-info]');
         if (!wordSpan && this.tooltip.classList.contains('visible')) {
             this.hideTooltip();
