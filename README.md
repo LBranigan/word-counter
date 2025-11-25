@@ -245,7 +245,7 @@ Shows progress through workflow:
   - app.js: ~3,600 lines
   - styles.css: ~2,000 lines
   - index.html: ~400 lines
-- **Dependencies**: jsPDF (PDF generation only)
+- **Dependencies**: html2pdf.js (PDF generation only)
 - **Bundle Size**: Minimal (no webpack/build process)
 
 ### Data Structure
@@ -382,7 +382,16 @@ word-analyzer/
 
 ## Version History
 
-### v2.0 (Current) - January 2025
+### v2.1 (Current) - January 24, 2025
+- ✅ Interactive word tooltips (hover/touch to see error details)
+- ✅ Phonetic matching for proper names (e.g., Graham/gram)
+- ✅ Improved auto-detect first word detection
+- ✅ Fixed audio player timeline display
+- ✅ Export Words downloads .txt file
+- ✅ Streamlined PDF generation (html2pdf only)
+- ✅ UI improvements to results page action bar
+
+### v2.0 - January 2025
 - ✅ Audio recording and playback
 - ✅ Speech-to-Text analysis
 - ✅ Pronunciation error detection
@@ -414,7 +423,7 @@ Co-developed with Claude Code (AI pair programming).
 
 - **Google Cloud Vision API**: Text detection
 - **Google Cloud Speech-to-Text API**: Audio transcription
-- **jsPDF**: PDF generation
+- **html2pdf.js**: PDF generation
 - **GitHub Pages**: Hosting
 - **Claude Code**: AI pair programming assistant
 
