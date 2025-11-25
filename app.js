@@ -674,17 +674,37 @@ function skipAudioRecording() {
 // Initialize Camera
 async function initCamera() {
     try {
-        state.stream = await navigator.mediaDevices.getUserMedia({
+        // Request high resolution with fallback
+        const constraints = {
             video: {
                 facingMode: 'environment',
-                width: { ideal: 1920 },
-                height: { ideal: 1080 }
+                width: { ideal: 1920, min: 1280 },
+                height: { ideal: 1080, min: 720 }
             }
-        });
+        };
+
+        state.stream = await navigator.mediaDevices.getUserMedia(constraints);
         camera.srcObject = state.stream;
+
+        // Log actual resolution for debugging
+        camera.onloadedmetadata = () => {
+            console.log(`Camera resolution: ${camera.videoWidth}x${camera.videoHeight}`);
+        };
     } catch (error) {
-        alert('Camera access denied. Please allow camera permissions.');
-        console.error('Camera error:', error);
+        // Try again with less strict constraints
+        try {
+            console.log('High-res failed, trying default constraints');
+            state.stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' }
+            });
+            camera.srcObject = state.stream;
+            camera.onloadedmetadata = () => {
+                console.log(`Camera resolution (fallback): ${camera.videoWidth}x${camera.videoHeight}`);
+            };
+        } catch (fallbackError) {
+            alert('Camera access denied. Please allow camera permissions.');
+            console.error('Camera error:', fallbackError);
+        }
     }
 }
 
@@ -1365,18 +1385,36 @@ async function startRecording() {
         const selectedBitrate = parseInt(audioBitrateInput.value);
         console.log('Recording with bitrate:', selectedBitrate, 'bps');
 
+        // Determine supported audio format (iOS Safari doesn't support WebM)
+        let mimeType = null;
+        let actualMimeType = null;
+
+        // List of formats to try in order of preference
+        const formatOptions = [
+            'audio/webm;codecs=opus',
+            'audio/webm',
+            'audio/mp4',
+            'audio/mp4;codecs=mp4a.40.2',
+            'audio/aac',
+            'audio/ogg;codecs=opus',
+            ''  // Empty string = browser default
+        ];
+
+        for (const format of formatOptions) {
+            if (format === '' || MediaRecorder.isTypeSupported(format)) {
+                mimeType = format || undefined;
+                actualMimeType = format || 'default';
+                console.log(`Using audio format: ${actualMimeType}`);
+                break;
+            }
+        }
+
         const options = {
-            mimeType: 'audio/webm;codecs=opus',
             audioBitsPerSecond: selectedBitrate
         };
 
-        // Check if the browser supports the specified codec
-        let actualMimeType = 'audio/webm;codecs=opus';
-        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-            // Fallback to default if opus not supported
-            console.log('Opus codec not supported, using browser default');
-            delete options.mimeType;
-            actualMimeType = 'audio/webm'; // Browser will choose codec
+        if (mimeType) {
+            options.mimeType = mimeType;
         }
 
         state.mediaRecorder = new MediaRecorder(state.audioStream, options);
@@ -1384,16 +1422,32 @@ async function startRecording() {
         state.recordingDuration = duration * 60; // Convert to seconds
         state.audioMimeType = actualMimeType; // Store for API call
 
-        // Collect audio data
+        console.log('MediaRecorder created with state:', state.mediaRecorder.state);
+
+        // Collect audio data - request data every second for better reliability on mobile
         state.mediaRecorder.ondataavailable = (event) => {
+            console.log('Audio data available:', event.data.size, 'bytes');
             if (event.data.size > 0) {
                 state.audioChunks.push(event.data);
             }
         };
 
+        // Handle recording errors
+        state.mediaRecorder.onerror = (event) => {
+            console.error('MediaRecorder error:', event.error);
+            alert('Recording error: ' + (event.error?.message || 'Unknown error'));
+            stopRecording();
+        };
+
         // Handle recording stop
         state.mediaRecorder.onstop = () => {
-            const audioBlob = new Blob(state.audioChunks, { type: 'audio/webm' });
+            console.log('Recording stopped, chunks:', state.audioChunks.length);
+
+            // Use the actual mime type from the recorder, or fall back to a generic type
+            const blobType = state.mediaRecorder?.mimeType || state.audioMimeType || 'audio/webm';
+            const audioBlob = new Blob(state.audioChunks, { type: blobType });
+            console.log('Created audio blob:', audioBlob.size, 'bytes, type:', blobType);
+
             state.recordedAudioBlob = audioBlob;
 
             // Show audio playback section
@@ -1408,8 +1462,8 @@ async function startRecording() {
             state.audioChunks = [];
         };
 
-        // Start recording
-        state.mediaRecorder.start();
+        // Start recording - request data every 1 second for mobile reliability
+        state.mediaRecorder.start(1000);
         state.recordingStartTime = Date.now();
 
         // Close duration modal and show recording modal
