@@ -1370,14 +1370,35 @@ async function startRecording() {
     }
 
     try {
-        // Request microphone access with audio optimizations
-        state.audioStream = await navigator.mediaDevices.getUserMedia({
+        // Request microphone access
+        // Note: On Android, aggressive noise suppression can filter out voice
+        // We use 'ideal' constraints so they're preferences, not requirements
+        const audioConstraints = {
             audio: {
-                channelCount: 1,    // Mono audio
-                echoCancellation: true,
-                noiseSuppression: true
+                channelCount: { ideal: 1 },
+                sampleRate: { ideal: 16000 },  // Good for speech recognition
+                echoCancellation: { ideal: false },  // Can interfere with voice on mobile
+                noiseSuppression: { ideal: false },  // Can filter out voice on Android
+                autoGainControl: { ideal: true }     // Helps with quiet microphones
             }
-        });
+        };
+
+        console.log('Requesting microphone with constraints:', JSON.stringify(audioConstraints));
+
+        try {
+            state.audioStream = await navigator.mediaDevices.getUserMedia(audioConstraints);
+        } catch (constraintError) {
+            // If constraints fail, try with minimal constraints
+            console.log('Detailed constraints failed, trying simple audio request');
+            state.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        }
+
+        // Log what we actually got
+        const audioTrack = state.audioStream.getAudioTracks()[0];
+        if (audioTrack) {
+            const settings = audioTrack.getSettings();
+            console.log('Audio track settings:', JSON.stringify(settings));
+        }
 
         // Initialize MediaRecorder with user-selected bitrate
         // Google Speech-to-Text inline audio has practical limits around 40-50 seconds
