@@ -71,9 +71,7 @@ const state = {
     viewingHistoricalAssessment: false,
     historicalAssessmentStudent: null,
     historicalAssessmentDate: null,
-    historicalAssessmentStudentId: null,
-    // Auto-detect boundary tracking
-    autoDetectBounds: null
+    historicalAssessmentStudentId: null
 };
 
 // Word Tooltip Manager
@@ -1446,38 +1444,12 @@ function redrawCanvas() {
                 const { x0, y0, x1, y1 } = word.bbox;
 
                 if (state.selectedWords.has(index)) {
-                    // Check if this is a boundary word (first or last from auto-detect)
-                    const isBoundaryWord = state.autoDetectBounds &&
-                        (index === state.autoDetectBounds.firstIndex ||
-                         index === state.autoDetectBounds.lastIndex);
-
-                    if (isBoundaryWord) {
-                        // Emphasize first/last detected words - cyan/teal with thicker border
-                        ctx.fillStyle = 'rgba(0, 255, 200, 0.6)';
-                        ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
-                        ctx.strokeStyle = 'rgba(0, 200, 180, 1)';
-                        ctx.lineWidth = 5 / state.zoom;
-                        ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
-
-                        // Add corner markers for extra emphasis
-                        const markerSize = 8 / state.zoom;
-                        ctx.fillStyle = 'rgba(0, 200, 180, 1)';
-                        // Top-left corner
-                        ctx.fillRect(x0 - 2/state.zoom, y0 - 2/state.zoom, markerSize, markerSize);
-                        // Top-right corner
-                        ctx.fillRect(x1 - markerSize + 2/state.zoom, y0 - 2/state.zoom, markerSize, markerSize);
-                        // Bottom-left corner
-                        ctx.fillRect(x0 - 2/state.zoom, y1 - markerSize + 2/state.zoom, markerSize, markerSize);
-                        // Bottom-right corner
-                        ctx.fillRect(x1 - markerSize + 2/state.zoom, y1 - markerSize + 2/state.zoom, markerSize, markerSize);
-                    } else {
-                        // Highlight selected words - bright yellow
-                        ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
-                        ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
-                        ctx.strokeStyle = 'rgba(255, 200, 0, 0.9)';
-                        ctx.lineWidth = 3 / state.zoom;
-                        ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
-                    }
+                    // Highlight selected words - bright yellow
+                    ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+                    ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+                    ctx.strokeStyle = 'rgba(255, 200, 0, 0.9)';
+                    ctx.lineWidth = 3 / state.zoom;
+                    ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
                 } else {
                     // Subtle boundaries for unselected words
                     ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
@@ -1518,7 +1490,6 @@ function resetSelection() {
     state.selectedWords.clear();
     state.startPoint = null;
     state.endPoint = null;
-    state.autoDetectBounds = null; // Clear auto-detect boundary markers
     updateWordCount();
     redrawCanvas();
 }
@@ -1601,22 +1572,14 @@ async function autoDetectSpokenWords() {
             state.selectedWords.add(i);
         }
 
-        // Store the boundary indices for visual emphasis
-        state.autoDetectBounds = {
-            firstIndex: matchResult.firstIndex,
-            lastIndex: matchResult.lastIndex
-        };
-
         updateWordCount();
         redrawCanvas();
 
         const totalSelected = matchResult.lastIndex - matchResult.firstIndex + 1;
-        const matchConfidence = matchResult.matchedCount / spokenWords.length * 100;
 
         showStatus(
             `✅ Auto-detected ${totalSelected} words! ` +
-            `Started at "${firstWord}" → ended at "${lastWord}" ` +
-            `(${matchConfidence.toFixed(0)}% match confidence)`,
+            `From "${firstWord}" to "${lastWord}"`,
             ''
         );
 
@@ -1925,11 +1888,12 @@ function findBestAlignment(spoken, ocr, similarityMatrix) {
     // Try each possible starting position in OCR
     for (let startOCR = 0; startOCR < n; startOCR++) {
         // DP for this starting position
-        // dp[s] = {score, matchCount, lastOCR} for matching spoken[0..s-1]
+        // dp[s] = {score, matchCount, lastOCR, firstOCR} for matching spoken[0..s-1]
         const dp = new Array(m + 1).fill(null).map(() => ({
             score: 0,
             matchCount: 0,
-            lastOCR: startOCR - 1
+            lastOCR: startOCR - 1,
+            firstOCR: -1  // Track the first matched OCR index
         }));
 
         for (let s = 0; s < m; s++) {
@@ -1949,7 +1913,9 @@ function findBestAlignment(spoken, ocr, similarityMatrix) {
                         dp[s + 1] = {
                             score: newScore,
                             matchCount: prevState.matchCount + 1,
-                            lastOCR: o
+                            lastOCR: o,
+                            // Track first match: if this is the first match, record it
+                            firstOCR: prevState.firstOCR === -1 ? o : prevState.firstOCR
                         };
                     }
                 }
@@ -1960,7 +1926,8 @@ function findBestAlignment(spoken, ocr, similarityMatrix) {
                 dp[s + 1] = {
                     score: dp[s].score - GAP_PENALTY,
                     matchCount: dp[s].matchCount,
-                    lastOCR: dp[s].lastOCR
+                    lastOCR: dp[s].lastOCR,
+                    firstOCR: dp[s].firstOCR
                 };
             }
         }
@@ -1970,19 +1937,8 @@ function findBestAlignment(spoken, ocr, similarityMatrix) {
         if (finalState.matchCount >= 2 && finalState.score > bestScore) {
             bestScore = finalState.score;
             bestEndOCR = finalState.lastOCR;
-            bestStartOCR = startOCR;
+            bestStartOCR = finalState.firstOCR;  // Use tracked first match
             bestMatchCount = finalState.matchCount;
-
-            // Refine start position by finding first actual match
-            for (let s = 0; s < m; s++) {
-                for (let o = startOCR; o < n; o++) {
-                    if (similarityMatrix[s][o] >= MATCH_THRESHOLD) {
-                        bestStartOCR = o;
-                        break;
-                    }
-                }
-                if (bestStartOCR !== startOCR) break;
-            }
         }
     }
 
