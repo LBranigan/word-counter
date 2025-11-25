@@ -797,6 +797,17 @@ main {
     display: block;
 }
 
+/* Explicitly hide Class Overview and Student Profile sections unless active */
+#class-overview-section,
+#student-profile-section {
+    display: none;
+}
+
+#class-overview-section.active,
+#student-profile-section.active {
+    display: block;
+}
+
 .section-header {
     text-align: center;
     background: rgba(255, 255, 255, 0.95);

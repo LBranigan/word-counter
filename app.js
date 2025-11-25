@@ -46,6 +46,7 @@ const state = {
     recordingStartTime: null,
     recordingDuration: 0,
     recordedAudioBlob: null,
+    audioMimeType: 'audio/webm;codecs=opus', // Default, updated during recording
     // Analysis results
     latestAnalysis: null,
     latestExpectedWords: null,
@@ -328,6 +329,10 @@ function goToStep(step) {
     imageSection.classList.remove('active');
     resultsSection.classList.remove('active');
 
+    // Also hide Class Overview and Student Profile sections
+    if (classOverviewSection) classOverviewSection.classList.remove('active');
+    if (studentProfileSection) studentProfileSection.classList.remove('active');
+
     // Show the appropriate section
     const sectionMap = {
         'setup': setupSection,
@@ -587,6 +592,7 @@ function startNewAnalysis() {
         panX: 0,
         panY: 0,
         recordedAudioBlob: null,
+        audioMimeType: 'audio/webm;codecs=opus',
         latestAnalysis: null,
         latestExpectedWords: null,
         latestSpokenWords: null,
@@ -861,6 +867,9 @@ async function processOCR() {
             setTimeout(() => {
                 imageSection.classList.remove('active');
                 setupSection.classList.add('active');
+                // Hide Class Overview and Student Profile sections
+                if (classOverviewSection) classOverviewSection.classList.remove('active');
+                if (studentProfileSection) studentProfileSection.classList.remove('active');
             }, 2000);
         } else {
             showStatus('Error processing image: ' + error.message, 'error');
@@ -1267,6 +1276,10 @@ function retakePhoto() {
     imageSection.classList.remove('active');
     cameraSection.classList.add('active');
 
+    // Hide Class Overview and Student Profile sections
+    if (classOverviewSection) classOverviewSection.classList.remove('active');
+    if (studentProfileSection) studentProfileSection.classList.remove('active');
+
     // Restart camera
     initCamera();
 }
@@ -1358,14 +1371,18 @@ async function startRecording() {
         };
 
         // Check if the browser supports the specified codec
+        let actualMimeType = 'audio/webm;codecs=opus';
         if (!MediaRecorder.isTypeSupported(options.mimeType)) {
             // Fallback to default if opus not supported
+            console.log('Opus codec not supported, using browser default');
             delete options.mimeType;
+            actualMimeType = 'audio/webm'; // Browser will choose codec
         }
 
         state.mediaRecorder = new MediaRecorder(state.audioStream, options);
         state.audioChunks = [];
         state.recordingDuration = duration * 60; // Convert to seconds
+        state.audioMimeType = actualMimeType; // Store for API call
 
         // Collect audio data
         state.mediaRecorder.ondataavailable = (event) => {
@@ -1558,10 +1575,19 @@ async function analyzeRecordedAudio() {
                     throw new Error(`Audio file too large (${fileSizeMB.toFixed(1)}MB). Please record shorter audio or reduce quality.`);
                 }
 
+                // Determine the correct encoding based on recorded format
+                // Use auto-detection as it's more reliable across browsers
+                let encoding = 'ENCODING_UNSPECIFIED';
+                if (state.audioMimeType && state.audioMimeType.includes('opus')) {
+                    encoding = 'WEBM_OPUS';
+                }
+                console.log('Audio mime type:', state.audioMimeType);
+                console.log('Using audio encoding:', encoding);
+
                 // Prepare API request
                 const requestBody = {
                     config: {
-                        encoding: 'WEBM_OPUS',
+                        encoding: encoding,
                         // sampleRateHertz: 48000,  // Omit this to let API auto-detect
                         languageCode: 'en-US',
                         enableAutomaticPunctuation: true,
@@ -2190,27 +2216,50 @@ function analyzeErrorPatterns(analysis, expectedWords) {
         summary: {}
     };
 
+    // Safety check - ensure analysis.errors exists
+    if (!analysis || !analysis.errors) {
+        console.warn('No analysis errors to process');
+        patterns.summary = generatePatternSummary(patterns, analysis);
+        return patterns;
+    }
+
     // Analyze each misread word
-    analysis.errors.misreadWords.forEach(error => {
-        const expected = error.expected.toLowerCase();
-        const actual = error.actual.toLowerCase();
+    const misreadWords = analysis.errors.misreadWords || [];
+    misreadWords.forEach(error => {
+        // Skip if error object is missing expected or spoken properties
+        if (!error) {
+            console.warn('Skipping null error object');
+            return;
+        }
+
+        const expected = error.expected;
+        const spoken = error.spoken;
+
+        if (!expected || typeof expected !== 'string' || !spoken || typeof spoken !== 'string') {
+            console.warn('Skipping malformed misread error:', error);
+            return;
+        }
+
+        const expectedLower = expected.toLowerCase();
+        const actualLower = spoken.toLowerCase();
 
         // Check phonics patterns
-        analyzePhonicsPattern(expected, actual, patterns);
+        analyzePhonicsPattern(expectedLower, actualLower, patterns);
 
         // Check reading strategies
-        analyzeReadingStrategy(expected, actual, patterns);
+        analyzeReadingStrategy(expectedLower, actualLower, patterns);
 
         // Check for potential speech issues
-        analyzeSpeechPattern(expected, actual, patterns);
+        analyzeSpeechPattern(expectedLower, actualLower, patterns);
 
         // Check visual similarity
-        analyzeVisualSimilarity(expected, actual, patterns);
+        analyzeVisualSimilarity(expectedLower, actualLower, patterns);
     });
 
     // Analyze skipped words
-    analysis.errors.skippedWords.forEach(wordIndex => {
-        if (wordIndex < expectedWords.length) {
+    const skippedWords = analysis.errors.skippedWords || [];
+    skippedWords.forEach(wordIndex => {
+        if (expectedWords && wordIndex < expectedWords.length) {
             const word = expectedWords[wordIndex];
             analyzeSkippedWordPattern(word, patterns);
         }
@@ -2224,6 +2273,9 @@ function analyzeErrorPatterns(analysis, expectedWords) {
 
 // Analyze phonics-specific patterns
 function analyzePhonicsPattern(expected, actual, patterns) {
+    // Null check
+    if (!expected || !actual) return;
+
     // Check initial sound errors
     if (expected[0] !== actual[0]) {
         patterns.phonicsPatterns.initialSoundErrors.push({
@@ -2323,6 +2375,9 @@ function analyzePhonicsPattern(expected, actual, patterns) {
 
 // Analyze reading strategy patterns
 function analyzeReadingStrategy(expected, actual, patterns) {
+    // Null check
+    if (!expected || !actual) return;
+
     // First letter guessing - same initial letter but different word
     if (expected[0] === actual[0] && expected.length > 2 && actual.length > 2) {
         const similarity = calculateSimilarity(expected, actual);
@@ -2364,6 +2419,9 @@ function analyzeReadingStrategy(expected, actual, patterns) {
 
 // Analyze potential speech pattern issues
 function analyzeSpeechPattern(expected, actual, patterns) {
+    // Null check
+    if (!expected || !actual) return;
+
     // Check for consistent R sound issues
     if (expected.includes('r') && !actual.includes('r')) {
         patterns.speechPatterns.rSoundIssues.push({
@@ -2417,6 +2475,9 @@ function analyzeSpeechPattern(expected, actual, patterns) {
 
 // Analyze visual similarity errors
 function analyzeVisualSimilarity(expected, actual, patterns) {
+    // Null check
+    if (!expected || !actual) return;
+
     const visuallySimilar = [
         ['b', 'd'], ['p', 'q'], ['m', 'n'], ['u', 'n'],
         ['h', 'n'], ['saw', 'was'], ['no', 'on']
@@ -2442,6 +2503,10 @@ function analyzeVisualSimilarity(expected, actual, patterns) {
 
 // Analyze patterns in skipped words
 function analyzeSkippedWordPattern(word, patterns) {
+    if (!word || typeof word !== 'string') {
+        console.warn('Skipping invalid word in analyzeSkippedWordPattern:', word);
+        return;
+    }
     word = word.toLowerCase();
 
     // Check if skipped word has difficult phonics features
@@ -2549,11 +2614,14 @@ function calculateSimilarity(str1, str2) {
 
 function hasThSubstitution(expected, actual) {
     // Simple check - could be enhanced with phonetic analysis
+    if (!expected || !actual) return false;
     return expected.includes('s') && actual.toLowerCase().includes('th');
 }
 
 function areSemanticallySimilar(word1, word2) {
     // Basic semantic similarity - could be enhanced with a proper semantic database
+    if (!word1 || !word2) return false;
+
     const semanticGroups = [
         ['house', 'home', 'building'],
         ['car', 'vehicle', 'auto'],
@@ -4962,6 +5030,7 @@ async function initDatabaseFeaturesAsync() {
             } else {
                 setupSection.classList.add('active');
                 classOverviewSection.classList.remove('active');
+                studentProfileSection.classList.remove('active');
             }
         });
     }
