@@ -2088,11 +2088,7 @@ function showStatus(message, type = '') {
 
 function exportSelectedWords() {
     if (!state.ocrData || !state.ocrData.words || state.selectedWords.size === 0) {
-        exportOutput.innerHTML = `
-            <h3>No Words Selected</h3>
-            <p style="color: #666;">Please select words by dragging from the first word to the last word.</p>
-        `;
-        exportOutput.classList.add('active');
+        alert('No words selected. Please select words first.');
         return;
     }
 
@@ -2100,33 +2096,33 @@ function exportSelectedWords() {
     const selectedIndices = Array.from(state.selectedWords).sort((a, b) => a - b);
     const selectedWordTexts = selectedIndices.map(index => state.ocrData.words[index].text);
 
-    // Create plain text output
+    // Create plain text content for download
     const plainText = selectedWordTexts.join(' ');
+    const wordCount = selectedWordTexts.length;
 
-    // Create detailed output showing each word
-    const wordListHtml = selectedWordTexts.map((word, index) => {
-        return `${index + 1}. "${word}"`;
-    }).join('\n');
+    // Build file content
+    const fileContent = `Selected Words Export
+====================
+Word Count: ${wordCount}
+Date: ${new Date().toLocaleString()}
 
-    exportOutput.innerHTML = `
-        <h3>Selected Words (${state.selectedWords.size} total)</h3>
-        <div class="word-list">${wordListHtml}</div>
-        <div class="export-info">
-            <strong>How counting works:</strong><br>
-            Each detected word is counted as 1, even if it contains punctuation or numbers.<br>
-            Words are selected in order from index ${selectedIndices[0]} to ${selectedIndices[selectedIndices.length - 1]}.
-        </div>
-        <div class="export-info">
-            <strong>Plain text:</strong><br>
-            <div class="word-list">${plainText}</div>
-        </div>
-    `;
-    exportOutput.classList.add('active');
+--- Words (space-separated) ---
+${plainText}
 
-    console.log('=== EXPORT DEBUG ===');
-    console.log('Total selected indices:', state.selectedWords.size);
-    console.log('Selected indices:', selectedIndices);
-    console.log('Selected words:', selectedWordTexts);
+--- Word List ---
+${selectedWordTexts.map((word, i) => `${i + 1}. ${word}`).join('\n')}
+`;
+
+    // Create and download the file
+    const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `selected-words-${wordCount}-words-${new Date().toISOString().slice(0, 10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 // Audio Recording Functions
