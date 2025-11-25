@@ -54,6 +54,7 @@ const state = {
     recordedAudioBlob: null,
     audioMimeType: 'audio/webm;codecs=opus', // Default, updated during recording
     audioSampleRate: 48000, // Default, updated from actual audio track
+    audioChannelCount: 1, // Default, updated from actual audio track
     // Analysis results
     latestAnalysis: null,
     latestExpectedWords: null,
@@ -937,6 +938,7 @@ function startNewAnalysis() {
         recordedAudioBlob: null,
         audioMimeType: 'audio/webm;codecs=opus',
         audioSampleRate: 48000,
+        audioChannelCount: 1,
         latestAnalysis: null,
         latestExpectedWords: null,
         latestSpokenWords: null,
@@ -1891,12 +1893,14 @@ async function runSpeechToTextForAutoDetect() {
                     }
                 }
 
-                console.log('Speech API - encoding:', encoding, 'sampleRate:', sampleRate);
+                const channelCount = state.audioChannelCount || 1;
+                console.log('Speech API - encoding:', encoding, 'sampleRate:', sampleRate, 'channels:', channelCount);
 
                 const requestBody = {
                     config: {
                         encoding: encoding,
-                        sampleRateHertz: sampleRate, // Explicit sample rate for reliability
+                        sampleRateHertz: sampleRate,
+                        audioChannelCount: channelCount,
                         languageCode: 'en-US',
                         enableAutomaticPunctuation: true,
                         enableWordConfidence: true,
@@ -2447,7 +2451,7 @@ async function startRecording() {
             state.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         }
 
-        // Log what we actually got and capture sample rate
+        // Log what we actually got and capture sample rate + channel count
         const audioTrack = state.audioStream.getAudioTracks()[0];
         if (audioTrack) {
             const settings = audioTrack.getSettings();
@@ -2456,6 +2460,11 @@ async function startRecording() {
             if (settings.sampleRate) {
                 state.audioSampleRate = settings.sampleRate;
                 console.log('Captured audio sample rate:', state.audioSampleRate);
+            }
+            // Capture actual channel count for Speech-to-Text API
+            if (settings.channelCount) {
+                state.audioChannelCount = settings.channelCount;
+                console.log('Captured audio channel count:', state.audioChannelCount);
             }
         }
 
@@ -2767,14 +2776,16 @@ async function analyzeRecordedAudio() {
                     }
                 }
 
+                const channelCount = state.audioChannelCount || 1;
                 console.log('Audio mime type:', state.audioMimeType);
-                console.log('Using audio encoding:', encoding, 'sampleRate:', sampleRate);
+                console.log('Using audio encoding:', encoding, 'sampleRate:', sampleRate, 'channels:', channelCount);
 
                 // Prepare API request
                 const requestBody = {
                     config: {
                         encoding: encoding,
-                        sampleRateHertz: sampleRate, // Explicit sample rate for reliability on iPad/iOS
+                        sampleRateHertz: sampleRate,
+                        audioChannelCount: channelCount,
                         languageCode: 'en-US',
                         enableAutomaticPunctuation: true,
                         enableWordConfidence: true,
