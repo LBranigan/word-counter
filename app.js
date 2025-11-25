@@ -5451,6 +5451,7 @@ async function generateTranscriptVideoCore(statusDiv, generateBtn) {
 const classOverviewSection = document.getElementById('class-overview-section');
 const studentProfileSection = document.getElementById('student-profile-section');
 const classOverviewBtn = document.getElementById('class-overview-btn');
+const headerLogoLink = document.getElementById('header-logo-link');
 const backFromClassBtn = document.getElementById('back-from-class-btn');
 const addStudentBtn = document.getElementById('add-student-btn');
 const studentsGrid = document.getElementById('students-grid');
@@ -6601,6 +6602,14 @@ async function initDatabaseFeaturesAsync() {
     // Class Overview button
     if (classOverviewBtn) {
         classOverviewBtn.addEventListener('click', showClassOverview);
+    }
+
+    // Header logo click - go to step 1 (audio)
+    if (headerLogoLink) {
+        headerLogoLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            startNewAnalysis();
+        });
     }
 
     // Back from class overview
