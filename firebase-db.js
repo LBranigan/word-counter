@@ -138,6 +138,11 @@ export async function addAssessmentToStudent(studentId, assessmentData) {
             return false;
         }
 
+        // Ensure assessments array exists (for older student records)
+        if (!student.assessments) {
+            student.assessments = [];
+        }
+
         const assessment = {
             id: 'assessment-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
             date: Date.now(),
