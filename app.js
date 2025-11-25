@@ -4730,8 +4730,14 @@ async function viewHistoricalAssessment(studentId, assessmentId) {
     state.historicalAssessmentDate = new Date(assessment.date);
     state.historicalAssessmentStudentId = studentId; // Store for back navigation
 
-    // Display the results
-    displayPronunciationResults(state.latestAnalysis, state.latestExpectedWords);
+    // Display the results with correct arguments:
+    // displayPronunciationResults(expectedWords, spokenWordInfo, analysis, prosodyMetrics)
+    displayPronunciationResults(
+        state.latestExpectedWords,
+        state.latestSpokenWords,
+        state.latestAnalysis,
+        state.latestProsodyMetrics
+    );
 
     // Navigate to results section
     goToStep('results');
@@ -4743,13 +4749,13 @@ async function viewHistoricalAssessment(studentId, assessmentId) {
         historicalAssessmentDate.textContent = state.historicalAssessmentDate.toLocaleString();
     }
 
-    // Hide regular results actions
+    // Keep results actions visible for PDF/video export
     const resultsActions = document.querySelector('.results-actions');
     if (resultsActions) {
-        resultsActions.style.display = 'none';
+        resultsActions.style.display = 'flex';
     }
 
-    // Hide save assessment section for historical views
+    // Hide save assessment section for historical views (already saved)
     const saveSection = document.querySelector('.save-assessment-section');
     if (saveSection) {
         saveSection.style.display = 'none';
