@@ -53,6 +53,7 @@ const state = {
     recordingDuration: 0,
     recordedAudioBlob: null,
     audioMimeType: 'audio/webm;codecs=opus', // Default, updated during recording
+    audioSampleRate: 48000, // Default, updated from actual audio track
     // Analysis results
     latestAnalysis: null,
     latestExpectedWords: null,
@@ -935,6 +936,7 @@ function startNewAnalysis() {
         panY: 0,
         recordedAudioBlob: null,
         audioMimeType: 'audio/webm;codecs=opus',
+        audioSampleRate: 48000,
         latestAnalysis: null,
         latestExpectedWords: null,
         latestSpokenWords: null,
@@ -1874,15 +1876,27 @@ async function runSpeechToTextForAutoDetect() {
             try {
                 const base64Audio = reader.result.split(',')[1];
 
-                // Determine encoding
+                // Determine encoding and sample rate based on recorded format
                 let encoding = 'ENCODING_UNSPECIFIED';
-                if (state.audioMimeType && state.audioMimeType.includes('opus')) {
-                    encoding = 'WEBM_OPUS';
+                let sampleRate = state.audioSampleRate || 48000;
+
+                if (state.audioMimeType) {
+                    if (state.audioMimeType.includes('opus')) {
+                        encoding = 'WEBM_OPUS';
+                        // OPUS typically uses 48000, but use captured rate if available
+                        sampleRate = state.audioSampleRate || 48000;
+                    } else if (state.audioMimeType.includes('mp4') || state.audioMimeType.includes('aac')) {
+                        encoding = 'ENCODING_UNSPECIFIED'; // Let API auto-detect for AAC
+                        sampleRate = state.audioSampleRate || 44100;
+                    }
                 }
+
+                console.log('Speech API - encoding:', encoding, 'sampleRate:', sampleRate);
 
                 const requestBody = {
                     config: {
                         encoding: encoding,
+                        sampleRateHertz: sampleRate, // Explicit sample rate for reliability
                         languageCode: 'en-US',
                         enableAutomaticPunctuation: true,
                         enableWordConfidence: true,
@@ -2433,11 +2447,16 @@ async function startRecording() {
             state.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         }
 
-        // Log what we actually got
+        // Log what we actually got and capture sample rate
         const audioTrack = state.audioStream.getAudioTracks()[0];
         if (audioTrack) {
             const settings = audioTrack.getSettings();
             console.log('Audio track settings:', JSON.stringify(settings));
+            // Capture actual sample rate for Speech-to-Text API
+            if (settings.sampleRate) {
+                state.audioSampleRate = settings.sampleRate;
+                console.log('Captured audio sample rate:', state.audioSampleRate);
+            }
         }
 
         // Initialize MediaRecorder with user-selected bitrate
@@ -2733,20 +2752,29 @@ async function analyzeRecordedAudio() {
                     throw new Error(`Audio file too large (${fileSizeMB.toFixed(1)}MB). Please record shorter audio or reduce quality.`);
                 }
 
-                // Determine the correct encoding based on recorded format
-                // Use auto-detection as it's more reliable across browsers
+                // Determine the correct encoding and sample rate based on recorded format
                 let encoding = 'ENCODING_UNSPECIFIED';
-                if (state.audioMimeType && state.audioMimeType.includes('opus')) {
-                    encoding = 'WEBM_OPUS';
+                let sampleRate = state.audioSampleRate || 48000;
+
+                if (state.audioMimeType) {
+                    if (state.audioMimeType.includes('opus')) {
+                        encoding = 'WEBM_OPUS';
+                        // OPUS typically uses 48000, but use captured rate if available
+                        sampleRate = state.audioSampleRate || 48000;
+                    } else if (state.audioMimeType.includes('mp4') || state.audioMimeType.includes('aac')) {
+                        encoding = 'ENCODING_UNSPECIFIED'; // Let API auto-detect for AAC
+                        sampleRate = state.audioSampleRate || 44100;
+                    }
                 }
+
                 console.log('Audio mime type:', state.audioMimeType);
-                console.log('Using audio encoding:', encoding);
+                console.log('Using audio encoding:', encoding, 'sampleRate:', sampleRate);
 
                 // Prepare API request
                 const requestBody = {
                     config: {
                         encoding: encoding,
-                        // sampleRateHertz: 48000,  // Omit this to let API auto-detect
+                        sampleRateHertz: sampleRate, // Explicit sample rate for reliability on iPad/iOS
                         languageCode: 'en-US',
                         enableAutomaticPunctuation: true,
                         enableWordConfidence: true,
