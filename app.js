@@ -1260,13 +1260,32 @@ function handleEnd(e) {
 
     console.log('Ended at:', state.endPoint);
 
-    // Only select words if it was a drag, not just a click
+    // If it was a drag, select words between points
     if (state.wasDragged) {
         // Select words between start and end
         selectWordsBetweenPoints();
 
         // Redraw with highlighted words
         redrawCanvas();
+    } else {
+        // It was a tap/click, not a drag - toggle word selection
+        // This handles touch devices where click event doesn't fire due to preventDefault
+        const tapPoint = getCanvasPoint(e);
+        const tappedWordIndex = findWordAtPoint(tapPoint);
+
+        if (tappedWordIndex !== -1) {
+            if (state.selectedWords.has(tappedWordIndex)) {
+                // Word is selected, so deselect it
+                state.selectedWords.delete(tappedWordIndex);
+                console.log('Tap deselected word at index:', tappedWordIndex);
+            } else {
+                // Word is not selected, so select it
+                state.selectedWords.add(tappedWordIndex);
+                console.log('Tap selected word at index:', tappedWordIndex);
+            }
+            updateWordCount();
+            redrawCanvas();
+        }
     }
 }
 
