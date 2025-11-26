@@ -41,7 +41,7 @@ import {
     ACCURACY_THRESHOLDS,
     API_USAGE_CONSTANTS,
     UI_CONSTANTS,
-    getAccuracyClassification,
+    getAccuracyClassification as getAccuracyClass,
     getCardAccuracyClass,
     getUsageStatusClass
 } from './utils.js';
@@ -5316,20 +5316,7 @@ function createAssessmentDetail(label, value) {
     </div>`;
 }
 
-// Get accuracy class based on score
-function getAccuracyClass(accuracy) {
-    if (accuracy >= 95) return 'excellent';
-    if (accuracy >= 85) return 'good';
-    if (accuracy >= 75) return 'fair';
-    return 'poor';
-}
-
-// Get accuracy class for student cards
-function getCardAccuracyClass(accuracy) {
-    if (accuracy >= 95) return 'good';
-    if (accuracy >= 85) return 'warning';
-    return 'poor';
-}
+// Note: getAccuracyClass and getCardAccuracyClass are now imported from utils.js
 
 // ============ END HTML COMPONENT HELPERS ============
 
