@@ -4529,7 +4529,6 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
     }
 
     exportOutput.innerHTML = `
-        <h3>🎯 Oral Fluency Analysis</h3>
         <div class="audio-analysis-result">
             <div class="download-output-section">
                 <button id="download-pdf-btn" class="btn btn-export">
@@ -4665,6 +4664,14 @@ function downloadAnalysisAsHtml2Pdf() {
         return;
     }
 
+    // Get the PDF button and disable it during generation
+    const pdfBtn = document.getElementById('download-pdf-btn');
+    const originalBtnContent = pdfBtn ? pdfBtn.innerHTML : '';
+    if (pdfBtn) {
+        pdfBtn.disabled = true;
+        pdfBtn.innerHTML = '<span class="icon">⏳</span> Generating...';
+    }
+
     const analysis = state.latestAnalysis;
     const prosodyMetrics = state.latestProsodyMetrics || {};
     const patterns = state.latestErrorPatterns;
@@ -4756,29 +4763,11 @@ function downloadAnalysisAsHtml2Pdf() {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
         || (window.innerWidth <= 768);
 
-    // Create a full-screen overlay to hide the rendering process
-    const overlay = document.createElement('div');
-    overlay.id = 'pdf-generation-overlay';
-    overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.98); z-index: 10000; display: flex; align-items: center; justify-content: center; flex-direction: column;';
-    overlay.innerHTML = `
-        <div style="text-align: center;">
-            <div style="width: 50px; height: 50px; border: 4px solid #e9ecef; border-top-color: #667eea; border-radius: 50%; animation: pdfspin 1s linear infinite; margin: 0 auto 15px;"></div>
-            <p style="color: #667eea; font-size: 16px; font-weight: 600; margin: 0;">Generating PDF...</p>
-        </div>
-        <style>@keyframes pdfspin { to { transform: rotate(360deg); } }</style>
-    `;
-    document.body.appendChild(overlay);
-
-    // Scroll to top before capture
-    window.scrollTo(0, 0);
-
-    // Create the content element - positioned at origin, hidden behind the overlay
-    // Using position: absolute works for both mobile and desktop
-    // The overlay (z-index: 10000) hides the content (z-index: 9999) from the user
-    // Note: No min-height - let content determine height to avoid blank second page
+    // Create the content element - positioned off-screen for rendering
+    // No visible overlay - button state indicates loading
     const printContainer = document.createElement('div');
     printContainer.id = 'pdf-content-container';
-    printContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 794px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box; z-index: 9999;';
+    printContainer.style.cssText = 'position: absolute; top: -9999px; left: -9999px; width: 794px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box;';
 
     printContainer.innerHTML = `
         <h1 style="text-align: center; color: #667eea; font-size: 18px; margin: 0 0 5px 0;">Oral Fluency Analysis Report</h1>
@@ -4847,13 +4836,21 @@ function downloadAnalysisAsHtml2Pdf() {
             .then(() => {
                 // Clean up
                 if (printContainer.parentNode) document.body.removeChild(printContainer);
-                if (overlay.parentNode) document.body.removeChild(overlay);
+                // Restore button state
+                if (pdfBtn) {
+                    pdfBtn.disabled = false;
+                    pdfBtn.innerHTML = originalBtnContent;
+                }
             })
             .catch(err => {
                 debugError('PDF generation error:', err);
                 // Clean up on error
                 if (printContainer.parentNode) document.body.removeChild(printContainer);
-                if (overlay.parentNode) document.body.removeChild(overlay);
+                // Restore button state
+                if (pdfBtn) {
+                    pdfBtn.disabled = false;
+                    pdfBtn.innerHTML = originalBtnContent;
+                }
                 alert('Failed to generate PDF: ' + err.message);
             });
     }, 200);
