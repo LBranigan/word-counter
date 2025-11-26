@@ -4667,9 +4667,12 @@ function downloadAnalysisAsHtml2Pdf() {
     // Get the PDF button and disable it during generation
     const pdfBtn = document.getElementById('download-pdf-btn');
     const originalBtnContent = pdfBtn ? pdfBtn.innerHTML : '';
+    const originalBtnStyle = pdfBtn ? pdfBtn.getAttribute('style') || '' : '';
     if (pdfBtn) {
         pdfBtn.disabled = true;
         pdfBtn.innerHTML = '<span class="icon">⏳</span> Generating...';
+        pdfBtn.style.background = '#6c757d';
+        pdfBtn.style.boxShadow = 'none';
     }
 
     const analysis = state.latestAnalysis;
@@ -4831,15 +4834,29 @@ function downloadAnalysisAsHtml2Pdf() {
             pagebreak: { mode: 'avoid-all' } // Prevent automatic page breaks
         };
 
-        // Generate PDF with proper cleanup
-        html2pdf().set(options).from(printContainer).save()
-            .then(() => {
+        // Generate PDF, open in new window, and download
+        html2pdf().set(options).from(printContainer).outputPdf('blob')
+            .then(blob => {
+                // Create URL for the PDF blob
+                const pdfUrl = URL.createObjectURL(blob);
+
+                // Open PDF in new browser window
+                window.open(pdfUrl, '_blank');
+
+                // Also trigger download
+                const downloadLink = document.createElement('a');
+                downloadLink.href = pdfUrl;
+                downloadLink.download = options.filename;
+                downloadLink.click();
+
                 // Clean up
                 if (printContainer.parentNode) document.body.removeChild(printContainer);
                 // Restore button state
                 if (pdfBtn) {
                     pdfBtn.disabled = false;
                     pdfBtn.innerHTML = originalBtnContent;
+                    pdfBtn.style.background = '';
+                    pdfBtn.style.boxShadow = '';
                 }
             })
             .catch(err => {
@@ -4850,6 +4867,8 @@ function downloadAnalysisAsHtml2Pdf() {
                 if (pdfBtn) {
                     pdfBtn.disabled = false;
                     pdfBtn.innerHTML = originalBtnContent;
+                    pdfBtn.style.background = '';
+                    pdfBtn.style.boxShadow = '';
                 }
                 alert('Failed to generate PDF: ' + err.message);
             });
