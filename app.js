@@ -4774,10 +4774,16 @@ function downloadAnalysisAsHtml2Pdf() {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
         || (window.innerWidth <= 768);
 
-    // Create the content element - use near-zero opacity (invisible to eye, capturable by html2canvas)
+    // Create a subtle overlay to hide the rendering (matches app theme, less jarring than white)
+    const overlay = document.createElement('div');
+    overlay.id = 'pdf-generation-overlay';
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(102, 126, 234, 0.15); z-index: 100000; pointer-events: none;';
+    document.body.appendChild(overlay);
+
+    // Create the content element for PDF capture
     const printContainer = document.createElement('div');
     printContainer.id = 'pdf-content-container';
-    printContainer.style.cssText = 'position: fixed; top: 0; left: 0; width: 794px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box; z-index: 99999; opacity: 0.001;';
+    printContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 794px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box; z-index: 99999;';
 
     printContainer.innerHTML = `
         <h1 style="text-align: center; color: #667eea; font-size: 18px; margin: 0 0 5px 0;">Oral Fluency Analysis Report</h1>
@@ -4858,6 +4864,7 @@ function downloadAnalysisAsHtml2Pdf() {
 
                 // Clean up
                 if (printContainer.parentNode) document.body.removeChild(printContainer);
+                if (overlay.parentNode) document.body.removeChild(overlay);
                 // Restore button state
                 if (pdfBtn) {
                     pdfBtn.disabled = false;
@@ -4870,6 +4877,7 @@ function downloadAnalysisAsHtml2Pdf() {
                 debugError('PDF generation error:', err);
                 // Clean up on error
                 if (printContainer.parentNode) document.body.removeChild(printContainer);
+                if (overlay.parentNode) document.body.removeChild(overlay);
                 // Restore button state
                 if (pdfBtn) {
                     pdfBtn.disabled = false;
