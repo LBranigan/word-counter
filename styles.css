@@ -1527,6 +1527,70 @@ footer {
     margin-bottom: 0;
 }
 
+/* Collapsible Instructions (Step 1) */
+.instructions-collapsible {
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+
+.instructions-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: color var(--transition-fast);
+}
+
+.instructions-toggle:hover {
+    color: var(--primary);
+}
+
+.instructions-chevron {
+    transition: transform var(--transition-slow);
+}
+
+.instructions-collapsible.expanded .instructions-chevron {
+    transform: rotate(180deg);
+}
+
+.instructions-collapsible.expanded .instructions-toggle-text::after {
+    content: ' (hide)';
+}
+
+.instructions-content {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height var(--transition-slow), opacity var(--transition-slow), padding var(--transition-slow);
+}
+
+.instructions-collapsible.expanded .instructions-content {
+    max-height: 300px;
+    opacity: 1;
+    padding-top: 0.75rem;
+}
+
+.instructions-collapsible .instructions-list {
+    background: rgba(102, 126, 234, 0.05);
+    border-left: 3px solid rgba(102, 126, 234, 0.3);
+    border-radius: var(--radius-sm);
+    padding: 1rem 1rem 1rem 2rem;
+    color: var(--text-light);
+    font-size: 0.9rem;
+}
+
+.instructions-collapsible .instructions-list li {
+    margin-bottom: 0.4rem;
+}
+
 .setup-container {
     background: rgba(255, 255, 255, 0.95);
     border-radius: 12px;
