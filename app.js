@@ -4774,13 +4774,19 @@ function downloadAnalysisAsHtml2Pdf() {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
         || (window.innerWidth <= 768);
 
-    // Create a subtle overlay to hide the rendering (matches app theme, less jarring than white)
+    // Create fully opaque themed overlay with loading indicator
+    // Must be fully opaque to hide PDF content; uses app gradient to look intentional
     const overlay = document.createElement('div');
     overlay.id = 'pdf-generation-overlay';
-    overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(102, 126, 234, 0.15); z-index: 100000; pointer-events: none;';
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); z-index: 100000; display: flex; align-items: center; justify-content: center; flex-direction: column;';
+    overlay.innerHTML = `
+        <div style="width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: pdfspinner 0.8s linear infinite;"></div>
+        <p style="color: white; margin-top: 15px; font-size: 16px; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">Generating PDF...</p>
+        <style>@keyframes pdfspinner { to { transform: rotate(360deg); } }</style>
+    `;
     document.body.appendChild(overlay);
 
-    // Create the content element for PDF capture
+    // Create the content element for PDF capture (behind the overlay)
     const printContainer = document.createElement('div');
     printContainer.id = 'pdf-content-container';
     printContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 794px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box; z-index: 99999;';
