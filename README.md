@@ -118,6 +118,7 @@ You need TWO API keys from Google Cloud:
 - Choose duration: 30s, 1min, or 2min
 - Audio quality: 32 kbps (optimized for speech)
 - Can download recording for records
+- Collapsible "Need help?" instructions (click to expand)
 
 ### Step 2: Capture Image
 - Take photo of the physical text
@@ -382,7 +383,13 @@ word-analyzer/
 
 ## Version History
 
-### v3.2.11 (Current) - November 25, 2025
+### v3.2.12 (Current) - November 25, 2025
+- ✅ Collapsible instructions on Step 1 (Record Audio) - cleaner UI
+- ✅ "Need help?" toggle button with smooth expand/collapse animation
+- ✅ Accessibility improvements (aria-expanded, focus styles, touch targets)
+- ✅ Reduced motion support for users with motion sensitivity
+
+### v3.2.11 - November 25, 2025
 - ✅ PDF opens in new browser tab AND downloads automatically
 - ✅ PDF generation shows themed purple loading screen (no visual glitches)
 - ✅ PDF button shows "⏳ Generating..." state while loading

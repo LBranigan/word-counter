@@ -268,13 +268,13 @@
                 </div>
 
                 <div class="instructions-box instructions-collapsible">
-                    <button class="instructions-toggle" onclick="this.parentElement.classList.toggle('expanded')" aria-expanded="false">
+                    <button class="instructions-toggle" onclick="const p=this.parentElement; p.classList.toggle('expanded'); this.setAttribute('aria-expanded', p.classList.contains('expanded'))" aria-expanded="false" aria-controls="audio-instructions-content">
                         <span class="instructions-toggle-text">Need help?</span>
-                        <svg class="instructions-chevron" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <svg class="instructions-chevron" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                             <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 0-.708z"/>
                         </svg>
                     </button>
-                    <div class="instructions-content">
+                    <div class="instructions-content" id="audio-instructions-content">
                         <ul class="instructions-list">
                             <li><strong>Full Assessment:</strong> Record audio for pronunciation analysis, accuracy, WPM, and prosody scoring</li>
                             <li><strong>Word Count Only:</strong> Click "Skip Audio" to go directly to counting words (no pronunciation analysis)</li>

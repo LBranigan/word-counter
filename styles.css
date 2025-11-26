@@ -1556,6 +1556,17 @@ footer {
     color: rgba(255, 255, 255, 0.9);
 }
 
+.instructions-toggle:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
+
+.instructions-toggle:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7);
+}
+
 .instructions-chevron {
     transition: transform var(--transition-slow);
 }
@@ -1572,9 +1583,18 @@ footer {
 }
 
 .instructions-collapsible.expanded .instructions-content {
-    max-height: 300px;
+    max-height: 400px;
     opacity: 1;
     margin-top: 0.75rem;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .instructions-toggle,
+    .instructions-chevron,
+    .instructions-content {
+        transition: none;
+    }
 }
 
 .instructions-collapsible .instructions-list {
@@ -3240,6 +3260,12 @@ footer {
     textarea {
         min-height: 44px;
         font-size: 16px; /* Prevents iOS zoom on focus */
+    }
+
+    /* Touch-friendly instructions toggle */
+    .instructions-toggle {
+        padding: 0.6rem 1.2rem;
+        font-size: 0.875rem;
     }
 
     /* Larger modal close buttons */

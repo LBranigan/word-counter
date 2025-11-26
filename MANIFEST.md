@@ -142,6 +142,9 @@ A comprehensive reading fluency assessment tool for Morningside Academy that com
      - Audio playback/preview
      - Download recorded audio
      - Re-record functionality
+     - **Collapsible "Need help?" instructions** (click to expand/collapse)
+     - Accessibility: aria-expanded, focus styles, touch-friendly targets
+     - Reduced motion support for animation-sensitive users
 
    - **Step 2: Capture Image**
      - Camera capture with mobile support
@@ -687,6 +690,8 @@ npx localtunnel --port 8000
 18. **Prominent Capture Button**: Mobile-optimized button hierarchy
 19. **Touch-Friendly Interactions**: 15px drag threshold for reliable tap detection
 20. **Version Timestamps**: Footer displays current version for cache verification
+21. **Collapsible Instructions**: "Need help?" toggle on Step 1 reduces visual clutter
+22. **Accessibility Enhancements**: Focus styles, aria attributes, reduced motion support
 
 ### 📦 Dependencies
 
@@ -816,7 +821,7 @@ The Word Analyzer application is fully functional, comprehensively tested, thoro
 - Secure multi-user deployment
 
 **Last Updated**: 2025-11-25
-**Version**: 3.1 (mobile UX improvements + bug fixes)
+**Version**: 3.2.12 (collapsible instructions + accessibility improvements)
 **Status**: Complete and deployed
 **Lines of Code**:
 - ~6,200 lines (app.js)
