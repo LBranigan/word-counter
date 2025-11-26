@@ -2529,14 +2529,22 @@ function showStatus(message, type = '') {
 }
 
 function exportSelectedWords() {
-    if (!state.ocrData || !state.ocrData.words || state.selectedWords.size === 0) {
-        alert('No words selected. Please select words first.');
+    let selectedWordTexts = [];
+
+    // Check if we have selected words from OCR (normal flow)
+    if (state.ocrData && state.ocrData.words && state.selectedWords.size > 0) {
+        const selectedIndices = Array.from(state.selectedWords).sort((a, b) => a - b);
+        selectedWordTexts = selectedIndices.map(index => state.ocrData.words[index].text);
+    }
+    // Fall back to expected words from analysis (historical assessments or after analysis)
+    else if (state.latestExpectedWords && state.latestExpectedWords.length > 0) {
+        selectedWordTexts = state.latestExpectedWords;
+    }
+    // No words available
+    else {
+        alert('No words available to export. Please run an analysis first.');
         return;
     }
-
-    // Get selected words in order
-    const selectedIndices = Array.from(state.selectedWords).sort((a, b) => a - b);
-    const selectedWordTexts = selectedIndices.map(index => state.ocrData.words[index].text);
 
     // Create plain text content for download
     const plainText = selectedWordTexts.join(' ');
@@ -4766,11 +4774,11 @@ function downloadAnalysisAsHtml2Pdf() {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
         || (window.innerWidth <= 768);
 
-    // Create the content element - positioned off-screen for rendering
-    // No visible overlay - button state indicates loading
+    // Create the content element - positioned behind the page content (negative z-index)
+    // This avoids the white flash while keeping content capturable by html2canvas
     const printContainer = document.createElement('div');
     printContainer.id = 'pdf-content-container';
-    printContainer.style.cssText = 'position: absolute; top: -9999px; left: -9999px; width: 794px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box;';
+    printContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 794px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box; z-index: -1;';
 
     printContainer.innerHTML = `
         <h1 style="text-align: center; color: #667eea; font-size: 18px; margin: 0 0 5px 0;">Oral Fluency Analysis Report</h1>
