@@ -27,6 +27,25 @@ import {
     updateLoadingStatus
 } from './firebase-auth.js';
 
+// Utilities: XSS sanitization, debug logging, and constants
+import {
+    escapeHtml,
+    escapeJsonForAttribute,
+    debugLog,
+    debugError,
+    debugWarn,
+    CAMERA_CONSTANTS,
+    AUDIO_CONSTANTS,
+    CANVAS_CONSTANTS,
+    ANALYSIS_CONSTANTS,
+    ACCURACY_THRESHOLDS,
+    API_USAGE_CONSTANTS,
+    UI_CONSTANTS,
+    getAccuracyClassification,
+    getCardAccuracyClass,
+    getUsageStatusClass
+} from './utils.js';
+
 // App State
 const state = {
     apiKey: null,
@@ -116,7 +135,7 @@ const imageCache = {
             };
             img.onerror = () => {
                 this.loading = false;
-                console.error('Failed to load image');
+                debugError('Failed to load image');
             };
             img.src = src;
         });
@@ -235,7 +254,7 @@ const wordTooltipManager = {
             const y = event.clientY || event.pageY;
             this.positionTooltip(x, y);
         } catch (err) {
-            console.error('Error showing tooltip:', err);
+            debugError('Error showing tooltip:', err);
         }
     },
 
@@ -532,7 +551,7 @@ async function displayUsageStats() {
         const stats = await getUsageStats();
         if (!stats) return;
 
-        console.log('API Usage Stats:', stats);
+        debugLog('API Usage Stats:', stats);
 
         // Create or update usage display in header
         let usageDisplay = document.getElementById('api-usage-display');
@@ -581,7 +600,7 @@ async function displayUsageStats() {
         usageDisplay.title = `Vision API: ${stats.vision.thisMonth} of ${stats.vision.freeTierLimit} free calls used (${stats.vision.percentUsed}%)\nSpeech API: ${stats.speech.thisMonth} of ${stats.speech.freeTierLimit} free minutes used (${stats.speech.percentUsed}%)`;
 
     } catch (error) {
-        console.error('Error displaying usage stats:', error);
+        debugError('Error displaying usage stats:', error);
     }
 }
 */
@@ -744,7 +763,7 @@ async function runAutoDetectOnEntry() {
     try {
         await autoDetectSpokenWordsWithOverlay();
     } catch (error) {
-        console.error('Auto-detect on entry failed:', error);
+        debugError('Auto-detect on entry failed:', error);
         showStatus('Auto-detection failed. You can manually select words.', 'error');
     } finally {
         // Hide loading overlay
@@ -1134,7 +1153,7 @@ async function initCamera() {
 
         // Wait for video to be ready and check resolution
         camera.onloadedmetadata = async () => {
-            console.log(`Camera resolution: ${camera.videoWidth}x${camera.videoHeight}`);
+            debugLog(`Camera resolution: ${camera.videoWidth}x${camera.videoHeight}`);
 
             // If resolution is lower than expected, try to request higher
             if (camera.videoWidth < 1280 || camera.videoHeight < 720) {
@@ -1146,13 +1165,13 @@ async function initCamera() {
                             height: { ideal: 1080 }
                         });
                         setTimeout(() => {
-                            console.log(`After applyConstraints: ${camera.videoWidth}x${camera.videoHeight}`);
+                            debugLog(`After applyConstraints: ${camera.videoWidth}x${camera.videoHeight}`);
                             if (camera.videoWidth < 1280 || camera.videoHeight < 720) {
                                 showStatus(`Low camera resolution (${camera.videoWidth}x${camera.videoHeight}). For better OCR, use "Upload Image" instead.`, 'warning');
                             }
                         }, 500);
                     } catch (e) {
-                        console.log('Could not apply higher resolution:', e.message);
+                        debugLog('Could not apply higher resolution:', e.message);
                         showStatus(`Low camera resolution (${camera.videoWidth}x${camera.videoHeight}). For better OCR, use "Upload Image" instead.`, 'warning');
                     }
                 }
@@ -1160,7 +1179,7 @@ async function initCamera() {
         };
     } catch (error) {
         alert('Camera access denied. Please allow camera permissions.');
-        console.error('Camera error:', error);
+        debugError('Camera error:', error);
     }
 }
 
@@ -1205,12 +1224,12 @@ function capturePhoto() {
     cameraCanvas.width = camera.videoWidth;
     cameraCanvas.height = camera.videoHeight;
 
-    console.log(`Capturing photo at resolution: ${camera.videoWidth}x${camera.videoHeight}`);
+    debugLog(`Capturing photo at resolution: ${camera.videoWidth}x${camera.videoHeight}`);
 
     // Warn if resolution is too low for good OCR
     if (camera.videoWidth < 1280 || camera.videoHeight < 720) {
-        console.warn('Low resolution capture - OCR quality may be affected');
-        console.warn('Consider using "Upload Image" for better quality');
+        debugWarn('Low resolution capture - OCR quality may be affected');
+        debugWarn('Consider using "Upload Image" for better quality');
     }
 
     context.drawImage(camera, 0, 0);
@@ -1303,7 +1322,7 @@ async function processOCR() {
                         const hasAlphanumeric = /[a-zA-Z0-9]/.test(text);
 
                         if (!hasAlphanumeric) {
-                            console.log('Filtering out punctuation-only:', text);
+                            debugLog('Filtering out punctuation-only:', text);
                             return; // Skip this word
                         }
 
@@ -1326,9 +1345,9 @@ async function processOCR() {
             });
         });
 
-        console.log('=== VISION API RESULTS ===');
-        console.log('Total words found:', words.length);
-        console.log('First 10 words:', words.slice(0, 10).map(w => w.text));
+        debugLog('=== VISION API RESULTS ===');
+        debugLog('Total words found:', words.length);
+        debugLog('First 10 words:', words.slice(0, 10).map(w => w.text));
 
         state.ocrData = { words: words };
 
@@ -1362,7 +1381,7 @@ async function processOCR() {
         }
 
     } catch (error) {
-        console.error('Vision API error:', error);
+        debugError('Vision API error:', error);
 
         if (error.message.includes('API key')) {
             showStatus('Invalid API key. Please check your settings.', 'error');
@@ -1460,11 +1479,11 @@ function handleWordClick(e) {
         if (state.selectedWords.has(clickedWordIndex)) {
             // Word is selected, so deselect it
             state.selectedWords.delete(clickedWordIndex);
-            console.log('Deselected word at index:', clickedWordIndex);
+            debugLog('Deselected word at index:', clickedWordIndex);
         } else {
             // Word is not selected, so select it
             state.selectedWords.add(clickedWordIndex);
-            console.log('Selected word at index:', clickedWordIndex);
+            debugLog('Selected word at index:', clickedWordIndex);
         }
         updateWordCount();
         redrawCanvas();
@@ -1479,7 +1498,7 @@ function handleStart(e) {
         const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
         const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
         state.panStartPoint = { x: clientX, y: clientY };
-        console.log('Started panning at:', state.panStartPoint);
+        debugLog('Started panning at:', state.panStartPoint);
         return;
     }
 
@@ -1489,7 +1508,7 @@ function handleStart(e) {
     state.startPoint = getCanvasPoint(e);
     state.endPoint = state.startPoint;
 
-    console.log('Started drawing at:', state.startPoint);
+    debugLog('Started drawing at:', state.startPoint);
 }
 
 function handleMove(e) {
@@ -1533,7 +1552,7 @@ function handleEnd(e) {
     state.isDrawing = false;
     state.endPoint = getCanvasPoint(e);
 
-    console.log('Ended at:', state.endPoint);
+    debugLog('Ended at:', state.endPoint);
 
     // Calculate drag distance to distinguish taps from drags
     const dragDistance = Math.sqrt(
@@ -1559,11 +1578,11 @@ function handleEnd(e) {
             if (state.selectedWords.has(tappedWordIndex)) {
                 // Word is selected, so deselect it
                 state.selectedWords.delete(tappedWordIndex);
-                console.log('Tap deselected word at index:', tappedWordIndex);
+                debugLog('Tap deselected word at index:', tappedWordIndex);
             } else {
                 // Word is not selected, so select it
                 state.selectedWords.add(tappedWordIndex);
-                console.log('Tap selected word at index:', tappedWordIndex);
+                debugLog('Tap selected word at index:', tappedWordIndex);
             }
             updateWordCount();
             redrawCanvas();
@@ -1641,22 +1660,22 @@ function drawSelectionLine() {
 
 function selectWordsBetweenPoints() {
     if (!state.ocrData || !state.ocrData.words || !state.startPoint || !state.endPoint) {
-        console.log('Missing data for selection');
+        debugLog('Missing data for selection');
         return;
     }
 
-    console.log('Total words available:', state.ocrData.words.length);
+    debugLog('Total words available:', state.ocrData.words.length);
 
     // Find closest word to start point
     let startWordIndex = findClosestWordIndex(state.startPoint);
     // Find closest word to end point
     let endWordIndex = findClosestWordIndex(state.endPoint);
 
-    console.log('Start word index:', startWordIndex);
-    console.log('End word index:', endWordIndex);
+    debugLog('Start word index:', startWordIndex);
+    debugLog('End word index:', endWordIndex);
 
     if (startWordIndex === -1 || endWordIndex === -1) {
-        console.log('Could not find start or end word');
+        debugLog('Could not find start or end word');
         showStatus('Could not find words. Try clicking closer to text.', 'error');
         return;
     }
@@ -1666,14 +1685,14 @@ function selectWordsBetweenPoints() {
         [startWordIndex, endWordIndex] = [endWordIndex, startWordIndex];
     }
 
-    console.log('Selecting words from', startWordIndex, 'to', endWordIndex);
+    debugLog('Selecting words from', startWordIndex, 'to', endWordIndex);
 
     // Select all words in range
     for (let i = startWordIndex; i <= endWordIndex; i++) {
         state.selectedWords.add(i);
     }
 
-    console.log('Total selected words:', state.selectedWords.size);
+    debugLog('Total selected words:', state.selectedWords.size);
     updateWordCount();
 }
 
@@ -1717,7 +1736,7 @@ function findClosestWordIndex(point) {
     });
 
     if (closestIndex !== -1) {
-        console.log('Found word:', state.ocrData.words[closestIndex].text, 'at distance:', minDistance);
+        debugLog('Found word:', state.ocrData.words[closestIndex].text, 'at distance:', minDistance);
     }
 
     return closestIndex;
@@ -1858,14 +1877,14 @@ async function autoDetectSpokenWords() {
             return;
         }
 
-        console.log('=== AUTO-DETECT: Spoken words from STT ===');
-        console.log('Spoken words:', spokenWords.map(w => w.word));
+        debugLog('=== AUTO-DETECT: Spoken words from STT ===');
+        debugLog('Spoken words:', spokenWords.map(w => w.word));
 
         showStatus('🤖 Auto-detecting spoken words... (Step 2/3: Matching words)', 'processing');
 
         // Step 2: Match spoken words against OCR words
         const ocrWords = state.ocrData.words.map(w => w.text);
-        console.log('OCR words:', ocrWords);
+        debugLog('OCR words:', ocrWords);
 
         const matchResult = findSpokenRangeInOCR(spokenWords, ocrWords);
 
@@ -1881,9 +1900,9 @@ async function autoDetectSpokenWords() {
         const firstWord = ocrWords[matchResult.firstIndex];
         const lastWord = ocrWords[matchResult.lastIndex];
 
-        console.log(`Auto-selecting words from index ${matchResult.firstIndex} to ${matchResult.lastIndex}`);
-        console.log(`First detected word: "${firstWord}"`);
-        console.log(`Last detected word: "${lastWord}"`);
+        debugLog(`Auto-selecting words from index ${matchResult.firstIndex} to ${matchResult.lastIndex}`);
+        debugLog(`First detected word: "${firstWord}"`);
+        debugLog(`Last detected word: "${lastWord}"`);
 
         // Select ALL words between first and last (inclusive)
         for (let i = matchResult.firstIndex; i <= matchResult.lastIndex; i++) {
@@ -1905,7 +1924,7 @@ async function autoDetectSpokenWords() {
         state.latestSpokenWords = spokenWords;
 
     } catch (error) {
-        console.error('Auto-detect error:', error);
+        debugError('Auto-detect error:', error);
         showStatus('Error during auto-detection: ' + error.message, 'error');
     }
 }
@@ -1936,8 +1955,8 @@ async function autoDetectSpokenWordsWithOverlay() {
         return;
     }
 
-    console.log('=== AUTO-DETECT: Spoken words from STT ===');
-    console.log('Spoken words:', spokenWords.map(w => w.word));
+    debugLog('=== AUTO-DETECT: Spoken words from STT ===');
+    debugLog('Spoken words:', spokenWords.map(w => w.word));
 
     // Step 2: Matching words
     updateLoadingStep(2);
@@ -1946,7 +1965,7 @@ async function autoDetectSpokenWordsWithOverlay() {
     await new Promise(resolve => setTimeout(resolve, 300));
 
     const ocrWords = state.ocrData.words.map(w => w.text);
-    console.log('OCR words:', ocrWords);
+    debugLog('OCR words:', ocrWords);
 
     const matchResult = findSpokenRangeInOCR(spokenWords, ocrWords);
 
@@ -1964,9 +1983,9 @@ async function autoDetectSpokenWordsWithOverlay() {
     const firstWord = ocrWords[matchResult.firstIndex];
     const lastWord = ocrWords[matchResult.lastIndex];
 
-    console.log(`Auto-selecting words from index ${matchResult.firstIndex} to ${matchResult.lastIndex}`);
-    console.log(`First detected word: "${firstWord}"`);
-    console.log(`Last detected word: "${lastWord}"`);
+    debugLog(`Auto-selecting words from index ${matchResult.firstIndex} to ${matchResult.lastIndex}`);
+    debugLog(`First detected word: "${firstWord}"`);
+    debugLog(`Last detected word: "${lastWord}"`);
 
     // Select ALL words between first and last (inclusive)
     for (let i = matchResult.firstIndex; i <= matchResult.lastIndex; i++) {
@@ -2021,7 +2040,7 @@ async function runSpeechToTextForAutoDetect() {
                 }
 
                 const channelCount = state.audioChannelCount || 1;
-                console.log('Speech API - encoding:', encoding, 'sampleRate:', sampleRate, 'channels:', channelCount);
+                debugLog('Speech API - encoding:', encoding, 'sampleRate:', sampleRate, 'channels:', channelCount);
 
                 const requestBody = {
                     config: {
@@ -2108,9 +2127,9 @@ function findSpokenRangeInOCR(spokenWords, ocrWords) {
     // Normalize OCR words
     const cleanOCR = ocrWords.map(w => normalizeWordForMatching(w));
 
-    console.log('=== IMPROVED MATCHING ALGORITHM ===');
-    console.log('Clean spoken words:', cleanSpoken);
-    console.log('Clean OCR words:', cleanOCR);
+    debugLog('=== IMPROVED MATCHING ALGORITHM ===');
+    debugLog('Clean spoken words:', cleanSpoken);
+    debugLog('Clean OCR words:', cleanOCR);
 
     if (cleanSpoken.length === 0 || cleanOCR.length === 0) {
         return { firstIndex: -1, lastIndex: -1, matchedCount: 0 };
@@ -2122,7 +2141,7 @@ function findSpokenRangeInOCR(spokenWords, ocrWords) {
     // Use dynamic programming to find the best alignment
     const alignment = findBestAlignment(cleanSpoken, cleanOCR, similarityMatrix);
 
-    console.log('Alignment result:', alignment);
+    debugLog('Alignment result:', alignment);
 
     if (alignment.firstOCRIndex === -1 || alignment.lastOCRIndex === -1) {
         // Fallback: Try anchor-based matching
@@ -2352,7 +2371,7 @@ function findBestAlignment(spoken, ocr, similarityMatrix) {
         }
     }
 
-    console.log('DP alignment:', { bestStartOCR, bestEndOCR, bestScore, bestMatchCount });
+    debugLog('DP alignment:', { bestStartOCR, bestEndOCR, bestScore, bestMatchCount });
 
     return {
         firstOCRIndex: bestStartOCR,
@@ -2366,7 +2385,7 @@ function findBestAlignment(spoken, ocr, similarityMatrix) {
  * Fallback: Find range by anchor words (distinctive words that appear once)
  */
 function findRangeByAnchors(spoken, ocr) {
-    console.log('Using anchor-based fallback...');
+    debugLog('Using anchor-based fallback...');
 
     // Find distinctive words (longer words, appear once in OCR)
     const ocrWordCounts = {};
@@ -2391,7 +2410,7 @@ function findRangeByAnchors(spoken, ocr) {
     }
 
     if (anchors.length === 0) {
-        console.log('No anchors found');
+        debugLog('No anchors found');
         return { firstIndex: -1, lastIndex: -1, matchedCount: 0 };
     }
 
@@ -2423,7 +2442,7 @@ function findRangeByAnchors(spoken, ocr) {
         }
     }
 
-    console.log('Anchor result:', { bestStart, bestEnd, bestMatchCount });
+    debugLog('Anchor result:', { bestStart, bestEnd, bestMatchCount });
 
     return {
         firstIndex: bestStart,
@@ -2579,13 +2598,13 @@ async function startRecording() {
             }
         };
 
-        console.log('Requesting microphone with constraints:', JSON.stringify(audioConstraints));
+        debugLog('Requesting microphone with constraints:', JSON.stringify(audioConstraints));
 
         try {
             state.audioStream = await navigator.mediaDevices.getUserMedia(audioConstraints);
         } catch (constraintError) {
             // If constraints fail, try with minimal constraints
-            console.log('Detailed constraints failed, trying simple audio request');
+            debugLog('Detailed constraints failed, trying simple audio request');
             state.audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         }
 
@@ -2593,16 +2612,16 @@ async function startRecording() {
         const audioTrack = state.audioStream.getAudioTracks()[0];
         if (audioTrack) {
             const settings = audioTrack.getSettings();
-            console.log('Audio track settings:', JSON.stringify(settings));
+            debugLog('Audio track settings:', JSON.stringify(settings));
             // Capture actual sample rate for Speech-to-Text API
             if (settings.sampleRate) {
                 state.audioSampleRate = settings.sampleRate;
-                console.log('Captured audio sample rate:', state.audioSampleRate);
+                debugLog('Captured audio sample rate:', state.audioSampleRate);
             }
             // Capture actual channel count for Speech-to-Text API
             if (settings.channelCount) {
                 state.audioChannelCount = settings.channelCount;
-                console.log('Captured audio channel count:', state.audioChannelCount);
+                debugLog('Captured audio channel count:', state.audioChannelCount);
             }
         }
 
@@ -2610,7 +2629,7 @@ async function startRecording() {
         // Google Speech-to-Text inline audio has practical limits around 40-50 seconds
         // Lower bitrate = smaller files = more reliable processing
         const selectedBitrate = parseInt(audioBitrateInput.value);
-        console.log('Recording with bitrate:', selectedBitrate, 'bps');
+        debugLog('Recording with bitrate:', selectedBitrate, 'bps');
 
         // Determine supported audio format (iOS Safari doesn't support WebM)
         let mimeType = null;
@@ -2631,7 +2650,7 @@ async function startRecording() {
             if (format === '' || MediaRecorder.isTypeSupported(format)) {
                 mimeType = format || undefined;
                 actualMimeType = format || 'default';
-                console.log(`Using audio format: ${actualMimeType}`);
+                debugLog(`Using audio format: ${actualMimeType}`);
                 break;
             }
         }
@@ -2649,11 +2668,11 @@ async function startRecording() {
         state.recordingDuration = duration * 60; // Convert to seconds
         state.audioMimeType = actualMimeType; // Store for API call
 
-        console.log('MediaRecorder created with state:', state.mediaRecorder.state);
+        debugLog('MediaRecorder created with state:', state.mediaRecorder.state);
 
         // Collect audio data - request data every second for better reliability on mobile
         state.mediaRecorder.ondataavailable = (event) => {
-            console.log('Audio data available:', event.data.size, 'bytes');
+            debugLog('Audio data available:', event.data.size, 'bytes');
             if (event.data.size > 0) {
                 state.audioChunks.push(event.data);
             }
@@ -2661,19 +2680,19 @@ async function startRecording() {
 
         // Handle recording errors
         state.mediaRecorder.onerror = (event) => {
-            console.error('MediaRecorder error:', event.error);
+            debugError('MediaRecorder error:', event.error);
             alert('Recording error: ' + (event.error?.message || 'Unknown error'));
             stopRecording();
         };
 
         // Handle recording stop
         state.mediaRecorder.onstop = () => {
-            console.log('Recording stopped, chunks:', state.audioChunks.length);
+            debugLog('Recording stopped, chunks:', state.audioChunks.length);
 
             // Use the actual mime type from the recorder, or fall back to a generic type
             const blobType = state.mediaRecorder?.mimeType || state.audioMimeType || 'audio/webm';
             const audioBlob = new Blob(state.audioChunks, { type: blobType });
-            console.log('Created audio blob:', audioBlob.size, 'bytes, type:', blobType);
+            debugLog('Created audio blob:', audioBlob.size, 'bytes, type:', blobType);
 
             state.recordedAudioBlob = audioBlob;
 
@@ -2708,7 +2727,7 @@ async function startRecording() {
         }, state.recordingDuration * 1000);
 
     } catch (error) {
-        console.error('Error accessing microphone:', error);
+        debugError('Error accessing microphone:', error);
         alert('Could not access microphone. Please check permissions.');
     }
 }
@@ -2855,7 +2874,7 @@ async function analyzeRecordedAudio() {
 
     // Check if we already have spoken words from auto-detect (avoid redundant API call)
     if (state.latestSpokenWords && state.latestSpokenWords.length > 0) {
-        console.log('Using cached spoken words from auto-detect, skipping Speech-to-Text API call');
+        debugLog('Using cached spoken words from auto-detect, skipping Speech-to-Text API call');
         showStatus('Analyzing pronunciation...', 'processing');
 
         // Use cached data directly
@@ -2872,7 +2891,7 @@ async function analyzeRecordedAudio() {
         reader.readAsDataURL(state.recordedAudioBlob);
 
         reader.onerror = () => {
-            console.error('File reader error:', reader.error);
+            debugError('File reader error:', reader.error);
             showStatus('Error reading audio file. Please try recording again.', 'error');
         };
 
@@ -2885,14 +2904,14 @@ async function analyzeRecordedAudio() {
                 const fileSizeKB = fileSizeBytes / 1024;
                 const fileSizeMB = fileSizeBytes / (1024 * 1024);
 
-                console.log('=== AUDIO FILE DEBUG INFO ===');
-                console.log('Audio blob size (bytes):', fileSizeBytes);
-                console.log('Audio blob size (KB):', fileSizeKB.toFixed(2));
-                console.log('Audio blob size (MB):', fileSizeMB.toFixed(2));
-                console.log('Audio blob type:', state.recordedAudioBlob.type);
-                console.log('Base64 audio length:', base64Audio.length);
-                console.log('Recording duration (seconds):', state.recordingDuration);
-                console.log('Recording duration (minutes):', (state.recordingDuration / 60).toFixed(2));
+                debugLog('=== AUDIO FILE DEBUG INFO ===');
+                debugLog('Audio blob size (bytes):', fileSizeBytes);
+                debugLog('Audio blob size (KB):', fileSizeKB.toFixed(2));
+                debugLog('Audio blob size (MB):', fileSizeMB.toFixed(2));
+                debugLog('Audio blob type:', state.recordedAudioBlob.type);
+                debugLog('Base64 audio length:', base64Audio.length);
+                debugLog('Recording duration (seconds):', state.recordingDuration);
+                debugLog('Recording duration (minutes):', (state.recordingDuration / 60).toFixed(2));
 
                 // Check file size (Google has ~10MB limit for synchronous recognition)
                 if (fileSizeMB > 9.5) {
@@ -2915,8 +2934,8 @@ async function analyzeRecordedAudio() {
                 }
 
                 const channelCount = state.audioChannelCount || 1;
-                console.log('Audio mime type:', state.audioMimeType);
-                console.log('Using audio encoding:', encoding, 'sampleRate:', sampleRate, 'channels:', channelCount);
+                debugLog('Audio mime type:', state.audioMimeType);
+                debugLog('Using audio encoding:', encoding, 'sampleRate:', sampleRate, 'channels:', channelCount);
 
                 // Prepare API request
                 const requestBody = {
@@ -2934,7 +2953,7 @@ async function analyzeRecordedAudio() {
                     }
                 };
 
-                console.log('Sending request to Speech-to-Text API...');
+                debugLog('Sending request to Speech-to-Text API...');
 
                 // Note: Google's Long Running Recognize API requires GCS URI (not base64)
                 // So we only use synchronous API with inline base64 audio
@@ -2955,14 +2974,14 @@ async function analyzeRecordedAudio() {
                     }
                 );
 
-                console.log('Response status:', response.status);
-                console.log('Response headers:', response.headers);
+                debugLog('Response status:', response.status);
+                debugLog('Response headers:', response.headers);
 
                 const data = await response.json();
-                console.log('API Response:', data);
+                debugLog('API Response:', data);
 
                 if (data.error) {
-                    console.error('API Error:', data.error);
+                    debugError('API Error:', data.error);
                     let errorMessage = data.error.message || 'Unknown API error';
 
                     // Check for common errors
@@ -2980,7 +2999,7 @@ async function analyzeRecordedAudio() {
                 }
 
                 if (!data.results || data.results.length === 0) {
-                    console.warn('No speech detected in results');
+                    debugWarn('No speech detected in results');
                     showStatus('No speech detected in the audio. Please try recording again with clearer audio.', 'error');
                     return;
                 }
@@ -3005,25 +3024,25 @@ async function analyzeRecordedAudio() {
                                 endTime: wordData.endTime
                             });
                         } else {
-                            console.warn('Skipping incomplete word data:', wordData);
+                            debugWarn('Skipping incomplete word data:', wordData);
                         }
                     });
                 }
             });
 
-            console.log('Word-level info with timing:', wordInfo);
+            debugLog('Word-level info with timing:', wordInfo);
 
             // Use the reusable function for analysis and display
             performPronunciationAnalysis(wordInfo);
 
             } catch (innerError) {
-                console.error('Inner error during audio analysis:', innerError);
+                debugError('Inner error during audio analysis:', innerError);
                 showStatus('Error analyzing audio: ' + innerError.message, 'error');
             }
         };
 
     } catch (error) {
-        console.error('Outer Speech-to-Text error:', error);
+        debugError('Outer Speech-to-Text error:', error);
         showStatus('Error analyzing audio: ' + error.message, 'error');
     }
 }
@@ -3044,7 +3063,7 @@ function performPronunciationAnalysis(wordInfo) {
 
     // Analyze error patterns
     const errorPatterns = analyzeErrorPatterns(analysis, expectedWords);
-    console.log('Error patterns detected:', errorPatterns);
+    debugLog('Error patterns detected:', errorPatterns);
 
     // Calculate prosody metrics (WPM, prosody score)
     const prosodyMetrics = calculateProsodyMetrics(
@@ -3672,7 +3691,7 @@ function analyzePronunciation(expectedWords, spokenWordInfo) {
         }
     }
 
-    console.log('Detailed pronunciation analysis:', analysis);
+    debugLog('Detailed pronunciation analysis:', analysis);
     return analysis;
 }
 
@@ -3708,7 +3727,7 @@ function analyzeErrorPatterns(analysis, expectedWords) {
 
     // Safety check - ensure analysis.errors exists
     if (!analysis || !analysis.errors) {
-        console.warn('No analysis errors to process');
+        debugWarn('No analysis errors to process');
         patterns.summary = generatePatternSummary(patterns, analysis);
         return patterns;
     }
@@ -3718,7 +3737,7 @@ function analyzeErrorPatterns(analysis, expectedWords) {
     misreadWords.forEach(error => {
         // Skip if error object is missing expected or spoken properties
         if (!error) {
-            console.warn('Skipping null error object');
+            debugWarn('Skipping null error object');
             return;
         }
 
@@ -3726,7 +3745,7 @@ function analyzeErrorPatterns(analysis, expectedWords) {
         const spoken = error.spoken;
 
         if (!expected || typeof expected !== 'string' || !spoken || typeof spoken !== 'string') {
-            console.warn('Skipping malformed misread error:', error);
+            debugWarn('Skipping malformed misread error:', error);
             return;
         }
 
@@ -3994,7 +4013,7 @@ function analyzeVisualSimilarity(expected, actual, patterns) {
 // Analyze patterns in skipped words
 function analyzeSkippedWordPattern(word, patterns) {
     if (!word || typeof word !== 'string') {
-        console.warn('Skipping invalid word in analyzeSkippedWordPattern:', word);
+        debugWarn('Skipping invalid word in analyzeSkippedWordPattern:', word);
         return;
     }
     word = word.toLowerCase();
@@ -4325,7 +4344,7 @@ function calculateProsodyMetrics(expectedWords, spokenWordInfo, analysis, record
     else if (metrics.prosodyScore >= 2.0) metrics.prosodyGrade = 'Developing';
     else metrics.prosodyGrade = 'Needs Support';
 
-    console.log('Prosody Metrics:', metrics);
+    debugLog('Prosody Metrics:', metrics);
     return metrics;
 }
 
@@ -4365,7 +4384,7 @@ function displayWordCountOnlyResults() {
             <div class="selected-words-display">
                 <h4>Selected Words (${totalWords}):</h4>
                 <div class="words-list">
-                    ${selectedWords.map((word, i) => `<span class="word-item">${i + 1}. ${word}</span>`).join(' ')}
+                    ${selectedWords.map((word, i) => `<span class="word-item">${i + 1}. ${escapeHtml(word)}</span>`).join(' ')}
                 </div>
             </div>
         </div>
@@ -4387,6 +4406,9 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
 
     analysis.aligned.forEach(item => {
         const word = item.expected;
+        // Sanitize word data for display
+        const safeWord = escapeHtml(word);
+        const safeSpoken = escapeHtml(item.spoken || '');
         let className = 'word-correct';
         let errorLabel = '';
         let tooltipData = {
@@ -4414,9 +4436,9 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
             tooltipData.reason = 'A completely different word was spoken';
         }
 
-        // Store data as JSON in data attribute
-        const dataAttr = `data-word-info='${JSON.stringify(tooltipData).replace(/'/g, "&#39;")}'`;
-        wordsHtml += `<span class="${className}" ${dataAttr}>${word}${errorLabel}</span> `;
+        // Store data as JSON in data attribute (use escapeJsonForAttribute for safety)
+        const dataAttr = `data-word-info='${escapeJsonForAttribute(tooltipData)}'`;
+        wordsHtml += `<span class="${className}" ${dataAttr}>${safeWord}${errorLabel}</span> `;
     });
 
     // Build statistics
@@ -4441,7 +4463,7 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
 
     if (analysis.errors.misreadWords.length > 0) {
         const misreadList = analysis.errors.misreadWords.map(e =>
-            `"${e.expected}" → "${e.spoken}"`
+            `"${escapeHtml(e.expected)}" → "${escapeHtml(e.spoken)}"`
         ).join(', ');
         errorBreakdownHtml += `
             <div class="error-category">
@@ -4453,7 +4475,7 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
 
     if (analysis.errors.substitutedWords.length > 0) {
         const subList = analysis.errors.substitutedWords.map(e =>
-            `"${e.expected}" → "${e.spoken}"`
+            `"${escapeHtml(e.expected)}" → "${escapeHtml(e.spoken)}"`
         ).join(', ');
         errorBreakdownHtml += `
             <div class="error-category">
@@ -4465,7 +4487,7 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
 
     if (analysis.errors.hesitations.length > 0) {
         const hesitationList = analysis.errors.hesitations.map(h =>
-            h.type === 'filler' ? `"${h.word}"` : `pause before "${h.word}"`
+            h.type === 'filler' ? `"${escapeHtml(h.word)}"` : `pause before "${escapeHtml(h.word)}"`
         ).join(', ');
         errorBreakdownHtml += `
             <div class="error-category">
@@ -4476,7 +4498,7 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
     }
 
     if (analysis.errors.repeatedWords.length > 0) {
-        const repeatList = analysis.errors.repeatedWords.map(r => `"${r.word}"`).join(', ');
+        const repeatList = analysis.errors.repeatedWords.map(r => `"${escapeHtml(r.word)}"`).join(', ');
         errorBreakdownHtml += `
             <div class="error-category">
                 <strong>🔁 Repeated Words (${analysis.errors.repeatedWords.length}):</strong>
@@ -4497,7 +4519,7 @@ function displayPronunciationResults(expectedWords, spokenWordInfo, analysis, pr
     }
 
     if (analysis.errors.repeatedPhrases.length > 0) {
-        const phraseList = analysis.errors.repeatedPhrases.map(p => `"${p.phrase}"`).join(', ');
+        const phraseList = analysis.errors.repeatedPhrases.map(p => `"${escapeHtml(p.phrase)}"`).join(', ');
         errorBreakdownHtml += `
             <div class="error-category">
                 <strong>🔂 Repeated Phrases (${analysis.errors.repeatedPhrases.length}):</strong>
@@ -4828,7 +4850,7 @@ function downloadAnalysisAsHtml2Pdf() {
                 if (overlay.parentNode) document.body.removeChild(overlay);
             })
             .catch(err => {
-                console.error('PDF generation error:', err);
+                debugError('PDF generation error:', err);
                 // Clean up on error
                 if (printContainer.parentNode) document.body.removeChild(printContainer);
                 if (overlay.parentNode) document.body.removeChild(overlay);
@@ -5165,7 +5187,7 @@ async function generateTranscriptVideoInContainer(container) {
     const generateBtn = scope.querySelector('#generate-video-btn');
 
     if (!statusDiv || !generateBtn) {
-        console.error('Video generation elements not found');
+        debugError('Video generation elements not found');
         return;
     }
 
@@ -5177,243 +5199,22 @@ async function generateTranscriptVideo() {
     return await generateTranscriptVideoInContainer(document);
 }
 
-// Core video generation logic
+// Core video generation logic - Uses lazy-loaded module for better performance
 async function generateTranscriptVideoCore(statusDiv, generateBtn) {
-    if (!state.latestAnalysis || !state.latestSpokenWords) {
-        alert('No analysis data available');
-        return;
-    }
-
-    if (!state.recordedAudioBlob) {
-        if (state.viewingHistoricalAssessment) {
-            alert('No audio recording available for this historical assessment. This assessment was saved before audio storage was enabled. New assessments will include audio for video generation.');
-        } else {
-            alert('No audio recording available');
-        }
-        return;
-    }
-
     try {
+        // Show loading state while module loads
         generateBtn.disabled = true;
-        statusDiv.innerHTML = '<div class="video-progress">🎬 Generating video... Please wait</div>';
+        statusDiv.innerHTML = '<div class="video-progress">🎬 Loading video generator...</div>';
         statusDiv.style.display = 'block';
 
-        const analysis = state.latestAnalysis;
-        const spokenWords = state.latestSpokenWords;
-        const audioBlob = state.recordedAudioBlob;
+        // Lazy load the video generator module
+        const { generateVideo } = await import('./modules/video-generator.js');
 
-        // Create canvas for video rendering
-        const canvas = document.createElement('canvas');
-        canvas.width = 1280;
-        canvas.height = 720;
-        const ctx = canvas.getContext('2d');
-
-        // Video rendering settings
-        const padding = 60;
-        const lineHeight = 50;
-        const fontSize = 36;
-        const maxWidth = canvas.width - (padding * 2);
-
-        // Prepare word layout (wrap text)
-        const wordLayouts = [];
-        let xPos = padding;
-        let yPos = padding + fontSize;
-
-        analysis.aligned.forEach((item, index) => {
-            const word = item.expected;
-            ctx.font = `${fontSize}px Arial`;
-            const wordWidth = ctx.measureText(word + ' ').width;
-
-            // Wrap to next line if needed
-            if (xPos + wordWidth > canvas.width - padding) {
-                xPos = padding;
-                yPos += lineHeight;
-            }
-
-            wordLayouts.push({
-                word: word,
-                x: xPos,
-                y: yPos,
-                width: wordWidth,
-                status: item.status,
-                spoken: item.spoken,
-                startTime: item.startTime,
-                endTime: item.endTime
-            });
-
-            xPos += wordWidth;
-        });
-
-        // Create audio context and decode audio (will be used for both duration and streaming)
-        const audioContext = new AudioContext();
-        const audioBuffer = await audioBlob.arrayBuffer();
-        const decodedAudio = await audioContext.decodeAudioData(audioBuffer);
-        const audioDuration = decodedAudio.duration;
-
-        // Render function
-        function renderFrame(currentTime) {
-            // Clear canvas with white background
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Draw title
-            ctx.fillStyle = '#333333';
-            ctx.font = 'bold 28px Arial';
-            ctx.fillText('Oral Fluency Analysis', padding, 35);
-
-            // Draw each word with appropriate highlighting
-            ctx.font = `${fontSize}px Arial`;
-
-            wordLayouts.forEach(layout => {
-                let color = '#cccccc'; // Default: not yet spoken
-                let isCurrentWord = false;
-
-                // Check if this word is being spoken right now
-                if (layout.startTime && layout.endTime) {
-                    const startTime = parseFloat(layout.startTime.replace('s', ''));
-                    const endTime = parseFloat(layout.endTime.replace('s', ''));
-
-                    if (currentTime >= startTime && currentTime <= endTime) {
-                        isCurrentWord = true;
-                        // Highlight current word based on status
-                        if (layout.status === 'correct') {
-                            color = '#22c55e'; // Bright green
-                        } else if (layout.status === 'misread') {
-                            color = '#f97316'; // Orange
-                        } else if (layout.status === 'skipped') {
-                            color = '#ef4444'; // Red
-                        } else if (layout.status === 'substituted') {
-                            color = '#dc2626'; // Dark red
-                        }
-                    } else if (currentTime > endTime) {
-                        // Already spoken - use dimmer colors
-                        if (layout.status === 'correct') {
-                            color = '#86efac'; // Light green
-                        } else if (layout.status === 'misread') {
-                            color = '#fdba74'; // Light orange
-                        } else if (layout.status === 'skipped') {
-                            color = '#fca5a5'; // Light red
-                        } else if (layout.status === 'substituted') {
-                            color = '#fca5a5'; // Light red
-                        }
-                    }
-                } else {
-                    // No timing data - use status colors dimly
-                    if (layout.status === 'correct') {
-                        color = '#86efac';
-                    } else if (layout.status === 'misread') {
-                        color = '#fdba74';
-                    } else if (layout.status === 'skipped') {
-                        color = '#fca5a5';
-                    }
-                }
-
-                // Draw word
-                ctx.fillStyle = color;
-                ctx.fillText(layout.word, layout.x, layout.y);
-
-                // Draw underline for current word
-                if (isCurrentWord) {
-                    ctx.fillRect(layout.x, layout.y + 8, layout.width - 10, 3);
-                }
-            });
-
-            // Draw legend at bottom
-            const legendY = canvas.height - 40;
-            ctx.font = '20px Arial';
-
-            ctx.fillStyle = '#22c55e';
-            ctx.fillText('■ Correct', padding, legendY);
-
-            ctx.fillStyle = '#f97316';
-            ctx.fillText('■ Misread', padding + 150, legendY);
-
-            ctx.fillStyle = '#ef4444';
-            ctx.fillText('■ Skipped', padding + 300, legendY);
-
-            ctx.fillStyle = '#cccccc';
-            ctx.fillText('■ Not Yet Spoken', padding + 450, legendY);
-        }
-
-        // Create canvas stream for video
-        const canvasStream = canvas.captureStream(30); // 30 fps
-
-        // Create media stream destination for audio
-        const audioDestination = audioContext.createMediaStreamDestination();
-
-        // Create buffer source from previously decoded audio
-        const audioSource = audioContext.createBufferSource();
-        audioSource.buffer = decodedAudio;
-        audioSource.connect(audioDestination);
-
-        // Combine video and audio streams
-        const combinedStream = new MediaStream([
-            ...canvasStream.getVideoTracks(),
-            ...audioDestination.stream.getAudioTracks()
-        ]);
-
-        const mediaRecorder = new MediaRecorder(combinedStream, {
-            mimeType: 'video/webm;codecs=vp9,opus',
-            videoBitsPerSecond: 2500000,
-            audioBitsPerSecond: 128000
-        });
-
-        const chunks = [];
-        mediaRecorder.ondataavailable = (e) => {
-            if (e.data.size > 0) {
-                chunks.push(e.data);
-            }
-        };
-
-        mediaRecorder.onstop = async () => {
-            const videoBlob = new Blob(chunks, { type: 'video/webm' });
-            const url = URL.createObjectURL(videoBlob);
-
-            // Clean up audio context
-            audioContext.close();
-
-            // Create download link
-            const a = document.createElement('a');
-            a.href = url;
-            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-            a.download = `reading-comprehension-video-${timestamp}.webm`;
-
-            statusDiv.innerHTML = `
-                <div class="video-complete">
-                    ✅ Video generated successfully!
-                    <a href="${url}" download="${a.download}" class="btn btn-primary" style="margin-left: 10px;">
-                        <span class="icon">💾</span> Download Video
-                    </a>
-                </div>
-            `;
-
-            generateBtn.disabled = false;
-        };
-
-        // Start recording and audio playback simultaneously
-        mediaRecorder.start();
-        audioSource.start(0);
-
-        // Render frames
-        const fps = 30;
-        const frameInterval = 1000 / fps;
-        let currentTime = 0;
-
-        const renderInterval = setInterval(() => {
-            currentTime += frameInterval / 1000;
-
-            if (currentTime >= audioDuration) {
-                clearInterval(renderInterval);
-                mediaRecorder.stop();
-                audioSource.stop();
-            } else {
-                renderFrame(currentTime);
-            }
-        }, frameInterval);
-
+        // Call the module's video generation function
+        await generateVideo(state, statusDiv, generateBtn);
     } catch (error) {
-        console.error('Error generating video:', error);
-        statusDiv.innerHTML = `<div class="error">❌ Error generating video: ${error.message}</div>`;
+        debugError('Error loading video generator:', error);
+        statusDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
         generateBtn.disabled = false;
     }
 }
@@ -5575,16 +5376,20 @@ async function renderStudentsGrid() {
 
     studentsGrid.innerHTML = studentArray.map(student => {
         const stats = getStudentStats(student);
-        const initial = student.name.charAt(0).toUpperCase();
+        // Sanitize user-provided data to prevent XSS
+        const safeName = escapeHtml(student.name);
+        const safeGrade = escapeHtml(student.grade || 'No grade set');
+        const safeId = escapeHtml(student.id);
+        const initial = safeName.charAt(0).toUpperCase();
         const accuracyClass = getCardAccuracyClass(stats.latestAccuracy);
 
         return `
-            <div class="student-card" data-student-id="${student.id}">
+            <div class="student-card" data-student-id="${safeId}">
                 <div class="student-card-header">
                     <div class="student-avatar">${initial}</div>
                     <div class="student-info">
-                        <h3>${student.name}</h3>
-                        <p class="student-grade">${student.grade || 'No grade set'}</p>
+                        <h3>${safeName}</h3>
+                        <p class="student-grade">${safeGrade}</p>
                     </div>
                 </div>
                 <div class="student-stats">
@@ -6011,15 +5816,18 @@ function renderProgressChart(student) {
 // Render student summary
 function renderStudentSummary(student) {
     const stats = getStudentStats(student);
-    const initial = student.name.charAt(0).toUpperCase();
+    // Sanitize user-provided data
+    const safeName = escapeHtml(student.name);
+    const safeGrade = escapeHtml(student.grade || 'Grade not set');
+    const initial = safeName.charAt(0).toUpperCase();
 
     studentStatsSummary.innerHTML = `
         <div class="summary-header">
             <div class="summary-avatar">${initial}</div>
             <div class="summary-info">
-                <h3>${student.name}</h3>
+                <h3>${safeName}</h3>
                 <div class="summary-meta">
-                    ${student.grade || 'Grade not set'} •
+                    ${safeGrade} •
                     Added ${new Date(student.dateAdded).toLocaleDateString()}
                 </div>
             </div>
@@ -6250,9 +6058,9 @@ async function viewHistoricalAssessment(studentId, assessmentId) {
             // Convert base64 data URL back to blob
             const response = await fetch(assessment.audioData);
             state.recordedAudioBlob = await response.blob();
-            console.log('Audio loaded from historical assessment');
+            debugLog('Audio loaded from historical assessment');
         } catch (error) {
-            console.warn('Failed to load historical audio:', error);
+            debugWarn('Failed to load historical audio:', error);
             state.recordedAudioBlob = null;
         }
     } else {
@@ -6308,7 +6116,7 @@ async function updateStudentDropdown() {
     const studentArray = Object.values(students).sort((a, b) => a.name.localeCompare(b.name));
 
     studentSelect.innerHTML = '<option value="">-- Choose Student --</option>' +
-        studentArray.map(s => `<option value="${s.id}">${s.name} (${s.grade || 'No grade'})</option>`).join('');
+        studentArray.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)} (${escapeHtml(s.grade || 'No grade')})</option>`).join('');
 }
 
 // Save current assessment to student
@@ -6400,7 +6208,7 @@ async function confirmAddStudent() {
         updateStudentDropdown();
         updateAssessmentStudentDropdown();
     } catch (error) {
-        console.error('Error adding student:', error);
+        debugError('Error adding student:', error);
         alert('Failed to add student. Please try again.');
     }
 }
@@ -6428,7 +6236,7 @@ async function updateAssessmentStudentDropdown() {
     const studentArray = Object.values(students).sort((a, b) => a.name.localeCompare(b.name));
 
     assessmentStudentSelect.innerHTML = '<option value="">-- Choose Student --</option>' +
-        studentArray.map(s => `<option value="${s.id}">${s.name} (${s.grade || 'No grade'})</option>`).join('');
+        studentArray.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)} (${escapeHtml(s.grade || 'No grade')})</option>`).join('');
 }
 
 // Handle assessment student selection
@@ -6658,7 +6466,7 @@ async function initDatabaseFeaturesAsync() {
 
 // Initialize after user authentication
 async function initializeApp() {
-    console.log('Initializing Word Analyzer app...');
+    debugLog('Initializing Word Analyzer app...');
 
     try {
         // Update loading status
@@ -6679,7 +6487,7 @@ async function initializeApp() {
         // Initialize database features
         await initDatabaseFeaturesAsync();
 
-        console.log('App initialized successfully');
+        debugLog('App initialized successfully');
 
         // Small delay for smoother transition
         await new Promise(resolve => setTimeout(resolve, 300));
@@ -6688,14 +6496,14 @@ async function initializeApp() {
         showAppReady();
 
     } catch (error) {
-        console.error('Error initializing app:', error);
+        debugError('Error initializing app:', error);
         updateLoadingStatus('Error loading app. Please refresh.');
     }
 }
 
 // Wait for user authentication before initializing app
 window.addEventListener('userAuthenticated', async (event) => {
-    console.log('User authenticated, initializing app...');
+    debugLog('User authenticated, initializing app...');
     await initializeApp();
 });
 

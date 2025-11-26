@@ -2,6 +2,7 @@
 // This file provides wrapper functions that make async Firebase calls work with the synchronous UI code
 
 import * as FirebaseDB from './firebase-db.js';
+import { escapeHtml, ACCURACY_THRESHOLDS, getCardAccuracyClass } from './utils.js';
 
 // Make async database functions globally available with promise handlers
 window.renderStudentsGridAsync = async function() {
@@ -24,20 +25,20 @@ window.renderStudentsGridAsync = async function() {
 
     studentsGrid.innerHTML = studentArray.map(student => {
         const stats = FirebaseDB.getStudentStats(student);
-        const initial = student.name.charAt(0).toUpperCase();
-
-        let accuracyClass = 'good';
-        if (stats.latestAccuracy >= 95) accuracyClass = 'good';
-        else if (stats.latestAccuracy >= 85) accuracyClass = 'warning';
-        else accuracyClass = 'poor';
+        // Sanitize user-provided data
+        const safeName = escapeHtml(student.name);
+        const safeGrade = escapeHtml(student.grade || 'No grade set');
+        const safeId = escapeHtml(student.id);
+        const initial = safeName.charAt(0).toUpperCase();
+        const accuracyClass = getCardAccuracyClass(stats.latestAccuracy);
 
         return `
-            <div class="student-card" data-student-id="${student.id}">
+            <div class="student-card" data-student-id="${safeId}">
                 <div class="student-card-header">
                     <div class="student-avatar">${initial}</div>
                     <div class="student-info">
-                        <h3>${student.name}</h3>
-                        <p class="student-grade">${student.grade || 'No grade set'}</p>
+                        <h3>${safeName}</h3>
+                        <p class="student-grade">${safeGrade}</p>
                     </div>
                 </div>
                 <div class="student-stats">
@@ -81,7 +82,7 @@ window.updateStudentDropdownAsync = async function() {
     const studentArray = Object.values(students).sort((a, b) => a.name.localeCompare(b.name));
 
     studentSelect.innerHTML = '<option value="">-- Choose Student --</option>' +
-        studentArray.map(s => `<option value="${s.id}">${s.name} (${s.grade || 'No grade'})</option>`).join('');
+        studentArray.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)} (${escapeHtml(s.grade || 'No grade')})</option>`).join('');
 };
 
 window.updateAssessmentStudentDropdownAsync = async function() {
@@ -92,7 +93,7 @@ window.updateAssessmentStudentDropdownAsync = async function() {
     const studentArray = Object.values(students).sort((a, b) => a.name.localeCompare(b.name));
 
     assessmentStudentSelect.innerHTML = '<option value="">-- Choose Student --</option>' +
-        studentArray.map(s => `<option value="${s.id}">${s.name} (${s.grade || 'No grade'})</option>`).join('');
+        studentArray.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)} (${escapeHtml(s.grade || 'No grade')})</option>`).join('');
 };
 
 // Export Firebase functions for global use

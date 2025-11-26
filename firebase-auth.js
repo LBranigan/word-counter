@@ -1,6 +1,7 @@
 // Firebase Authentication Handler
 import { auth, googleProvider, signInWithPopup, onAuthStateChanged, signOut } from './firebase-config.js';
 import { migrateLocalStorageToFirestore } from './firebase-db.js';
+import { escapeHtml, debugLog, debugError } from './utils.js';
 
 // Global user state
 let currentUser = null;
@@ -54,7 +55,7 @@ function initAuth() {
         if (user) {
             // User is signed in (either fresh login or returning session)
             currentUser = user;
-            console.log('User detected:', user.email);
+            debugLog('User detected:', user.email);
 
             // If user hasn't clicked sign-in yet, just update the button and wait
             if (!userClickedSignIn) {
@@ -70,7 +71,7 @@ function initAuth() {
             currentUser = null;
             cachedUser = null;
             userClickedSignIn = false;
-            console.log('User signed out');
+            debugLog('User signed out');
 
             // Show login screen, hide app and loading screen
             loginScreen.classList.remove('hidden');
@@ -86,10 +87,12 @@ function initAuth() {
 // Update sign-in button for returning users
 function updateSignInButtonForReturningUser(user) {
     const displayName = user.displayName || user.email;
-    const firstName = displayName.split(' ')[0];
+    const firstName = escapeHtml(displayName.split(' ')[0]);
+    // Photo URL is from Google OAuth, but sanitize for safety
+    const safePhotoUrl = user.photoURL ? escapeHtml(user.photoURL) : '';
 
     googleSignInBtn.innerHTML = `
-        <img src="${user.photoURL || ''}" class="returning-user-photo" alt="" style="width: 24px; height: 24px; border-radius: 50%; ${user.photoURL ? '' : 'display: none;'}">
+        <img src="${safePhotoUrl}" class="returning-user-photo" alt="" style="width: 24px; height: 24px; border-radius: 50%; ${safePhotoUrl ? '' : 'display: none;'}">
         Continue as ${firstName}
     `;
     googleSignInBtn.classList.add('returning-user');
@@ -172,10 +175,10 @@ async function handleGoogleSignIn() {
         const result = await signInWithPopup(auth, googleProvider);
         const user = result.user;
 
-        console.log('Successfully signed in:', user.email);
+        debugLog('Successfully signed in:', user.email);
         // onAuthStateChanged will handle the rest since userClickedSignIn is true
     } catch (error) {
-        console.error('Sign-in error:', error);
+        debugError('Sign-in error:', error);
         userClickedSignIn = false;  // Reset flag on error
 
         let errorMessage = 'Failed to sign in. Please try again.';
@@ -201,9 +204,9 @@ async function handleSignOut() {
     if (confirm('Are you sure you want to sign out?')) {
         try {
             await signOut(auth);
-            console.log('Successfully signed out');
+            debugLog('Successfully signed out');
         } catch (error) {
-            console.error('Sign-out error:', error);
+            debugError('Sign-out error:', error);
             alert('Failed to sign out. Please try again.');
         }
     }

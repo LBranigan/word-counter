@@ -3,6 +3,7 @@
 
 import { db, doc, getDoc, setDoc } from './firebase-config.js';
 import { getCurrentUser } from './firebase-auth.js';
+import { debugLog, debugError, API_USAGE_CONSTANTS } from './utils.js';
 
 // Save Google Cloud API key to user's Firestore profile
 export async function saveApiKeyToFirebase(apiKey) {
@@ -19,10 +20,10 @@ export async function saveApiKeyToFirebase(apiKey) {
             updatedAt: Date.now()
         }, { merge: true });
 
-        console.log('API key saved to Firebase successfully');
+        debugLog('API key saved to Firebase successfully');
         return true;
     } catch (error) {
-        console.error('Error saving API key to Firebase:', error);
+        debugError('Error saving API key to Firebase:', error);
         return false;
     }
 }
@@ -40,13 +41,13 @@ export async function loadApiKeyFromFirebase() {
 
         if (docSnap.exists()) {
             const data = docSnap.data();
-            console.log('API key loaded from Firebase');
+            debugLog('API key loaded from Firebase');
             return data.googleCloudApiKey || null;
         }
 
         return null;
     } catch (error) {
-        console.error('Error loading API key from Firebase:', error);
+        debugError('Error loading API key from Firebase:', error);
         return null;
     }
 }
@@ -79,7 +80,7 @@ export async function validateApiKey(apiKey) {
 
         // Check for errors
         if (data.error) {
-            console.error('API key validation failed:', data.error);
+            debugError('API key validation failed:', data.error);
             return {
                 valid: false,
                 error: data.error.message || 'Invalid API key'
@@ -93,7 +94,7 @@ export async function validateApiKey(apiKey) {
         };
 
     } catch (error) {
-        console.error('Error validating API key:', error);
+        debugError('Error validating API key:', error);
         return {
             valid: false,
             error: 'Failed to validate API key. Please check your connection.'
@@ -146,10 +147,10 @@ export async function trackApiUsage(apiType, details = {}) {
         }
 
         await setDoc(usageRef, usageData);
-        console.log(`${apiType} usage tracked successfully`);
+        debugLog(`${apiType} usage tracked successfully`);
 
     } catch (error) {
-        console.error('Error tracking API usage:', error);
+        debugError('Error tracking API usage:', error);
         // Don't throw - usage tracking failure shouldn't break the app
     }
 }
@@ -177,19 +178,19 @@ export async function getUsageStats() {
             vision: {
                 total: visionData.totalCalls || 0,
                 thisMonth: visionData.monthlyUsage?.[currentMonth]?.calls || 0,
-                freeTierLimit: 1000,
-                percentUsed: ((visionData.monthlyUsage?.[currentMonth]?.calls || 0) / 1000 * 100).toFixed(1)
+                freeTierLimit: API_USAGE_CONSTANTS.VISION_FREE_TIER_LIMIT,
+                percentUsed: ((visionData.monthlyUsage?.[currentMonth]?.calls || 0) / API_USAGE_CONSTANTS.VISION_FREE_TIER_LIMIT * 100).toFixed(1)
             },
             speech: {
                 total: speechData.totalCalls || 0,
                 thisMonth: speechData.monthlyUsage?.[currentMonth]?.calls || 0,
-                freeTierLimit: 60, // minutes
-                percentUsed: ((speechData.monthlyUsage?.[currentMonth]?.calls || 0) / 60 * 100).toFixed(1)
+                freeTierLimit: API_USAGE_CONSTANTS.SPEECH_FREE_TIER_LIMIT, // minutes
+                percentUsed: ((speechData.monthlyUsage?.[currentMonth]?.calls || 0) / API_USAGE_CONSTANTS.SPEECH_FREE_TIER_LIMIT * 100).toFixed(1)
             }
         };
 
     } catch (error) {
-        console.error('Error getting usage stats:', error);
+        debugError('Error getting usage stats:', error);
         return null;
     }
 }

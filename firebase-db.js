@@ -1,6 +1,7 @@
 // Firebase Firestore Database Handler
 import { db, collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query } from './firebase-config.js';
 import { getCurrentUser } from './firebase-auth.js';
+import { debugLog, debugError } from './utils.js';
 
 // ============ FIRESTORE DATABASE FUNCTIONS ============
 
@@ -27,7 +28,7 @@ export async function getAllStudents() {
         // If no students, return empty object (don't create samples in cloud)
         return students;
     } catch (error) {
-        console.error('Error getting students:', error);
+        debugError('Error getting students:', error);
         throw error;
     }
 }
@@ -45,9 +46,9 @@ export async function saveAllStudents(students) {
         });
 
         await Promise.all(promises);
-        console.log('All students saved successfully');
+        debugLog('All students saved successfully');
     } catch (error) {
-        console.error('Error saving students:', error);
+        debugError('Error saving students:', error);
         throw error;
     }
 }
@@ -70,10 +71,10 @@ export async function addStudent(name, grade = '') {
         };
 
         await setDoc(studentRef, studentData);
-        console.log('Student added:', name);
+        debugLog('Student added:', name);
         return studentId;
     } catch (error) {
-        console.error('Error adding student:', error);
+        debugError('Error adding student:', error);
         throw error;
     }
 }
@@ -92,7 +93,7 @@ export async function getStudent(studentId) {
         }
         return null;
     } catch (error) {
-        console.error('Error getting student:', error);
+        debugError('Error getting student:', error);
         throw error;
     }
 }
@@ -105,10 +106,10 @@ export async function updateStudent(studentId, updates) {
 
         const studentRef = doc(db, 'users', user.uid, 'students', studentId);
         await updateDoc(studentRef, updates);
-        console.log('Student updated:', studentId);
+        debugLog('Student updated:', studentId);
         return true;
     } catch (error) {
-        console.error('Error updating student:', error);
+        debugError('Error updating student:', error);
         return false;
     }
 }
@@ -121,10 +122,10 @@ export async function deleteStudent(studentId) {
 
         const studentRef = doc(db, 'users', user.uid, 'students', studentId);
         await deleteDoc(studentRef);
-        console.log('Student deleted:', studentId);
+        debugLog('Student deleted:', studentId);
         return true;
     } catch (error) {
-        console.error('Error deleting student:', error);
+        debugError('Error deleting student:', error);
         return false;
     }
 }
@@ -134,7 +135,7 @@ export async function addAssessmentToStudent(studentId, assessmentData) {
     try {
         const student = await getStudent(studentId);
         if (!student) {
-            console.error('Student not found:', studentId);
+            debugError('Student not found:', studentId);
             return false;
         }
 
@@ -155,10 +156,10 @@ export async function addAssessmentToStudent(studentId, assessmentData) {
         const studentRef = doc(db, 'users', user.uid, 'students', studentId);
         await setDoc(studentRef, student);
 
-        console.log('Assessment added to student:', studentId);
+        debugLog('Assessment added to student:', studentId);
         return true;
     } catch (error) {
-        console.error('Error adding assessment:', error);
+        debugError('Error adding assessment:', error);
         return false;
     }
 }
@@ -177,10 +178,10 @@ export async function deleteAssessment(studentId, assessmentId) {
         const studentRef = doc(db, 'users', user.uid, 'students', studentId);
         await setDoc(studentRef, student);
 
-        console.log('Assessment deleted:', assessmentId);
+        debugLog('Assessment deleted:', assessmentId);
         return true;
     } catch (error) {
-        console.error('Error deleting assessment:', error);
+        debugError('Error deleting assessment:', error);
         return false;
     }
 }
@@ -225,19 +226,19 @@ export function getStudentStats(student) {
 // Migrate data from localStorage to Firestore
 export async function migrateLocalStorageToFirestore(userId) {
     try {
-        console.log('Checking for localStorage data to migrate...');
+        debugLog('Checking for localStorage data to migrate...');
 
         // Check if there's data in localStorage
         const localData = localStorage.getItem('wordAnalyzerStudents');
         if (!localData) {
-            console.log('No localStorage data to migrate');
+            debugLog('No localStorage data to migrate');
             return;
         }
 
         // Check if user already has data in Firestore
         const firestoreStudents = await getAllStudents();
         if (Object.keys(firestoreStudents).length > 0) {
-            console.log('User already has Firestore data, skipping migration');
+            debugLog('User already has Firestore data, skipping migration');
             return;
         }
 
@@ -245,17 +246,17 @@ export async function migrateLocalStorageToFirestore(userId) {
         const students = JSON.parse(localData);
 
         // Save to Firestore
-        console.log('Migrating', Object.keys(students).length, 'students to Firestore...');
+        debugLog('Migrating', Object.keys(students).length, 'students to Firestore...');
         await saveAllStudents(students);
 
-        console.log('Migration completed successfully!');
+        debugLog('Migration completed successfully!');
 
         // Optional: Clear localStorage after successful migration
         // localStorage.removeItem('wordAnalyzerStudents');
-        // console.log('localStorage data cleared');
+        // debugLog('localStorage data cleared');
 
     } catch (error) {
-        console.error('Error during migration:', error);
+        debugError('Error during migration:', error);
         alert('Warning: Failed to migrate your local data to the cloud. Your local data is still safe.');
     }
 }
@@ -327,12 +328,12 @@ export async function initializeSampleStudents() {
     try {
         const students = await getAllStudents();
         if (Object.keys(students).length === 0) {
-            console.log('No students found, creating sample students...');
+            debugLog('No students found, creating sample students...');
             const sampleStudents = createSampleStudents();
             await saveAllStudents(sampleStudents);
-            console.log('Sample students created');
+            debugLog('Sample students created');
         }
     } catch (error) {
-        console.error('Error initializing sample students:', error);
+        debugError('Error initializing sample students:', error);
     }
 }
