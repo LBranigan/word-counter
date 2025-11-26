@@ -1535,22 +1535,24 @@ footer {
 }
 
 .instructions-toggle {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    width: 100%;
-    padding: 0.5rem 1rem;
-    background: transparent;
+    gap: 0.4rem;
+    margin: 0 auto;
+    padding: 0.4rem 0.9rem;
+    background: rgba(255, 255, 255, 0.15);
     border: none;
-    color: var(--text-muted);
-    font-size: 0.875rem;
+    border-radius: 20px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.8rem;
     cursor: pointer;
-    transition: color var(--transition-fast);
+    transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .instructions-toggle:hover {
-    color: var(--primary);
+    background: rgba(255, 255, 255, 0.25);
+    color: rgba(255, 255, 255, 0.9);
 }
 
 .instructions-chevron {
@@ -1569,26 +1571,30 @@ footer {
     max-height: 0;
     overflow: hidden;
     opacity: 0;
-    transition: max-height var(--transition-slow), opacity var(--transition-slow), padding var(--transition-slow);
+    transition: max-height var(--transition-slow), opacity var(--transition-slow), margin var(--transition-slow);
 }
 
 .instructions-collapsible.expanded .instructions-content {
     max-height: 300px;
     opacity: 1;
-    padding-top: 0.75rem;
+    margin-top: 0.75rem;
 }
 
 .instructions-collapsible .instructions-list {
-    background: rgba(102, 126, 234, 0.05);
-    border-left: 3px solid rgba(102, 126, 234, 0.3);
-    border-radius: var(--radius-sm);
-    padding: 1rem 1rem 1rem 2rem;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: var(--radius-md);
+    padding: 1rem 1rem 1rem 2.25rem;
     color: var(--text-light);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .instructions-collapsible .instructions-list li {
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.35rem;
+}
+
+.instructions-collapsible .instructions-list li strong {
+    color: var(--text);
 }
 
 .setup-container {
