@@ -382,7 +382,17 @@ word-analyzer/
 
 ## Version History
 
-### v2.2 (Current) - November 24, 2025
+### v3.2.11 (Current) - November 25, 2025
+- ✅ PDF opens in new browser tab AND downloads automatically
+- ✅ PDF generation shows themed purple loading screen (no visual glitches)
+- ✅ PDF button shows "⏳ Generating..." state while loading
+- ✅ Export Words now works for historical assessments
+- ✅ Removed "Oral Fluency Analysis" header from results page
+- ✅ XSS sanitization for user-provided data
+- ✅ Debug logging with toggleable flag
+- ✅ Lazy-loaded video generator module for better performance
+
+### v2.2 - November 24, 2025
 - ✅ Fixed PDF generation on mobile devices
 - ✅ Fixed tap-to-deselect on touch devices after auto-detect
 - ✅ Tooltip displays for 4 seconds on mobile

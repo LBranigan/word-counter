@@ -1,6 +1,6 @@
 # Word Analyzer - QA Checklist
 
-## Version: 2025-01-22 (Guided UX)
+## Version: 3.2.11 (2025-11-25)
 
 ### ✅ Step 1: Setup (API Key)
 - [x] API key input field accepts text
@@ -89,13 +89,19 @@
   - [x] Breadcrumb shows "highlight" as completed (green)
 
 - [x] **Export Options**
-  - [x] "Download Output (PDF)" button works
+  - [x] "Generate PDF" button works
+  - [x] PDF button shows grey "⏳ Generating..." state while loading
+  - [x] Themed purple loading screen displays during PDF generation
+  - [x] PDF opens in new browser tab automatically
+  - [x] PDF downloads automatically
   - [x] PDF contains full analysis report
   - [x] PDF filename includes timestamp
   - [x] "Generate Video" button works in results section
   - [x] Video generation shows progress
   - [x] Video download link appears
   - [x] Video filename includes timestamp
+  - [x] "Export Words" works for current assessments
+  - [x] "Export Words" works for historical assessments (uses latestExpectedWords fallback)
 
 - [x] **Navigation**
   - [x] "Back to Edit" returns to highlight section
@@ -146,11 +152,21 @@
 - [x] "Start New Analysis" properly resets state
 - [x] No data leaks between sessions
 
+### ✅ Historical Assessments
+- [x] View historical assessment from student profile
+- [x] Historical banner displays with student name and date
+- [x] "Back to Student Profile" button navigates correctly
+- [x] "Generate PDF" works for historical assessments
+- [x] "View Detailed Patterns" works for historical assessments
+- [x] "Export Words" works for historical assessments
+- [x] "Generate Video" shows appropriate message if no audio stored
+
 ### 🐛 Known Issues / Limitations
 - Audio recording limited to 5 minutes (API file size limit)
 - Requires Google Cloud Vision API key (user-provided)
 - Desktop experience recommended for best results
 - Large images may take longer to process
+- Historical assessments saved before audio storage enabled won't have video generation
 
 ### ✅ Overall Assessment
 **Status**: READY FOR PRODUCTION ✅
@@ -159,3 +175,19 @@
 - Error handling robust
 - User experience smooth and guided
 - Documentation complete
+
+---
+
+## Recent Changes (v3.2.11 - 2025-11-25)
+
+### PDF Generation Improvements
+- ✅ Button shows "⏳ Generating..." with grey background while loading
+- ✅ PDF opens in new browser tab AND downloads automatically
+- ✅ Themed purple loading screen (matching app gradient) during generation
+- ✅ No visual glitches or content showing through
+
+### Export Words Fix
+- ✅ Works for historical assessments (falls back to latestExpectedWords)
+
+### UI Cleanup
+- ✅ Removed "🎯 Oral Fluency Analysis" header from results page

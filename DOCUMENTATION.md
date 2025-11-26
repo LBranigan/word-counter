@@ -1,7 +1,7 @@
 # Word Analyzer - Technical Documentation
 
-**Version**: 2025-01-22 (Guided UX)
-**Last Updated**: January 22, 2025
+**Version**: 3.2.11
+**Last Updated**: November 25, 2025
 
 ---
 
@@ -519,18 +519,29 @@ function alignWords(expectedWords, spokenWords) {
 
 ## Export Functions
 
-### PDF Generation (jsPDF)
+### PDF Generation (html2pdf)
 ```javascript
-function downloadAnalysisAsPDF() {
-    const doc = new jsPDF();
+function downloadAnalysisAsHtml2Pdf() {
+    // 1. Disable button, show "⏳ Generating..." state
+    // 2. Create themed purple loading overlay (prevents visual glitches)
+    // 3. Create hidden print container with report HTML
+    // 4. Use html2canvas to capture content
+    // 5. Generate PDF blob
+    // 6. Open PDF in new browser tab
+    // 7. Trigger automatic download
+    // 8. Clean up overlay and restore button state
 
-    // 1. Add title & timestamp
-    // 2. Add statistics section
-    // 3. Add full transcript (color-coded)
-    // 4. Add error breakdown
-    // 5. Save with timestamp filename
+    // Button states during generation:
+    pdfBtn.disabled = true;
+    pdfBtn.innerHTML = '<span class="icon">⏳</span> Generating...';
+    pdfBtn.style.background = '#6c757d'; // Grey
 
-    doc.save(`reading-comprehension-analysis-${timestamp}.pdf`);
+    // Loading overlay (app-themed purple gradient)
+    overlay.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+
+    // Output: Opens in new tab AND downloads
+    window.open(pdfUrl, '_blank');
+    downloadLink.click();
 }
 ```
 
@@ -751,4 +762,4 @@ https://github.com/LBranigan/word-analyzer/commits/main
 ---
 
 **Documentation maintained by**: Claude Code (Anthropic)
-**Last review**: January 22, 2025
+**Last review**: November 25, 2025
