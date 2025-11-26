@@ -4774,11 +4774,10 @@ function downloadAnalysisAsHtml2Pdf() {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
         || (window.innerWidth <= 768);
 
-    // Create the content element - positioned behind the page content (negative z-index)
-    // This avoids the white flash while keeping content capturable by html2canvas
+    // Create the content element - use near-zero opacity (invisible to eye, capturable by html2canvas)
     const printContainer = document.createElement('div');
     printContainer.id = 'pdf-content-container';
-    printContainer.style.cssText = 'position: absolute; top: 0; left: 0; width: 794px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box; z-index: -1;';
+    printContainer.style.cssText = 'position: fixed; top: 0; left: 0; width: 794px; background: #ffffff; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; color: #333; padding: 57px; box-sizing: border-box; z-index: 99999; opacity: 0.001;';
 
     printContainer.innerHTML = `
         <h1 style="text-align: center; color: #667eea; font-size: 18px; margin: 0 0 5px 0;">Oral Fluency Analysis Report</h1>
