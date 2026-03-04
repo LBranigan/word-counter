@@ -731,7 +731,7 @@ git push origin main
 Settings → Pages → Source: main branch
 
 # 3. Access at:
-https://lbranigan.github.io/word-analyzer/
+https://lbranigan.github.io/word-counter/
 ```
 
 ### Local Development
@@ -757,7 +757,7 @@ See `QA-CHECKLIST.md` for comprehensive testing procedures.
 ## Changelog
 
 See commit history for detailed changes:
-https://github.com/LBranigan/word-analyzer/commits/main
+https://github.com/LBranigan/word-counter/commits/main
 
 ---
 

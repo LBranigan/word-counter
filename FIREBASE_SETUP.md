@@ -127,7 +127,7 @@ service cloud.firestore {
 
 - [Firebase Documentation](https://firebase.google.com/docs)
 - [Firebase Console](https://console.firebase.google.com/)
-- [GitHub Issues](https://github.com/LBranigan/word-analyzer/issues)
+- [GitHub Issues](https://github.com/LBranigan/word-counter/issues)
 
 ## Deployment to Production
 

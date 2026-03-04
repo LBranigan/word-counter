@@ -4,7 +4,7 @@ A comprehensive web application for Morningside Academy that combines audio reco
 
 ## Live Demo
 
-🌐 **https://lbranigan.github.io/word-analyzer/**
+🌐 **https://lbranigan.github.io/word-counter/**
 
 ## Purpose
 
@@ -101,7 +101,7 @@ You need TWO API keys from Google Cloud:
 
 ### 2. Use the App
 
-1. **Open App**: https://lbranigan.github.io/word-analyzer/
+1. **Open App**: https://lbranigan.github.io/word-counter/
 2. **Enter API Key**: One-time setup (stored locally)
 3. **Select Student**: Choose from dropdown or add new
 4. **Record Audio**: Student reads aloud (pick duration)
@@ -326,8 +326,8 @@ Shows progress through workflow:
 ### Local Development
 ```bash
 # Clone repository
-git clone https://github.com/LBranigan/word-analyzer.git
-cd word-analyzer
+git clone https://github.com/LBranigan/word-counter.git
+cd word-counter
 
 # Start local server
 python -m http.server 8000
@@ -376,8 +376,8 @@ word-analyzer/
 
 ## Support & Feedback
 
-- **Issues**: [GitHub Issues](https://github.com/LBranigan/word-analyzer/issues)
-- **Repository**: [github.com/LBranigan/word-analyzer](https://github.com/LBranigan/word-analyzer)
+- **Issues**: [GitHub Issues](https://github.com/LBranigan/word-counter/issues)
+- **Repository**: [github.com/LBranigan/word-counter](https://github.com/LBranigan/word-counter)
 - **Documentation**: See MANIFEST.md for detailed project info
 - **Testing**: See QA_CHECKLIST.md for comprehensive test scenarios
 
@@ -486,4 +486,4 @@ A: No, but web app works great on mobile browsers.
 ---
 
 **Ready to transform reading assessment at your school?**
-Start here: https://lbranigan.github.io/word-analyzer/
+Start here: https://lbranigan.github.io/word-counter/
