@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mockup 2: Compact Icon Cards - Reading Assessment Instructions</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%);
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+
+        .mockup-header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .mockup-header h1 {
+            font-size: 28px;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .mockup-header p {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+        }
+
+        .section-title {
+            font-size: 16px;
+            color: #5a6c7d;
+            margin-bottom: 16px;
+            font-weight: 500;
+            text-align: center;
+            letter-spacing: 0.3px;
+        }
+
+        .tips-container {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .tip-card {
+            flex: 1;
+            min-width: 180px;
+            max-width: 220px;
+            background: #fafbfc;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            padding: 16px 14px;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .tip-card:hover {
+            background: #f6f8fa;
+            border-color: #d0d7de;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .tip-icon {
+            font-size: 28px;
+            margin-bottom: 10px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tip-text {
+            font-size: 13px;
+            color: #57606a;
+            line-height: 1.5;
+            font-weight: 500;
+        }
+
+        .tip-subtext {
+            font-size: 11px;
+            color: #8b949e;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        /* Specific color accents for each card */
+        .tip-card:nth-child(1) {
+            border-top: 2px solid #7c9cbf;
+        }
+
+        .tip-card:nth-child(2) {
+            border-top: 2px solid #81b29a;
+        }
+
+        .tip-card:nth-child(3) {
+            border-top: 2px solid #c9a66b;
+        }
+
+        .tip-card:nth-child(4) {
+            border-top: 2px solid #b88fb8;
+        }
+
+        /* Demo context styling */
+        .demo-context {
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 2px dashed #d0d7de;
+        }
+
+        .demo-label {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            display: inline-block;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .context-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 24px;
+        }
+
+        .context-box h3 {
+            font-size: 15px;
+            color: #495057;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .context-box ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .context-box li {
+            font-size: 13px;
+            color: #6c757d;
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .context-box li:before {
+            content: "•";
+            position: absolute;
+            left: 6px;
+            color: #adb5bd;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            .tips-container {
+                gap: 10px;
+            }
+
+            .tip-card {
+                min-width: 150px;
+                padding: 14px 12px;
+            }
+
+            .tip-icon {
+                font-size: 24px;
+                height: 32px;
+            }
+
+            .tip-text {
+                font-size: 12px;
+            }
+
+            .tip-subtext {
+                font-size: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .tip-card {
+                min-width: 100%;
+                max-width: 100%;
+            }
+
+            .mockup-header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="mockup-header">
+        <h1>Mockup 2: Compact Icon Cards</h1>
+        <p>Redesigned Instructions Section - Reading Assessment App</p>
+    </div>
+
+    <div class="container">
+        <div class="section-title">Quick Tips</div>
+
+        <div class="tips-container">
+            <div class="tip-card">
+                <div class="tip-icon">🎙️</div>
+                <div class="tip-text">Record for full analysis</div>
+                <div class="tip-subtext">Or skip audio for word count only</div>
+            </div>
+
+            <div class="tip-card">
+                <div class="tip-icon">📖</div>
+                <div class="tip-text">Have text ready</div>
+                <div class="tip-subtext">Physical book or passage</div>
+            </div>
+
+            <div class="tip-card">
+                <div class="tip-icon">⏱️</div>
+                <div class="tip-text">Choose duration</div>
+                <div class="tip-subtext">30s, 1min, or 2min</div>
+            </div>
+
+            <div class="tip-card">
+                <div class="tip-icon">🔇</div>
+                <div class="tip-text">Quiet space</div>
+                <div class="tip-subtext">For best audio quality</div>
+            </div>
+        </div>
+
+        <div class="demo-context">
+            <div class="demo-label">Context & Design Notes</div>
+            <div class="context-box">
+                <h3>Design Features:</h3>
+                <ul>
+                    <li>Horizontal flex layout with 4 compact cards</li>
+                    <li>Subtle backgrounds (#fafbfc) with light borders (#e1e4e8)</li>
+                    <li>Minimal visual weight - feels like gentle hints</li>
+                    <li>Each card has a colored top border for subtle differentiation</li>
+                    <li>Hover effects for interactivity (lift + shadow)</li>
+                    <li>Icons/emojis paired with brief text (1-2 lines)</li>
+                    <li>Responsive - wraps nicely on tablets, stacks on mobile</li>
+                    <li>Condensed from 5 bullet points to 4 essential tips</li>
+                    <li>Muted color palette - soft blues, greens, golds, purples</li>
+                    <li>Professional and polished appearance</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mockup 3: Subtle Footer Pills</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 40px;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .demo-card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        .step-number {
+            width: 32px;
+            height: 32px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .step-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .main-content {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            min-height: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        /* Footer Pills Section */
+        .footer-pills {
+            border-top: 1px solid #e9ecef;
+            padding-top: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .pill {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #f1f3f5;
+            color: #6c757d;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: help;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .pill-icon {
+            font-size: 13px;
+            opacity: 0.6;
+        }
+
+        .pill:hover {
+            background: #e9ecef;
+            color: #495057;
+            border-color: #dee2e6;
+            transform: translateY(-1px);
+        }
+
+        /* Tooltip */
+        .pill-tooltip {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%) scale(0.95);
+            background: #2c3e50;
+            color: white;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 10;
+            font-weight: 400;
+            line-height: 1.4;
+        }
+
+        .pill-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: #2c3e50;
+        }
+
+        .pill:hover .pill-tooltip {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+        }
+
+        /* Multiline tooltips */
+        .pill-tooltip.multiline {
+            white-space: normal;
+            max-width: 220px;
+            text-align: center;
+        }
+
+        /* Demo Buttons */
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .demo-button {
+            flex: 1;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .primary-button {
+            background: #667eea;
+            color: white;
+        }
+
+        .primary-button:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .secondary-button {
+            background: white;
+            color: #6c757d;
+            border: 1.5px solid #dee2e6;
+        }
+
+        .secondary-button:hover {
+            background: #f8f9fa;
+            border-color: #adb5bd;
+        }
+
+        /* Notes Section */
+        .notes {
+            margin-top: 40px;
+            padding: 24px;
+            background: #fff9e6;
+            border-left: 4px solid #ffc107;
+            border-radius: 8px;
+        }
+
+        .notes h3 {
+            color: #856404;
+            font-size: 16px;
+            margin-bottom: 12px;
+        }
+
+        .notes ul {
+            color: #856404;
+            padding-left: 20px;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .notes li {
+            margin-bottom: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mockup 3: Subtle Footer Pills</h1>
+
+        <div class="demo-card">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                <div class="step-title">Record Audio</div>
+            </div>
+
+            <div class="main-content">
+                [Main recording interface would appear here]
+            </div>
+
+            <div class="button-group">
+                <button class="demo-button primary-button">Start Recording</button>
+                <button class="demo-button secondary-button">Skip Audio</button>
+            </div>
+
+            <!-- Footer Pills -->
+            <div class="footer-pills">
+                <div class="pill">
+                    <span class="pill-icon">💡</span>
+                    <span>Full Assessment</span>
+                    <div class="pill-tooltip multiline">
+                        Record audio for pronunciation analysis, accuracy, WPM, and prosody scoring
+                    </div>
+                </div>
+
+                <div class="pill">
+                    <span class="pill-icon">⚡</span>
+                    <span>Word Count Only</span>
+                    <div class="pill-tooltip multiline">
+                        Click "Skip Audio" to go directly to counting words
+                    </div>
+                </div>
+
+                <div class="pill">
+                    <span class="pill-icon">📄</span>
+                    <span>Prepare Text</span>
+                    <div class="pill-tooltip">
+                        Have a physical text ready to read from
+                    </div>
+                </div>
+
+                <div class="pill">
+                    <span class="pill-icon">⏱️</span>
+                    <span>Duration</span>
+                    <div class="pill-tooltip multiline">
+                        Select recording duration: 30 seconds, 1 minute, or 2 minutes
+                    </div>
+                </div>
+
+                <div class="pill">
+                    <span class="pill-icon">🎙️</span>
+                    <span>Quiet Environment</span>
+                    <div class="pill-tooltip">
+                        Record in a quiet environment for best results
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="notes">
+            <h3>Design Notes:</h3>
+            <ul>
+                <li><strong>Extremely subtle:</strong> Pills appear as lightweight metadata tags at the bottom</li>
+                <li><strong>Minimal visual weight:</strong> Soft gray colors (#f1f3f5 background, #6c757d text)</li>
+                <li><strong>Hover interaction:</strong> Each pill shows a tooltip with full details on hover</li>
+                <li><strong>Short labels:</strong> Each pill has 2-3 words max for clean appearance</li>
+                <li><strong>Icon-enhanced:</strong> Small emoji icons provide visual context without adding weight</li>
+                <li><strong>Non-intrusive:</strong> Separated by a subtle border, feels like "footnotes"</li>
+                <li><strong>Responsive tooltips:</strong> Dark tooltips with smooth animation for readability</li>
+                <li><strong>Professional polish:</strong> Rounded corners, subtle hover states, clean typography</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

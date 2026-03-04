@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mockup 1: Minimalist Collapsible Instructions</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .mockup-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .mockup-title {
+            text-align: center;
+            color: #495057;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 40px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .context-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 30px;
+        }
+
+        .context-section h2 {
+            font-size: 18px;
+            color: #343a40;
+            margin-bottom: 20px;
+        }
+
+        .placeholder-ui {
+            background: #f8f9fa;
+            border: 1px dashed #ced4da;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            color: #6c757d;
+            margin-bottom: 20px;
+        }
+
+        .instructions-wrapper {
+            margin-top: 20px;
+        }
+
+        .instructions-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 10px 12px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            transition: background-color 0.2s ease;
+            color: #6c757d;
+            font-size: 14px;
+            font-weight: 500;
+            width: auto;
+            font-family: inherit;
+        }
+
+        .instructions-toggle:hover {
+            background-color: #f8f9fa;
+        }
+
+        .instructions-toggle:focus {
+            outline: 2px solid #e9ecef;
+            outline-offset: 2px;
+        }
+
+        .chevron {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            transition: transform 0.3s ease;
+            color: #adb5bd;
+        }
+
+        .chevron svg {
+            width: 100%;
+            height: 100%;
+            fill: currentColor;
+        }
+
+        .instructions-toggle[aria-expanded="true"] .chevron {
+            transform: rotate(180deg);
+        }
+
+        .instructions-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease, opacity 0.3s ease, margin-top 0.3s ease;
+            opacity: 0;
+        }
+
+        .instructions-content.expanded {
+            max-height: 500px;
+            opacity: 1;
+            margin-top: 12px;
+        }
+
+        .instructions-box {
+            background: #f8f9fa;
+            border-left: 3px solid #dee2e6;
+            border-radius: 6px;
+            padding: 16px 20px;
+        }
+
+        .instructions-box ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .instructions-box li {
+            position: relative;
+            padding-left: 24px;
+            margin-bottom: 12px;
+            color: #495057;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .instructions-box li:last-child {
+            margin-bottom: 0;
+        }
+
+        .instructions-box li::before {
+            content: "•";
+            position: absolute;
+            left: 8px;
+            color: #adb5bd;
+            font-weight: bold;
+        }
+
+        .instructions-box strong {
+            color: #343a40;
+            font-weight: 600;
+        }
+
+        .note {
+            text-align: center;
+            color: #868e96;
+            font-size: 13px;
+            font-style: italic;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="mockup-container">
+        <h1 class="mockup-title">Mockup 1: Minimalist Collapsible</h1>
+
+        <div class="context-section">
+            <h2>Record Audio Step Context</h2>
+
+            <div class="placeholder-ui">
+                [Record Audio UI Elements Here]<br>
+                <small>Microphone selector, timer, record button, etc.</small>
+            </div>
+
+            <!-- Minimalist Collapsible Instructions -->
+            <div class="instructions-wrapper">
+                <button
+                    class="instructions-toggle"
+                    aria-expanded="false"
+                    onclick="toggleInstructions()"
+                    id="instructionsToggle"
+                >
+                    <span class="chevron">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                        </svg>
+                    </span>
+                    <span id="toggleText">Need help? View instructions</span>
+                </button>
+
+                <div class="instructions-content" id="instructionsContent">
+                    <div class="instructions-box">
+                        <ul>
+                            <li><strong>Full Assessment:</strong> Record audio for pronunciation analysis, accuracy, WPM, and prosody scoring</li>
+                            <li><strong>Word Count Only:</strong> Click "Skip Audio" to go directly to counting words</li>
+                            <li>Have a physical text ready to read from</li>
+                            <li>Select recording duration (30 seconds, 1 minute, or 2 minutes)</li>
+                            <li>Record in a quiet environment for best results</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <p class="note">
+            This mockup demonstrates the minimalist collapsible approach.<br>
+            Click "Need help?" to expand/collapse the instructions.
+        </p>
+    </div>
+
+    <script>
+        function toggleInstructions() {
+            const toggle = document.getElementById('instructionsToggle');
+            const content = document.getElementById('instructionsContent');
+            const text = document.getElementById('toggleText');
+            const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+
+            if (isExpanded) {
+                // Collapse
+                toggle.setAttribute('aria-expanded', 'false');
+                content.classList.remove('expanded');
+                text.textContent = 'Need help? View instructions';
+            } else {
+                // Expand
+                toggle.setAttribute('aria-expanded', 'true');
+                content.classList.add('expanded');
+                text.textContent = 'Hide instructions';
+            }
+        }
+
+        // Optional: Allow keyboard navigation
+        document.getElementById('instructionsToggle').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleInstructions();
+            }
+        });
+    </script>
+</body>
+</html>
