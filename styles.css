@@ -1717,6 +1717,14 @@ footer {
     background: #28a745;
 }
 
+.setup-gif {
+    width: 100%;
+    max-width: 480px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    margin-top: 0.5rem;
+}
+
 .setup-footer-note {
     text-align: center;
     font-size: 0.8rem;
