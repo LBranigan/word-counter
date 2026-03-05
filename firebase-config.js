@@ -5,13 +5,13 @@ import { getFirestore, collection, doc, getDocs, getDoc, setDoc, updateDoc, dele
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyCrPzWq9Plt-1XIKHigwFjCKce79F-wE34",
-    authDomain: "word-analyzer-web-app.firebaseapp.com",
-    projectId: "word-analyzer-web-app",
-    storageBucket: "word-analyzer-web-app.firebasestorage.app",
-    messagingSenderId: "849063805678",
-    appId: "1:849063805678:web:bd39660bd5b1e8168969ff",
-    measurementId: "G-SV2V0YBMVY"
+    apiKey: "AIzaSyAwYCAQ7s4OvfL9WpK1YAiiQh0OQnkmtpo",
+    authDomain: "word-analyzer-web-app-27ee4.firebaseapp.com",
+    projectId: "word-analyzer-web-app-27ee4",
+    storageBucket: "word-analyzer-web-app-27ee4.firebasestorage.app",
+    messagingSenderId: "613470043919",
+    appId: "1:613470043919:web:f30329b0379a7361d8087a",
+    measurementId: "G-H0FDSL43GM"
 };
 
 // Initialize Firebase
