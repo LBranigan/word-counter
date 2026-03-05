@@ -97,42 +97,19 @@
                     <span class="step-label">Setup</span>
                 </div>
                 <span class="breadcrumb-arrow">→</span>
-                <div class="breadcrumb-step" data-step="audio">
-                    <span class="step-icon">1</span>
-                    <span class="step-label">Record Audio</span>
-                </div>
-                <span class="breadcrumb-arrow">→</span>
                 <div class="breadcrumb-step" data-step="capture">
-                    <span class="step-icon">2</span>
-                    <span class="step-label">Capture Image</span>
+                    <span class="step-icon">1</span>
+                    <span class="step-label">Capture</span>
                 </div>
                 <span class="breadcrumb-arrow">→</span>
                 <div class="breadcrumb-step" data-step="highlight">
-                    <span class="step-icon">3</span>
-                    <span class="step-label">Highlight Text</span>
-                </div>
-                <span class="breadcrumb-arrow">→</span>
-                <div class="breadcrumb-step" data-step="results">
-                    <span class="step-icon">4</span>
-                    <span class="step-label">Results</span>
+                    <span class="step-icon">2</span>
+                    <span class="step-label">Highlight</span>
                 </div>
             </div>
         </nav>
 
         <main>
-            <!-- Audio Playback Section (Legacy - hidden by default, audio now in dedicated section) -->
-            <section id="audio-playback-section" class="audio-playback-container" style="display: none;">
-                <h3>Recorded Audio</h3>
-                <audio id="audio-player" controls></audio>
-                <div class="audio-actions">
-                    <button id="download-audio-btn-legacy" class="btn btn-secondary">
-                        <span class="icon">💾</span> Download Audio
-                    </button>
-                    <button id="analyze-audio-btn-legacy" class="btn btn-primary">
-                        <span class="icon">🔍</span> Analyze Audio
-                    </button>
-                </div>
-            </section>
 
             <!-- API Key Setup Section -->
             <section id="setup-section" class="section active">
@@ -184,9 +161,9 @@
             <!-- Camera Section -->
             <section id="camera-section" class="section">
                 <div class="step-header">
-                    <div class="step-badge">Step 2</div>
+                    <div class="step-badge">Step 1</div>
                     <h2>Capture Image</h2>
-                    <p class="step-subtitle">Now capture the text that was just read</p>
+                    <p class="step-subtitle">Take a photo of the text or upload an image</p>
                 </div>
 
                 <div class="camera-container">
@@ -203,140 +180,20 @@
                 </div>
 
                 <div class="step-navigation">
-                    <button id="back-to-audio-btn" class="btn btn-secondary">
-                        <span class="icon">←</span> Back to Audio
-                    </button>
                     <button id="next-to-highlight-btn" class="btn btn-primary" disabled>
                         Next: Highlight Text <span class="icon">→</span>
                     </button>
                 </div>
 
-                <div class="instructions-box">
-                    <h4>💡 Quick Guide:</h4>
-                    <ol class="instructions-list">
-                        <li>Take a clear photo of the text you just read from</li>
-                        <li>Make sure the text is well-lit and in focus</li>
-                        <li>The image will be processed for word detection</li>
-                    </ol>
-                </div>
-
                 <input type="file" id="file-input-camera" accept="image/*" style="display: none;">
-            </section>
-
-            <!-- Audio Recording Section -->
-            <section id="audio-section" class="section">
-                <div class="step-header">
-                    <div class="step-badge">Step 1</div>
-                    <h2>Record Audio</h2>
-                    <p class="step-subtitle">First, select a student and record their reading</p>
-                </div>
-
-                <!-- Student Selection Box -->
-                <div class="student-selection-box">
-                    <h3>👤 Select Student for Assessment</h3>
-                    <div class="student-select-container">
-                        <select id="assessment-student-select" class="student-select-dropdown">
-                            <option value="">-- Choose Student --</option>
-                        </select>
-                        <button id="quick-add-student-btn" class="btn btn-secondary btn-small">
-                            <span class="icon">➕</span> Add New Student
-                        </button>
-                    </div>
-                    <div id="selected-student-display" class="selected-student-display" style="display: none;">
-                        <div class="selected-student-badge">
-                            <span class="selected-student-avatar"></span>
-                            <div class="selected-student-info">
-                                <div class="selected-student-name"></div>
-                                <div class="selected-student-grade"></div>
-                            </div>
-                            <button id="change-student-btn" class="btn-link">Change</button>
-                        </div>
-                    </div>
-                    <p class="selection-note">You can also skip and select later, or proceed without a student.</p>
-                </div>
-
-                <div class="audio-recording-container">
-                    <div class="audio-controls-center">
-                        <button id="record-audio-btn" class="btn btn-audio btn-large">
-                            <span class="icon">🎤</span> Record Audio
-                        </button>
-                    </div>
-
-                    <div id="audio-player-section" class="audio-player-section" style="display: none;">
-                        <h4>✅ Recording Complete</h4>
-                        <audio id="audio-player-main" controls></audio>
-                        <div class="audio-actions-inline">
-                            <button id="download-audio-btn-main" class="btn btn-secondary">
-                                <span class="icon">💾</span> Download
-                            </button>
-                            <button id="rerecord-audio-btn" class="btn btn-secondary">
-                                <span class="icon">🔄</span> Re-record
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="step-navigation">
-                    <button id="skip-audio-btn" class="btn btn-secondary">
-                        <span class="icon">⏭️</span> Skip Audio (Word Count Only)
-                    </button>
-                    <button id="next-to-capture-btn" class="btn btn-primary" disabled>
-                        Next: Capture Image <span class="icon">→</span>
-                    </button>
-                </div>
-
-                <div class="instructions-box instructions-collapsible">
-                    <button class="instructions-toggle" onclick="const p=this.parentElement; p.classList.toggle('expanded'); this.setAttribute('aria-expanded', p.classList.contains('expanded'))" aria-expanded="false" aria-controls="audio-instructions-content">
-                        <span class="instructions-toggle-text">Need help?</span>
-                        <svg class="instructions-chevron" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 0-.708z"/>
-                        </svg>
-                    </button>
-                    <div class="instructions-content" id="audio-instructions-content">
-                        <ul class="instructions-list">
-                            <li><strong>Full Assessment:</strong> Record audio for pronunciation analysis, accuracy, WPM, and prosody scoring</li>
-                            <li><strong>Word Count Only:</strong> Click "Skip Audio" to go directly to counting words (no pronunciation analysis)</li>
-                            <li>Have a physical text ready to read from (book, document, article, etc.)</li>
-                            <li>Select recording duration (30 seconds, 1 minute, or 2 minutes)</li>
-                            <li>Record in a quiet environment for best results</li>
-                        </ul>
-                    </div>
-                </div>
             </section>
 
             <!-- Image Processing Section -->
             <section id="image-section" class="section">
-                <!-- Auto-detect Loading Overlay -->
-                <div id="highlight-loading-overlay" class="highlight-loading-overlay" style="display: none;">
-                    <div class="highlight-loading-content">
-                        <div class="highlight-loading-spinner"></div>
-                        <h3>Analyzing Your Recording</h3>
-                        <p id="highlight-loading-status">Transcribing audio...</p>
-                        <div class="highlight-loading-steps">
-                            <div class="loading-step" id="loading-step-1">
-                                <span class="step-indicator active"></span>
-                                <span>Transcribing audio</span>
-                            </div>
-                            <div class="loading-step" id="loading-step-2">
-                                <span class="step-indicator"></span>
-                                <span>Matching words</span>
-                            </div>
-                            <div class="loading-step" id="loading-step-3">
-                                <span class="step-indicator"></span>
-                                <span>Highlighting text</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="step-header">
-                    <div class="step-badge">Step 3</div>
+                    <div class="step-badge">Step 2</div>
                     <h2>Highlight Text</h2>
-                    <p class="step-subtitle">Select the words that were read aloud</p>
-                </div>
-
-                <div class="highlight-instructions">
-                    <p><strong>🖱️ How to select:</strong> Click any word to select/deselect • Drag to select multiple words • Right-click to pan image</p>
+                    <p class="step-subtitle">Click or drag to select words</p>
                 </div>
 
                 <div class="image-wrapper">
@@ -354,207 +211,28 @@
 
                 <div class="controls">
                     <button id="reset-selection-btn" class="btn btn-secondary">
-                        <span class="icon">✖️</span> Clear Selection
+                        Clear Selection
                     </button>
-                    <button id="redo-autodetect-btn" class="btn btn-secondary" title="Run auto-detection again">
-                        <span class="icon">🔄</span> Redo Autodetect
+                    <button id="back-to-capture-btn" class="btn btn-secondary">
+                        <span class="icon">←</span> Retake Photo
                     </button>
                 </div>
 
                 <input type="file" id="file-input-image" accept="image/*" style="display: none;">
                 <div id="status" class="status"></div>
-
-                <div class="step-navigation">
-                    <button id="back-to-capture-btn" class="btn btn-secondary">
-                        <span class="icon">←</span> Back to Capture
-                    </button>
-                    <button id="analyze-audio-btn" class="btn btn-primary btn-large" disabled>
-                        <span class="icon">🔍</span> Analyze Reading
-                    </button>
-                </div>
-
                 <div id="export-output" class="export-output"></div>
-            </section>
-
-            <!-- Results Section -->
-            <section id="results-section" class="section">
-                <div class="step-header">
-                    <div class="step-badge">Step 4</div>
-                    <h2>Analysis Results</h2>
-                    <p class="step-subtitle">Oral Fluency Report</p>
-                </div>
-
-                <!-- Historical Assessment Banner -->
-                <div id="historical-assessment-banner" class="historical-assessment-banner" style="display: none;">
-                    <div class="historical-info">
-                        <span class="icon">📜</span>
-                        <div>
-                            <strong>Historical Assessment</strong><br>
-                            <span id="historical-student-name"></span> - <span id="historical-assessment-date"></span>
-                        </div>
-                    </div>
-                    <button id="back-to-profile-btn" class="btn btn-primary">
-                        <span class="icon">←</span> Back to Student Profile
-                    </button>
-                </div>
-
-                <div class="results-actions">
-                    <button id="back-to-edit-btn" class="btn btn-secondary">
-                        <span class="icon">←</span> Back to Edit
-                    </button>
-                    <button id="start-new-analysis-btn" class="btn btn-secondary">
-                        <span class="icon">🔄</span> Start New Analysis
-                    </button>
-                </div>
-
-                <div id="results-container" class="results-container">
-                    <!-- Results will be dynamically inserted here -->
-                </div>
-
-                <!-- Save Assessment Section -->
-                <div class="save-assessment-section">
-                    <h3>💾 Save Assessment to Student Profile</h3>
-                    <div class="student-selection">
-                        <label for="student-select">Select Student:</label>
-                        <select id="student-select" class="student-select-dropdown">
-                            <option value="">-- Choose Student --</option>
-                        </select>
-                        <button id="save-assessment-btn" class="btn btn-primary" disabled>
-                            <span class="icon">💾</span> Save to Profile
-                        </button>
-                    </div>
-                    <div id="save-status" class="save-status"></div>
-                </div>
-            </section>
-
-            <!-- Class Overview Section -->
-            <section id="class-overview-section" class="section">
-                <div class="step-header">
-                    <div class="step-badge">👥</div>
-                    <h2>Class Overview</h2>
-                    <p class="step-subtitle">View all students and their progress</p>
-                </div>
-
-                <div class="class-actions">
-                    <button id="back-from-class-btn" class="btn btn-secondary">
-                        <span class="icon">←</span> Back
-                    </button>
-                    <button id="add-student-btn" class="btn btn-primary">
-                        <span class="icon">➕</span> Add Student
-                    </button>
-                </div>
-
-                <div id="students-grid" class="students-grid">
-                    <!-- Student cards will be dynamically inserted here -->
-                </div>
-            </section>
-
-            <!-- Student Profile Section -->
-            <section id="student-profile-section" class="section">
-                <div class="step-header">
-                    <div class="step-badge">📊</div>
-                    <h2 id="student-profile-name">Student Profile</h2>
-                    <p class="step-subtitle" id="student-profile-subtitle">Assessment History</p>
-                </div>
-
-                <div class="profile-actions">
-                    <button id="back-to-class-btn" class="btn btn-secondary">
-                        <span class="icon">←</span> Back to Class
-                    </button>
-                    <button id="delete-student-btn" class="btn btn-danger">
-                        <span class="icon">🗑️</span> Delete Student
-                    </button>
-                </div>
-
-                <div id="student-stats-summary" class="student-stats-summary">
-                    <!-- Summary stats will be inserted here -->
-                </div>
-
-                <div id="assessment-history" class="assessment-history">
-                    <!-- Assessment history will be dynamically inserted here -->
-                </div>
             </section>
         </main>
 
         <footer>
-            <p class="hint">👆 Left-click: drag to select words • Right-click: drag to pan image • Click yellow words to deselect</p>
-            <p class="version">Version: 3.2.11 (2025-11-25 16:48)</p>
+            <p class="hint">Click or drag to select words. Right-click to pan.</p>
         </footer>
-    </div>
-
-    <!-- Audio Recording Modal -->
-    <div id="audio-modal" class="modal">
-        <div class="modal-content">
-            <h2>Record Audio</h2>
-            <p>Configure your recording settings:</p>
-            <p class="duration-note">⚠️ Best results: 30 seconds at 32 kbps. Longer/higher quality may fail due to API limits.</p>
-            <div class="recording-settings">
-                <div class="setting-group">
-                    <label for="audio-duration">Duration:</label>
-                    <select id="audio-duration">
-                        <option value="0.5">30 seconds</option>
-                        <option value="1" selected>1 minute</option>
-                        <option value="2">2 minutes</option>
-                    </select>
-                </div>
-                <div class="setting-group">
-                    <label for="audio-bitrate">Audio Quality:</label>
-                    <select id="audio-bitrate">
-                        <option value="16000">16 kbps (low - ~60 KB/30s)</option>
-                        <option value="32000" selected>32 kbps (recommended - ~120 KB/30s)</option>
-                        <option value="64000">64 kbps (high - ~240 KB/30s)</option>
-                        <option value="128000">128 kbps (very high - ~480 KB/30s)</option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-buttons">
-                <button id="start-recording-btn" class="btn btn-primary">Start Recording</button>
-                <button id="cancel-recording-btn" class="btn btn-secondary">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Recording Status -->
-    <div id="recording-modal" class="recording-indicator">
-        <div class="recording-indicator-content">
-            <div class="recording-header">
-                <span class="recording-icon">🎤</span>
-                <span class="recording-label">Recording</span>
-            </div>
-            <div class="recording-timer" id="recording-timer">00:00</div>
-            <div class="recording-progress">
-                <div class="progress-bar" id="progress-bar"></div>
-            </div>
-            <button id="stop-recording-btn" class="btn btn-danger btn-stop-compact">Stop</button>
-        </div>
     </div>
 
     <!-- Image Preview Modal -->
     <div id="image-preview-modal" class="image-preview-modal">
         <div class="image-preview-close-hint">Click image to close</div>
         <img id="image-preview-img" src="" alt="Full size preview">
-    </div>
-
-    <!-- Add Student Modal -->
-    <div id="add-student-modal" class="modal">
-        <div class="modal-content">
-            <h2>Add New Student</h2>
-            <p>Enter student information:</p>
-            <div class="student-form">
-                <div class="form-group">
-                    <label for="student-name-input">Student Name:</label>
-                    <input type="text" id="student-name-input" placeholder="e.g., Jose Martinez" />
-                </div>
-                <div class="form-group">
-                    <label for="student-grade-input">Grade Level (optional):</label>
-                    <input type="text" id="student-grade-input" placeholder="e.g., 3rd Grade" />
-                </div>
-            </div>
-            <div class="modal-buttons">
-                <button id="confirm-add-student-btn" class="btn btn-primary">Add Student</button>
-                <button id="cancel-add-student-btn" class="btn btn-secondary">Cancel</button>
-            </div>
-        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
