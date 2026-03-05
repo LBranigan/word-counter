@@ -6515,7 +6515,7 @@ async function initializeApp() {
         showAppReady();
 
     } catch (error) {
-        debugError('Error initializing app:', error);
+        console.error('INIT ERROR:', error);
         updateLoadingStatus('Error loading app. Please refresh.');
     }
 }
