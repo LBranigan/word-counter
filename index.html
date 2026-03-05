@@ -139,21 +139,20 @@
                 <div class="setup-container">
                     <h2>Setup Required</h2>
                     <p class="setup-description">
-                        This app uses Google Cloud Vision API for highly accurate word detection (99%+ accuracy) and Speech-to-Text API for audio analysis.
+                        This app uses Google Cloud Vision to detect words in photos. You need a free API key from your Google account (one-time setup, takes 2 minutes).
                     </p>
                     <div class="setup-steps">
-                        <h3>Quick Setup (2 minutes):</h3>
+                        <h3>Get Your Free API Key:</h3>
                         <ol>
-                            <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a> 🔗</li>
-                            <li>Create a new project (or select an existing one)</li>
-                            <li>Create a new API key under "Credentials"</li>
-                            <li>Enable "Cloud Vision API" (for text recognition)</li>
-                            <li>Enable "Cloud Speech-to-Text API" (for audio analysis)</li>
-                            <li>Copy your API key and paste it below</li>
+                            <li><strong>Open</strong> <a href="https://console.cloud.google.com/" target="_blank">console.cloud.google.com</a> and sign in with your work Gmail</li>
+                            <li><strong>Agree</strong> to the Terms of Service if prompted, then click <strong>"Select a project"</strong> (top bar) → <strong>"New Project"</strong> → name it anything (e.g. "Word Counter") → click <strong>Create</strong></li>
+                            <li><strong>Enable the Vision API</strong>: <a href="https://console.cloud.google.com/apis/library/vision.googleapis.com" target="_blank">Click here to go directly to it</a> → click the blue <strong>"Enable"</strong> button</li>
+                            <li><strong>Create your key</strong>: <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Click here to go to Credentials</a> → click <strong>"+ Create Credentials"</strong> at the top → choose <strong>"API key"</strong></li>
+                            <li><strong>Copy</strong> the key that appears and <strong>paste it below</strong></li>
                         </ol>
-                        <p class="note">✅ Free tier: 1,000 Vision requests + 60 minutes Speech/month</p>
-                        <p class="note">🔒 Your API key will be validated and securely synced to your Google account</p>
-                        <p class="note">📖 Need detailed help? See the <a href="https://github.com/LBranigan/word-counter/blob/main/FIREBASE_SETUP.md" target="_blank">Setup Guide</a></p>
+                        <p class="note">✅ <strong>Completely free</strong> — 1,000 photo scans per month at no cost</p>
+                        <p class="note">💳 Google may ask for a credit card but you will NOT be charged on the free tier</p>
+                        <p class="note">🔒 Your key is saved to your Google account — you only do this once</p>
                     </div>
                     <div class="api-key-input">
                         <input type="password" id="api-key" placeholder="Paste your Google Cloud API key here" />
