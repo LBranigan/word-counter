@@ -137,178 +137,46 @@
             <!-- API Key Setup Section -->
             <section id="setup-section" class="section active">
                 <div class="setup-container">
-                    <div class="setup-hero">
-                        <div class="setup-hero-icon">🔑</div>
-                        <h2>One-Time Setup</h2>
-                        <p class="setup-description">You need a free Google API key to scan photos of text. This takes about 2 minutes and you'll never have to do it again.</p>
-                        <div class="setup-reassurance">
-                            <span>✅ 100% Free</span>
-                            <span>🔒 Private to you</span>
-                            <span>⏱️ ~2 minutes</span>
-                        </div>
-                    </div>
+                    <h2>One-Time Setup</h2>
+                    <p class="setup-description">Create a free Google API key so the app can read text from photos.</p>
 
-                    <!-- Step-by-step wizard -->
-                    <div class="setup-wizard">
-
-                        <!-- Step 1 -->
-                        <div class="setup-card" data-step="1">
-                            <div class="setup-card-header">
-                                <div class="setup-card-number">1</div>
-                                <div class="setup-card-title">
-                                    <h3>Open Google Cloud Console</h3>
-                                    <p>Sign in with your school Google account</p>
-                                </div>
-                            </div>
-                            <div class="setup-card-body">
-                                <div class="setup-card-visual">
-                                    <div class="setup-mockup">
-                                        <div class="mockup-browser-bar">
-                                            <span class="mockup-dot"></span><span class="mockup-dot"></span><span class="mockup-dot"></span>
-                                            <span class="mockup-url">console.cloud.google.com</span>
-                                        </div>
-                                        <div class="mockup-content">
-                                            <div class="mockup-logo">Google Cloud</div>
-                                            <div class="mockup-text">Welcome! Sign in with your Google account to continue.</div>
-                                            <div class="mockup-btn-fake">Sign in with Google</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <a href="https://console.cloud.google.com/" target="_blank" class="setup-action-btn">
-                                    Open Google Cloud Console →
-                                </a>
-                                <p class="setup-card-hint">If it asks you to agree to Terms of Service, click "Agree and Continue"</p>
+                    <div class="setup-steps-compact">
+                        <div class="setup-step-row">
+                            <span class="setup-step-num">1</span>
+                            <div class="setup-step-content">
+                                <a href="https://console.cloud.google.com/projectcreate" target="_blank" class="setup-link-btn">Create a Google Cloud Project</a>
+                                <span class="setup-step-detail">Name it anything, then click <strong>Create</strong></span>
                             </div>
                         </div>
 
-                        <!-- Step 2 -->
-                        <div class="setup-card" data-step="2">
-                            <div class="setup-card-header">
-                                <div class="setup-card-number">2</div>
-                                <div class="setup-card-title">
-                                    <h3>Create a Project</h3>
-                                    <p>This organizes your free API access</p>
-                                </div>
-                            </div>
-                            <div class="setup-card-body">
-                                <div class="setup-card-visual">
-                                    <div class="setup-mockup">
-                                        <div class="mockup-browser-bar">
-                                            <span class="mockup-dot"></span><span class="mockup-dot"></span><span class="mockup-dot"></span>
-                                            <span class="mockup-url">console.cloud.google.com</span>
-                                        </div>
-                                        <div class="mockup-content">
-                                            <div class="mockup-topbar">
-                                                <span class="mockup-clickable">"Select a project" ▼</span>
-                                            </div>
-                                            <div class="mockup-dialog">
-                                                <div class="mockup-dialog-title">Select a project</div>
-                                                <div class="mockup-clickable">NEW PROJECT</div>
-                                                <div class="mockup-input-fake">Project name: <strong>Word Counter</strong></div>
-                                                <div class="mockup-btn-fake">Create</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="setup-substeps">
-                                    <div class="setup-substep"><span class="substep-num">a</span> Click <strong>"Select a project"</strong> in the top bar</div>
-                                    <div class="setup-substep"><span class="substep-num">b</span> Click <strong>"New Project"</strong></div>
-                                    <div class="setup-substep"><span class="substep-num">c</span> Name it <strong>Word Counter</strong> and click <strong>Create</strong></div>
-                                </div>
+                        <div class="setup-step-row">
+                            <span class="setup-step-num">2</span>
+                            <div class="setup-step-content">
+                                <a href="https://console.cloud.google.com/apis/library/vision.googleapis.com" target="_blank" class="setup-link-btn">Enable the Vision API</a>
+                                <span class="setup-step-detail">Click the blue <strong>Enable</strong> button</span>
                             </div>
                         </div>
 
-                        <!-- Step 3 -->
-                        <div class="setup-card" data-step="3">
-                            <div class="setup-card-header">
-                                <div class="setup-card-number">3</div>
-                                <div class="setup-card-title">
-                                    <h3>Turn on Vision API</h3>
-                                    <p>This lets the app read text from photos</p>
-                                </div>
-                            </div>
-                            <div class="setup-card-body">
-                                <div class="setup-card-visual">
-                                    <div class="setup-mockup">
-                                        <div class="mockup-browser-bar">
-                                            <span class="mockup-dot"></span><span class="mockup-dot"></span><span class="mockup-dot"></span>
-                                            <span class="mockup-url">console.cloud.google.com/apis/library/vision</span>
-                                        </div>
-                                        <div class="mockup-content">
-                                            <div class="mockup-api-page">
-                                                <div class="mockup-api-icon">👁️</div>
-                                                <div class="mockup-api-name">Cloud Vision API</div>
-                                                <div class="mockup-api-desc">Detects text, faces, and objects in images</div>
-                                                <div class="mockup-btn-blue">Enable</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <a href="https://console.cloud.google.com/apis/library/vision.googleapis.com" target="_blank" class="setup-action-btn">
-                                    Open Vision API Page →
-                                </a>
-                                <p class="setup-card-hint">Click the blue <strong>"Enable"</strong> button. Make sure your new project is selected in the top bar.</p>
+                        <div class="setup-step-row">
+                            <span class="setup-step-num">3</span>
+                            <div class="setup-step-content">
+                                <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="setup-link-btn">Create an API Key</a>
+                                <span class="setup-step-detail">Click <strong>+ Create Credentials</strong> then <strong>API key</strong>, and copy it</span>
                             </div>
                         </div>
 
-                        <!-- Step 4 -->
-                        <div class="setup-card" data-step="4">
-                            <div class="setup-card-header">
-                                <div class="setup-card-number">4</div>
-                                <div class="setup-card-title">
-                                    <h3>Create Your API Key</h3>
-                                    <p>This is the code that connects the app to your account</p>
-                                </div>
-                            </div>
-                            <div class="setup-card-body">
-                                <div class="setup-card-visual">
-                                    <div class="setup-mockup">
-                                        <div class="mockup-browser-bar">
-                                            <span class="mockup-dot"></span><span class="mockup-dot"></span><span class="mockup-dot"></span>
-                                            <span class="mockup-url">console.cloud.google.com/apis/credentials</span>
-                                        </div>
-                                        <div class="mockup-content">
-                                            <div class="mockup-creds-page">
-                                                <div class="mockup-clickable">+ Create Credentials ▼</div>
-                                                <div class="mockup-dropdown">
-                                                    <div class="mockup-dropdown-item mockup-highlight">🔑 API key</div>
-                                                    <div class="mockup-dropdown-item mockup-dim">OAuth client ID</div>
-                                                    <div class="mockup-dropdown-item mockup-dim">Service account</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="setup-action-btn">
-                                    Open Credentials Page →
-                                </a>
-                                <div class="setup-substeps">
-                                    <div class="setup-substep"><span class="substep-num">a</span> Click <strong>"+ Create Credentials"</strong> at the top</div>
-                                    <div class="setup-substep"><span class="substep-num">b</span> Choose <strong>"API key"</strong> from the dropdown</div>
-                                    <div class="setup-substep"><span class="substep-num">c</span> A popup will show your key — click the <strong>copy icon</strong></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Step 5: Paste -->
-                        <div class="setup-card setup-card-final" data-step="5">
-                            <div class="setup-card-header">
-                                <div class="setup-card-number setup-card-number-final">5</div>
-                                <div class="setup-card-title">
-                                    <h3>Paste Your Key Here</h3>
-                                    <p>Almost done! Paste the key you just copied.</p>
-                                </div>
-                            </div>
-                            <div class="setup-card-body">
+                        <div class="setup-step-row setup-step-final">
+                            <span class="setup-step-num">4</span>
+                            <div class="setup-step-content">
                                 <div class="api-key-input">
-                                    <input type="password" id="api-key" placeholder="Paste your API key here (starts with AIza...)" />
-                                    <button id="save-api-key-btn" class="btn btn-primary">Save & Start</button>
+                                    <input type="text" id="api-key" placeholder="Paste your API key here" />
+                                    <button id="save-api-key-btn" class="btn btn-primary">Save</button>
                                 </div>
-                                <p class="setup-card-hint">🔒 Your key is saved privately to your Google account. You won't need to enter it again.</p>
                             </div>
                         </div>
-
                     </div>
+
+                    <p class="setup-footer-note">Free tier: 1,000 scans/month. Your key is saved to your account — you only do this once.</p>
                 </div>
             </section>
 
