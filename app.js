@@ -607,10 +607,9 @@ async function displayUsageStats() {
 
 // Show Camera Section
 function showCameraSection() {
-    setupSection.classList.remove('active');
-    audioSection.classList.add('active');
+    if (setupSection) setupSection.classList.remove('active');
     state.completedSteps.add('setup');
-    goToStep('audio');
+    goToStep('capture');
 }
 
 // ============ STEP MANAGEMENT & NAVIGATION ============
