@@ -484,14 +484,14 @@ async function init() {
             // Navigate without adding another history entry
             goToStep(event.state.step, false);
         } else {
-            // No state = initial page, go to audio step
-            goToStep('audio', false);
+            // No state = initial page, go to capture step
+            goToStep('capture', false);
         }
     });
 
     // Initialize browser history state
     const hashStep = window.location.hash.slice(1);
-    const validSteps = ['audio', 'capture', 'highlight', 'results'];
+    const validSteps = ['capture', 'highlight'];
     if (hashStep && validSteps.includes(hashStep) && canAccessStep(hashStep)) {
         // Restore step from URL hash
         history.replaceState({ step: hashStep }, '', `#${hashStep}`);
@@ -621,16 +621,16 @@ function goToStep(step, addToHistory = true) {
     state.currentStep = step;
 
     // Add to browser history (unless navigating via popstate)
-    if (addToHistory && ['audio', 'capture', 'highlight', 'results'].includes(step)) {
+    if (addToHistory && ['capture', 'highlight'].includes(step)) {
         history.pushState({ step: step }, '', `#${step}`);
     }
 
     // Hide all sections
-    setupSection.classList.remove('active');
-    cameraSection.classList.remove('active');
-    audioSection.classList.remove('active');
-    imageSection.classList.remove('active');
-    resultsSection.classList.remove('active');
+    if (setupSection) setupSection.classList.remove('active');
+    if (cameraSection) cameraSection.classList.remove('active');
+    if (audioSection) audioSection.classList.remove('active');
+    if (imageSection) imageSection.classList.remove('active');
+    if (resultsSection) resultsSection.classList.remove('active');
 
     // Also hide Class Overview and Student Profile sections
     if (classOverviewSection) classOverviewSection.classList.remove('active');
