@@ -138,8 +138,27 @@
                             <span class="setup-step-num">3</span>
                             <div class="setup-step-content">
                                 <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="setup-link-btn">Create & Restrict an API Key</a>
-                                <span class="setup-step-detail">Click <strong>+ Create Credentials</strong> → <strong>API key</strong>. In the popup, click <strong>Edit API key</strong>. Under API restrictions, select <strong>Restrict key</strong>, choose <strong>Cloud Vision API</strong>, click <strong>Save</strong>. Copy the key and email it to yourself as a backup.</span>
-                                <img src="setup-guide.gif" alt="How to create and restrict an API key" class="setup-gif" style="display:none" onload="this.style.display='block'" />
+                                <span class="setup-step-detail">Click <strong>+ Create Credentials</strong> → <strong>API key</strong>. Then restrict it — see video and screenshot below.</span>
+                                <span class="setup-step-detail">Email the key to yourself as a backup.</span>
+
+                                <div class="setup-media">
+                                    <div class="setup-media-item">
+                                        <span class="setup-media-label">Watch how (click to expand):</span>
+                                        <video src="setup-guide.mp4" class="setup-video" controls muted playsinline onclick="this.classList.toggle('expanded')"></video>
+                                    </div>
+                                    <div class="setup-media-item">
+                                        <span class="setup-media-label">Restriction settings (click to expand):</span>
+                                        <img src="setup-restrictions.png" alt="API key restriction settings" class="setup-screenshot" onclick="this.classList.toggle('expanded')" />
+                                    </div>
+                                </div>
+
+                                <div class="setup-copy-field">
+                                    <span class="setup-copy-label">Website restriction to paste:</span>
+                                    <div class="setup-copy-row">
+                                        <input type="text" value="https://lbranigan.github.io/*" readonly class="setup-copy-input" id="restriction-url" />
+                                        <button class="btn btn-secondary btn-small setup-copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('restriction-url').value);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

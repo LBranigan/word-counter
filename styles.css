@@ -1717,12 +1717,73 @@ footer {
     background: #28a745;
 }
 
-.setup-gif {
-    width: 100%;
-    max-width: 480px;
-    border-radius: 8px;
-    border: 1px solid #ddd;
+/* Setup media (video + screenshot) */
+.setup-media {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
     margin-top: 0.5rem;
+}
+
+.setup-media-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.setup-media-label {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.setup-video,
+.setup-screenshot {
+    width: 100%;
+    max-width: 280px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    cursor: pointer;
+    transition: max-width 0.3s ease;
+}
+
+.setup-video.expanded,
+.setup-screenshot.expanded {
+    max-width: 100%;
+}
+
+/* Copy field */
+.setup-copy-field {
+    margin-top: 0.75rem;
+}
+
+.setup-copy-label {
+    font-size: 0.8rem;
+    color: #888;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.setup-copy-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.setup-copy-input {
+    flex: 1;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.85rem;
+    font-family: monospace;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #f8f9fa;
+    color: #333;
+}
+
+.setup-copy-btn {
+    white-space: nowrap;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
 }
 
 .setup-footer-note {
