@@ -6494,12 +6494,6 @@ async function initializeApp() {
 
     try {
         // Update loading status
-        updateLoadingStatus('Setting up your classroom...');
-
-        // Initialize sample students if needed (for new users)
-        await initializeSampleStudents();
-
-        // Update loading status
         updateLoadingStatus('Loading API settings...');
 
         // Initialize app (loads API key)
@@ -6508,8 +6502,9 @@ async function initializeApp() {
         // Update loading status
         updateLoadingStatus('Preparing interface...');
 
-        // Initialize database features
-        await initDatabaseFeaturesAsync();
+        // Initialize database features (non-blocking)
+        try { await initDatabaseFeaturesAsync(); } catch (e) { debugError('DB init skipped:', e); }
+        try { await initializeSampleStudents(); } catch (e) { debugError('Sample students skipped:', e); }
 
         debugLog('App initialized successfully');
 
