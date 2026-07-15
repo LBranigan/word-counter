@@ -1,55 +1,31 @@
-// Firebase API Key Manager
-// Handles saving/loading Google Cloud API keys to user's Firebase profile
-
-import { db, doc, getDoc, setDoc } from './firebase-config.js';
-import { getCurrentUser } from './firebase-auth.js';
+// API Key Manager — embedded key with on-device (localStorage) fallback.
+// (Historical name: keys used to be stored in Firebase/Firestore. The
+// Firebase project was deleted in 2026; function names and the filename are
+// kept so app.js imports stay unchanged.)
+import { VISION_API_KEY } from './vision-key.js';
 import { debugLog, debugError, API_USAGE_CONSTANTS } from './utils.js';
 
-// Save Google Cloud API key to user's Firestore profile
+const KEY_STORAGE = 'googleCloudVisionApiKey';
+const USAGE_STORAGE = 'wordAnalyzerApiUsage';
+
+// Save Google Cloud API key on this device
 export async function saveApiKeyToFirebase(apiKey) {
     try {
-        const user = getCurrentUser();
-        if (!user) {
-            throw new Error('User not authenticated');
-        }
-
-        const userConfigRef = doc(db, 'users', user.uid, 'config', 'apiKeys');
-
-        await setDoc(userConfigRef, {
-            googleCloudApiKey: apiKey,
-            updatedAt: Date.now()
-        }, { merge: true });
-
-        debugLog('API key saved to Firebase successfully');
+        localStorage.setItem(KEY_STORAGE, apiKey);
+        debugLog('API key saved on this device');
         return true;
     } catch (error) {
-        debugError('Error saving API key to Firebase:', error);
+        debugError('Error saving API key:', error);
         return false;
     }
 }
 
-// Load Google Cloud API key from user's Firestore profile
+// Load the API key: embedded key wins, otherwise the one saved on this device
 export async function loadApiKeyFromFirebase() {
-    try {
-        const user = getCurrentUser();
-        if (!user) {
-            return null;
-        }
-
-        const userConfigRef = doc(db, 'users', user.uid, 'config', 'apiKeys');
-        const docSnap = await getDoc(userConfigRef);
-
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            debugLog('API key loaded from Firebase');
-            return data.googleCloudApiKey || null;
-        }
-
-        return null;
-    } catch (error) {
-        debugError('Error loading API key from Firebase:', error);
-        return null;
+    if (VISION_API_KEY) {
+        return VISION_API_KEY;
     }
+    return localStorage.getItem(KEY_STORAGE) || null;
 }
 
 // Validate Google Cloud Vision API key
@@ -102,53 +78,31 @@ export async function validateApiKey(apiKey) {
     }
 }
 
-// Track API usage in Firestore
+function readUsage() {
+    try {
+        return JSON.parse(localStorage.getItem(USAGE_STORAGE)) || {};
+    } catch {
+        return {};
+    }
+}
+
+// Track API usage on this device
 export async function trackApiUsage(apiType, details = {}) {
     try {
-        const user = getCurrentUser();
-        if (!user) return;
-
-        const usageRef = doc(db, 'users', user.uid, 'usage', apiType);
-        const docSnap = await getDoc(usageRef);
-
-        const now = Date.now();
+        const usage = readUsage();
         const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
 
-        let usageData = {
-            totalCalls: 0,
-            monthlyUsage: {}
-        };
-
-        if (docSnap.exists()) {
-            usageData = docSnap.data();
-        }
-
-        // Update total calls
-        usageData.totalCalls = (usageData.totalCalls || 0) + 1;
-
-        // Update monthly usage
-        if (!usageData.monthlyUsage) {
-            usageData.monthlyUsage = {};
-        }
-        if (!usageData.monthlyUsage[currentMonth]) {
-            usageData.monthlyUsage[currentMonth] = {
-                calls: 0,
-                firstCall: now,
-                lastCall: now
-            };
-        }
-
-        usageData.monthlyUsage[currentMonth].calls += 1;
-        usageData.monthlyUsage[currentMonth].lastCall = now;
-
-        // Add details if provided
+        const typeUsage = usage[apiType] || { totalCalls: 0, monthlyUsage: {} };
+        typeUsage.totalCalls = (typeUsage.totalCalls || 0) + 1;
+        typeUsage.monthlyUsage = typeUsage.monthlyUsage || {};
+        typeUsage.monthlyUsage[currentMonth] = (typeUsage.monthlyUsage[currentMonth] || 0) + 1;
         if (Object.keys(details).length > 0) {
-            usageData.lastCallDetails = details;
+            typeUsage.lastCallDetails = details;
         }
+        usage[apiType] = typeUsage;
 
-        await setDoc(usageRef, usageData);
-        debugLog(`${apiType} usage tracked successfully`);
-
+        localStorage.setItem(USAGE_STORAGE, JSON.stringify(usage));
+        debugLog(`${apiType} usage tracked`);
     } catch (error) {
         debugError('Error tracking API usage:', error);
         // Don't throw - usage tracking failure shouldn't break the app
@@ -158,37 +112,26 @@ export async function trackApiUsage(apiType, details = {}) {
 // Get usage statistics
 export async function getUsageStats() {
     try {
-        const user = getCurrentUser();
-        if (!user) return null;
-
-        const visionUsageRef = doc(db, 'users', user.uid, 'usage', 'vision');
-        const speechUsageRef = doc(db, 'users', user.uid, 'usage', 'speech');
-
-        const [visionSnap, speechSnap] = await Promise.all([
-            getDoc(visionUsageRef),
-            getDoc(speechUsageRef)
-        ]);
-
+        const usage = readUsage();
         const currentMonth = new Date().toISOString().slice(0, 7);
 
-        const visionData = visionSnap.exists() ? visionSnap.data() : { totalCalls: 0, monthlyUsage: {} };
-        const speechData = speechSnap.exists() ? speechSnap.data() : { totalCalls: 0, monthlyUsage: {} };
+        const visionMonth = usage.vision?.monthlyUsage?.[currentMonth] || 0;
+        const speechMonth = usage.speech?.monthlyUsage?.[currentMonth] || 0;
 
         return {
             vision: {
-                total: visionData.totalCalls || 0,
-                thisMonth: visionData.monthlyUsage?.[currentMonth]?.calls || 0,
+                total: usage.vision?.totalCalls || 0,
+                thisMonth: visionMonth,
                 freeTierLimit: API_USAGE_CONSTANTS.VISION_FREE_TIER_LIMIT,
-                percentUsed: ((visionData.monthlyUsage?.[currentMonth]?.calls || 0) / API_USAGE_CONSTANTS.VISION_FREE_TIER_LIMIT * 100).toFixed(1)
+                percentUsed: (visionMonth / API_USAGE_CONSTANTS.VISION_FREE_TIER_LIMIT * 100).toFixed(1)
             },
             speech: {
-                total: speechData.totalCalls || 0,
-                thisMonth: speechData.monthlyUsage?.[currentMonth]?.calls || 0,
+                total: usage.speech?.totalCalls || 0,
+                thisMonth: speechMonth,
                 freeTierLimit: API_USAGE_CONSTANTS.SPEECH_FREE_TIER_LIMIT, // minutes
-                percentUsed: ((speechData.monthlyUsage?.[currentMonth]?.calls || 0) / API_USAGE_CONSTANTS.SPEECH_FREE_TIER_LIMIT * 100).toFixed(1)
+                percentUsed: (speechMonth / API_USAGE_CONSTANTS.SPEECH_FREE_TIER_LIMIT * 100).toFixed(1)
             }
         };
-
     } catch (error) {
         debugError('Error getting usage stats:', error);
         return null;

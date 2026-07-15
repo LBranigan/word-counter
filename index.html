@@ -11,31 +11,8 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Login Screen -->
-    <div id="login-screen" class="login-screen">
-        <div class="login-container">
-            <div class="login-header">
-                <h1>📖 Word Analyzer</h1>
-                <p class="login-subtitle">Morningside Academy Reading Assessment Tool</p>
-            </div>
-            <div class="login-content">
-                <p class="login-description">Sign in with your Google account to access your classroom and student data.</p>
-                <button id="google-sign-in-btn" class="btn-google-signin">
-                    <svg class="google-icon" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                    </svg>
-                    Sign in with Google
-                </button>
-                <p class="login-privacy">Your data is securely stored and only accessible to you</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Loading Screen (shown after auth, during app initialization) -->
-    <div id="loading-screen" class="loading-screen" style="display: none;">
+    <!-- Loading Screen (shown during app initialization) -->
+    <div id="loading-screen" class="loading-screen" style="display: flex;">
         <div class="loading-container">
             <div class="loading-header">
                 <h1>📖 Word Analyzer</h1>
@@ -65,24 +42,7 @@
 <div class="word-count-header">
                     <span id="word-count">0</span> words
                 </div>
-                <div id="user-profile-display" class="user-profile-display">
-                    <div class="user-menu">
-                        <button id="user-menu-btn" class="user-menu-btn">
-                            <img id="user-photo" class="user-photo" src="" alt="User">
-                            <span id="user-name" class="user-name"></span>
-                            <span class="dropdown-arrow">▼</span>
-                        </button>
-                        <div id="user-dropdown" class="user-dropdown">
-                            <button id="api-settings-btn" class="dropdown-item">
-                                <span class="dropdown-icon">🔑</span> API Settings
-                            </button>
-                            <div class="dropdown-divider"></div>
-                            <button id="sign-out-btn" class="dropdown-item">
-                                <span class="dropdown-icon">🚪</span> Sign Out
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <button id="api-settings-btn" class="user-menu-btn" title="API Key Settings">🔑</button>
             </div>
         </header>
 
@@ -170,7 +130,7 @@
                         </div>
                     </div>
 
-                    <p class="setup-footer-note">Free tier: 1,000 scans/month. Your key is saved to your account — you only do this once.</p>
+                    <p class="setup-footer-note">Free tier: 1,000 scans/month. Your key is saved on this device — you only do this once per device.</p>
                 </div>
             </section>
 
@@ -252,7 +212,6 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script type="module" src="firebase-config.js"></script>
     <script type="module" src="firebase-auth.js"></script>
     <script type="module" src="firebase-db.js"></script>
     <script type="module" src="firebase-api-key-manager.js"></script>

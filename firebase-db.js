@@ -1,51 +1,38 @@
-// Firebase Firestore Database Handler
-import { db, collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query } from './firebase-config.js';
-import { getCurrentUser } from './firebase-auth.js';
+// Student Database — stored on this device (localStorage).
+// (Historical name: data used to live in Firestore. The Firebase project was
+// deleted in 2026; the filename and export names are kept so app.js and
+// firebase-wrappers.js imports stay unchanged. The storage key matches the
+// app's original pre-Firebase localStorage schema.)
 import { debugLog, debugError } from './utils.js';
 
-// ============ FIRESTORE DATABASE FUNCTIONS ============
+const STORAGE_KEY = 'wordAnalyzerStudents';
 
-// Get user's students collection reference
-function getUserStudentsCollection() {
-    const user = getCurrentUser();
-    if (!user) {
-        throw new Error('User not authenticated');
-    }
-    return collection(db, 'users', user.uid, 'students');
-}
-
-// Get all students from Firestore
-export async function getAllStudents() {
+function readStore() {
     try {
-        const studentsCollection = getUserStudentsCollection();
-        const querySnapshot = await getDocs(studentsCollection);
-
-        const students = {};
-        querySnapshot.forEach((doc) => {
-            students[doc.id] = doc.data();
-        });
-
-        // If no students, return empty object (don't create samples in cloud)
-        return students;
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
     } catch (error) {
-        debugError('Error getting students:', error);
-        throw error;
+        debugError('Error reading student store:', error);
+        return {};
     }
 }
 
-// Save all students to Firestore (batch operation)
+function writeStore(students) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(students));
+}
+
+// Get all students
+export async function getAllStudents() {
+    return readStore();
+}
+
+// Save all students (merge)
 export async function saveAllStudents(students) {
     try {
-        const user = getCurrentUser();
-        if (!user) throw new Error('User not authenticated');
-
-        // Save each student as a separate document
-        const promises = Object.entries(students).map(([studentId, studentData]) => {
-            const studentRef = doc(db, 'users', user.uid, 'students', studentId);
-            return setDoc(studentRef, studentData, { merge: true });
+        const store = readStore();
+        Object.entries(students).forEach(([studentId, studentData]) => {
+            store[studentId] = { ...(store[studentId] || {}), ...studentData };
         });
-
-        await Promise.all(promises);
+        writeStore(store);
         debugLog('All students saved successfully');
     } catch (error) {
         debugError('Error saving students:', error);
@@ -56,13 +43,10 @@ export async function saveAllStudents(students) {
 // Add new student
 export async function addStudent(name, grade = '') {
     try {
-        const user = getCurrentUser();
-        if (!user) throw new Error('User not authenticated');
-
         const studentId = 'student-' + Date.now();
-        const studentRef = doc(db, 'users', user.uid, 'students', studentId);
+        const store = readStore();
 
-        const studentData = {
+        store[studentId] = {
             id: studentId,
             name: name,
             grade: grade,
@@ -70,7 +54,7 @@ export async function addStudent(name, grade = '') {
             assessments: []
         };
 
-        await setDoc(studentRef, studentData);
+        writeStore(store);
         debugLog('Student added:', name);
         return studentId;
     } catch (error) {
@@ -81,31 +65,16 @@ export async function addStudent(name, grade = '') {
 
 // Get student by ID
 export async function getStudent(studentId) {
-    try {
-        const user = getCurrentUser();
-        if (!user) throw new Error('User not authenticated');
-
-        const studentRef = doc(db, 'users', user.uid, 'students', studentId);
-        const studentDoc = await getDoc(studentRef);
-
-        if (studentDoc.exists()) {
-            return studentDoc.data();
-        }
-        return null;
-    } catch (error) {
-        debugError('Error getting student:', error);
-        throw error;
-    }
+    return readStore()[studentId] || null;
 }
 
 // Update student
 export async function updateStudent(studentId, updates) {
     try {
-        const user = getCurrentUser();
-        if (!user) throw new Error('User not authenticated');
-
-        const studentRef = doc(db, 'users', user.uid, 'students', studentId);
-        await updateDoc(studentRef, updates);
+        const store = readStore();
+        if (!store[studentId]) return false;
+        store[studentId] = { ...store[studentId], ...updates };
+        writeStore(store);
         debugLog('Student updated:', studentId);
         return true;
     } catch (error) {
@@ -117,11 +86,9 @@ export async function updateStudent(studentId, updates) {
 // Delete student
 export async function deleteStudent(studentId) {
     try {
-        const user = getCurrentUser();
-        if (!user) throw new Error('User not authenticated');
-
-        const studentRef = doc(db, 'users', user.uid, 'students', studentId);
-        await deleteDoc(studentRef);
+        const store = readStore();
+        delete store[studentId];
+        writeStore(store);
         debugLog('Student deleted:', studentId);
         return true;
     } catch (error) {
@@ -133,7 +100,8 @@ export async function deleteStudent(studentId) {
 // Add assessment to student
 export async function addAssessmentToStudent(studentId, assessmentData) {
     try {
-        const student = await getStudent(studentId);
+        const store = readStore();
+        const student = store[studentId];
         if (!student) {
             debugError('Student not found:', studentId);
             return false;
@@ -151,10 +119,7 @@ export async function addAssessmentToStudent(studentId, assessmentData) {
         };
 
         student.assessments.push(assessment);
-
-        const user = getCurrentUser();
-        const studentRef = doc(db, 'users', user.uid, 'students', studentId);
-        await setDoc(studentRef, student);
+        writeStore(store);
 
         debugLog('Assessment added to student:', studentId);
         return true;
@@ -167,16 +132,14 @@ export async function addAssessmentToStudent(studentId, assessmentData) {
 // Delete assessment from student
 export async function deleteAssessment(studentId, assessmentId) {
     try {
-        const student = await getStudent(studentId);
+        const store = readStore();
+        const student = store[studentId];
         if (!student) {
             return false;
         }
 
-        student.assessments = student.assessments.filter(a => a.id !== assessmentId);
-
-        const user = getCurrentUser();
-        const studentRef = doc(db, 'users', user.uid, 'students', studentId);
-        await setDoc(studentRef, student);
+        student.assessments = (student.assessments || []).filter(a => a.id !== assessmentId);
+        writeStore(store);
 
         debugLog('Assessment deleted:', assessmentId);
         return true;
@@ -186,7 +149,7 @@ export async function deleteAssessment(studentId, assessmentId) {
     }
 }
 
-// Get student statistics (same logic as before)
+// Get student statistics
 export function getStudentStats(student) {
     if (!student || !student.assessments || student.assessments.length === 0) {
         return {
@@ -221,119 +184,8 @@ export function getStudentStats(student) {
     };
 }
 
-// ============ MIGRATION FUNCTION ============
-
-// Migrate data from localStorage to Firestore
-export async function migrateLocalStorageToFirestore(userId) {
-    try {
-        debugLog('Checking for localStorage data to migrate...');
-
-        // Check if there's data in localStorage
-        const localData = localStorage.getItem('wordAnalyzerStudents');
-        if (!localData) {
-            debugLog('No localStorage data to migrate');
-            return;
-        }
-
-        // Check if user already has data in Firestore
-        const firestoreStudents = await getAllStudents();
-        if (Object.keys(firestoreStudents).length > 0) {
-            debugLog('User already has Firestore data, skipping migration');
-            return;
-        }
-
-        // Parse localStorage data
-        const students = JSON.parse(localData);
-
-        // Save to Firestore
-        debugLog('Migrating', Object.keys(students).length, 'students to Firestore...');
-        await saveAllStudents(students);
-
-        debugLog('Migration completed successfully!');
-
-        // Optional: Clear localStorage after successful migration
-        // localStorage.removeItem('wordAnalyzerStudents');
-        // debugLog('localStorage data cleared');
-
-    } catch (error) {
-        debugError('Error during migration:', error);
-        alert('Warning: Failed to migrate your local data to the cloud. Your local data is still safe.');
-    }
-}
-
-// ============ CREATE SAMPLE STUDENTS (for new users) ============
-
-export function createSampleStudents() {
-    const now = Date.now();
-    const dayMs = 24 * 60 * 60 * 1000;
-
-    return {
-        'student-001': {
-            id: 'student-001',
-            name: 'Susan',
-            grade: '3rd Grade',
-            dateAdded: now - (30 * dayMs),
-            assessments: [
-                createSampleAssessment(now - (7 * dayMs), 95, 100, 95, 120, 4.2),
-                createSampleAssessment(now - (5 * dayMs), 92, 98, 93.9, 115, 4.0),
-                createSampleAssessment(now - (2 * dayMs), 97, 100, 97, 125, 4.4)
-            ]
-        },
-        'student-002': {
-            id: 'student-002',
-            name: 'Jose',
-            grade: '3rd Grade',
-            dateAdded: now - (30 * dayMs),
-            assessments: [
-                createSampleAssessment(now - (8 * dayMs), 78, 95, 82.1, 95, 3.2),
-                createSampleAssessment(now - (6 * dayMs), 82, 95, 86.3, 100, 3.4),
-                createSampleAssessment(now - (3 * dayMs), 85, 98, 86.7, 105, 3.6),
-                createSampleAssessment(now - (1 * dayMs), 88, 100, 88, 108, 3.7)
-            ]
-        },
-        'student-003': {
-            id: 'student-003',
-            name: 'Timmy',
-            grade: '2nd Grade',
-            dateAdded: now - (25 * dayMs),
-            assessments: [
-                createSampleAssessment(now - (4 * dayMs), 65, 85, 76.5, 80, 2.8),
-                createSampleAssessment(now - (1 * dayMs), 70, 90, 77.8, 85, 3.0)
-            ]
-        }
-    };
-}
-
-function createSampleAssessment(date, correct, total, accuracy, wpm, prosody) {
-    const errors = total - correct;
-    return {
-        id: 'assessment-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
-        date: date,
-        correctCount: correct,
-        totalWords: total,
-        accuracy: accuracy,
-        wpm: wpm,
-        prosodyScore: prosody,
-        errors: {
-            skippedWords: Array(Math.floor(errors * 0.4)).fill(0),
-            misreadWords: Array(Math.floor(errors * 0.3)).fill({}),
-            substitutedWords: Array(Math.floor(errors * 0.3)).fill({})
-        },
-        duration: 60
-    };
-}
-
-// Initialize sample students for new users
+// Sample students are no longer auto-created; kept as a no-op because
+// app.js still calls it during initialization.
 export async function initializeSampleStudents() {
-    try {
-        const students = await getAllStudents();
-        if (Object.keys(students).length === 0) {
-            debugLog('No students found, creating sample students...');
-            const sampleStudents = createSampleStudents();
-            await saveAllStudents(sampleStudents);
-            debugLog('Sample students created');
-        }
-    } catch (error) {
-        debugError('Error initializing sample students:', error);
-    }
+    return;
 }
