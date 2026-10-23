@@ -9,6 +9,35 @@
     <meta name="theme-color" content="#667eea">
     <title>Word Analyzer</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Notice pointing to the new counter at readingpacer.com */
+        .new-version-notice {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem 1rem;
+            padding: 0.75rem 1rem;
+            background: #fff8e1;
+            border-bottom: 1px solid #f0dca0;
+            color: #333;
+            font-size: 0.95rem;
+            line-height: 1.4;
+            text-align: center;
+        }
+        .new-version-notice p { margin: 0; }
+        .new-version-notice a {
+            flex: none;
+            padding: 0.45rem 0.9rem;
+            border-radius: 999px;
+            background: #667eea;
+            color: #fff;
+            font-weight: 600;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .new-version-notice a:hover { background: #5568d3; }
+    </style>
 </head>
 <body>
     <!-- Loading Screen (shown during app initialization) -->
@@ -45,6 +74,12 @@
                 <button id="api-settings-btn" class="user-menu-btn" title="API Key Settings">🔑</button>
             </div>
         </header>
+
+        <!-- Notice pointing to the new counter at readingpacer.com -->
+        <div class="new-version-notice" role="note">
+            <p><strong>There's a new version of this counter.</strong> It needs no API key, and your photo stays on your device. This page still works.</p>
+            <a href="https://readingpacer.com/wordcounter/?utm_source=word-analyzer&amp;utm_medium=referral" target="_blank" rel="noopener">Open the new counter &rarr;</a>
+        </div>
 
         <!-- Breadcrumb Navigation -->
         <nav id="breadcrumb-nav" class="breadcrumb-nav">
